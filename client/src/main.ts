@@ -28,6 +28,8 @@ document.getElementById('app')?.appendChild(scene.getCanvas());
 document.getElementById('app')?.appendChild(hud.getElement());
 document.getElementById('app')?.appendChild(mainMenu.getElement());
 
+// Ensure menu is shown on load
+mainMenu.show();
 hud.hide();
 
 mainMenu.on('solo', () => {
