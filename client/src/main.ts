@@ -1,0 +1,1 @@
+console.log('FPS Web Game - Main entry point');
