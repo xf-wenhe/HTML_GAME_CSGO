@@ -1,95 +1,480 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* CSS Variables for theming */
+:root {
+  /* Surface colors */
+  --surface-1: #0f0f1e;
+  --surface-2: #1a1a2e;
+  --surface-3: #252542;
+  --surface-4: #303055;
 
-body { overflow: hidden; background: #1a1a2e; font-family: Arial, sans-serif; }
+  /* Semantic colors */
+  --primary: #6366f1;
+  --primary-hover: #818cf8;
+  --danger: #ef4444;
+  --danger-hover: #f87171;
+  --success: #22c55e;
+  --warning: #f59e0b;
 
-#app { width: 100vw; height: 100vh; }
+  /* Text colors */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
 
-/* HUD Styles */
-.hud {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  pointer-events: none;
-  color: white;
-  text-shadow: 2px 2px 2px rgba(0,0,0,0.8);
+  /* HUD colors */
+  --hud-bg: rgba(15, 15, 30, 0.85);
+  --hud-border: rgba(99, 102, 241, 0.5);
+  --health-full: linear-gradient(to right, #22c55e, #4ade80);
+  --health-medium: linear-gradient(to right, #f59e0b, #fbbf24);
+  --health-low: linear-gradient(to right, #ef4444, #f87171);
+
+  /* Spacing */
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
 }
 
-.hud-top-left { position: absolute; top: 20px; left: 20px; }
-.hud-top-right { position: absolute; top: 20px; right: 20px; text-align: right; }
-.hud-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-.hud-bottom { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); }
+/* Reset & Base */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  overflow: hidden;
+  background: var(--surface-1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100vw;
+  width: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ==================== HUD Styles ==================== */
+.hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  pointer-events: none;
+  color: var(--text-primary);
+  z-index: 50;
+}
+
+.hud-top-left {
+  position: absolute;
+  top: var(--spacing-lg);
+  left: var(--spacing-lg);
+}
+
+.hud-top-right {
+  position: absolute;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  text-align: right;
+}
+
+.hud-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.hud-bottom {
+  position: absolute;
+  bottom: var(--spacing-lg);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Health Bar */
+.health-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
 
 .health-bar {
-  width: 200px; height: 20px;
-  background: rgba(0,0,0,0.5);
-  border: 2px solid rgba(255,255,255,0.3);
-  border-radius: 3px;
+  width: 200px;
+  min-width: 150px;
+  height: 24px;
+  background: var(--hud-bg);
+  border: 2px solid var(--hud-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.health-fill {
+  height: 100%;
+  background: var(--health-full);
+  transition: width var(--transition-fast), background var(--transition-fast);
+  position: relative;
+}
+
+.health-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent);
+}
+
+.health-text {
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* Ammo Display */
+.ammo-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  align-items: flex-end;
+}
+
+.weapon-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ammo-display {
+  font-size: 28px;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ammo-current {
+  color: var(--text-primary);
+}
+
+.ammo-separator {
+  color: var(--text-tertiary);
+  font-size: 20px;
+}
+
+.ammo-reserve {
+  color: var(--text-secondary);
+  font-size: 20px;
+}
+
+.ammo-low {
+  color: var(--danger) !important;
+  animation: pulse-warning 0.5s ease infinite;
+}
+
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Crosshair */
+.crosshair {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  transition: width var(--transition-fast), height var(--transition-fast), color var(--transition-fast);
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(255,255,255,0.9);
+  border-radius: 1px;
+}
+
+.crosshair::before {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.crosshair::after {
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.crosshair.hit {
+  color: var(--danger);
+}
+
+.crosshair::before.hit,
+.crosshair::after.hit {
+  background: var(--danger);
+}
+
+/* Notifications */
+.notification {
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 15px;
+  font-weight: 500;
+  backdrop-filter: blur(12px);
+  animation: slide-up var(--transition-normal) ease-out;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== Main Menu ==================== */
+.main-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  background: linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 50%, var(--surface-3) 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 100;
+}
+
+.menu-content {
+  text-align: center;
+  color: var(--text-primary);
+  padding: var(--spacing-lg);
+  animation: fade-in var(--transition-normal) ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.game-title {
+  font-size: clamp(32px, 8vw, 64px);
+  font-weight: 800;
+  margin-bottom: var(--spacing-xl);
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 50%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+}
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.menu-button {
+  /* Touch target: minimum 44×44px */
+  min-height: 56px;
+  min-width: 200px;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  font-size: 18px;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.1);
+  border: 2px solid rgba(99, 102, 241, 0.4);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  backdrop-filter: blur(8px);
+  position: relative;
   overflow: hidden;
 }
 
-.health-fill { height: 100%; background: linear-gradient(to right, #ff4444, #ff6666); transition: width 0.2s; }
-.health-text { margin-top: 5px; }
-
-.ammo-display { font-size: 24px; font-weight: bold; }
-.weapon-name { font-size: 16px; color: #aaa; }
-
-.crosshair {
-  position: relative; width: 20px; height: 20px;
-}
-.crosshair::before, .crosshair::after {
-  content: ''; position: absolute; background: rgba(255,255,255,0.8);
-}
-.crosshair::before {
-  top: 9px; left: 0; width: 20px; height: 2px;
-}
-.crosshair::after {
-  top: 0; left: 9px; width: 2px; height: 20px;
-}
-
-.notification {
-  background: rgba(0,0,0,0.7);
-  padding: 10px 20px; border-radius: 5px;
-  font-size: 14px; animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Main Menu */
-.main-menu {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  display: flex; justify-content: center; align-items: center;
-  pointer-events: auto; z-index: 100;
-}
-
-.menu-content { text-align: center; color: white; }
-
-.game-title {
-  font-size: 48px; font-weight: bold;
-  margin-bottom: 40px;
-  text-shadow: 0 0 20px rgba(255,255,255,0.3);
-  letter-spacing: 4px;
-}
-
-.menu-buttons { display: flex; flex-direction: column; gap: 15px; margin-bottom: 40px; }
-
-.menu-button {
-  padding: 15px 40px; font-size: 18px;
+/* Touch feedback */
+.menu-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(255,255,255,0.1);
-  border: 2px solid rgba(255,255,255,0.3);
-  color: white; cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase; letter-spacing: 2px;
-  border-radius: 5px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .menu-button:hover {
-  background: rgba(255,255,255,0.2);
-  border-color: rgba(255,255,255,0.5);
-  transform: scale(1.05);
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
 }
 
+.menu-button:active {
+  transform: translateY(0) scale(0.98);
+  background: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.menu-button:hover::before {
+  opacity: 1;
+}
+
+.menu-button:focus-visible {
+  outline: 2px solid var(--primary-hover);
+  outline-offset: 2px;
+}
+
+/* Game Info */
 .game-info {
-  font-size: 14px; color: rgba(255,255,255,0.6);
+  font-size: 14px;
+  color: var(--text-secondary);
   line-height: 1.8;
+  background: rgba(0,0,0,0.2);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(8px);
+}
+
+.game-info p {
+  margin: var(--spacing-xs) 0;
+}
+
+.game-info kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-primary);
+  margin: 0 2px;
+}
+
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
+  .hud-top-left,
+  .hud-top-right {
+    top: var(--spacing-md);
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+  }
+
+  .health-bar {
+    width: 150px;
+  }
+
+  .ammo-display {
+    font-size: 24px;
+  }
+
+  .game-info {
+    font-size: 12px;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .menu-button {
+    min-width: 180px;
+    min-height: 52px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-info {
+    display: none;
+  }
+
+  .health-bar {
+    width: 120px;
+    height: 20px;
+  }
+}
+
+/* ==================== Accessibility ==================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --hud-bg: rgba(0, 0, 0, 0.95);
+    --hud-border: rgba(255, 255, 255, 0.8);
+  }
+
+  .menu-button {
+    background: rgba(99, 102, 241, 0.3);
+    border-width: 3px;
+  }
+}
+
+/* Hide when minimized */
+.hud.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
 }
