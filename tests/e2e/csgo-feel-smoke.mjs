@@ -68,6 +68,38 @@ if (!pointerLockUnavailable && stateAfterShoot && stateAfterMove && stateAfterSh
 if (paused?.mode !== 'paused') throw new Error('Expected Escape to enter paused mode.');
 if (resumed?.mode !== 'playing') throw new Error('Expected Resume to return to playing mode.');
 
+await page.keyboard.press('Digit2');
+await page.waitForTimeout(120);
+const pistolSlot = await page.evaluate(() => window.__debugInputState?.());
+if (pistolSlot?.activeSlot !== 'pistol') throw new Error('Expected 2 to activate pistol slot.');
+
+await page.keyboard.press('Digit3');
+await page.waitForTimeout(120);
+const knifeSlot = await page.evaluate(() => window.__debugInputState?.());
+if (knifeSlot?.activeSlot !== 'knife') throw new Error('Expected 3 to activate knife slot.');
+
+await page.keyboard.press('Digit4');
+await page.keyboard.press('Digit4');
+await page.keyboard.press('Digit4');
+await page.waitForTimeout(150);
+const grenadeSlot = await page.evaluate(() => window.__debugInputState?.());
+const notificationCount = await page.locator('.notification').count();
+const activeSlotText = await page.locator('.weapon-slot.active').textContent();
+if (grenadeSlot?.activeSlot !== 'grenade') throw new Error('Expected 4 to activate grenade slot.');
+if (notificationCount !== 1) throw new Error(`Expected one replacing notification, got ${notificationCount}.`);
+if (!activeSlotText?.includes('雷')) throw new Error('Expected active slot UI to show grenade slot.');
+
+const selectedGrenade = grenadeSlot.grenadeId;
+const beforeGrenadeCount = grenadeSlot.grenadeInventory[selectedGrenade];
+await page.mouse.down();
+await page.waitForTimeout(80);
+await page.mouse.up();
+await page.waitForTimeout(150);
+const afterThrow = await page.evaluate(() => window.__debugInputState?.());
+if (beforeGrenadeCount > 0 && afterThrow?.grenadeInventory?.[selectedGrenade] >= beforeGrenadeCount) {
+  throw new Error('Expected left click to consume selected grenade while grenade slot is active.');
+}
+
 await page.keyboard.press('KeyB');
 await page.waitForTimeout(150);
 const buyOpen = await page.evaluate(() => window.__debugInputState?.());

@@ -33,6 +33,7 @@ declare global {
       airborneTime: number;
       mapBounds: { width: number; depth: number; centerZ: number };
       weaponId: string;
+      activeSlot: 'primary' | 'pistol' | 'knife' | 'grenade';
       ammo: number;
       crouched: boolean;
       crouchJumping: boolean;
@@ -69,6 +70,9 @@ let lastNetworkInputAt = 0;
 let lastFrameTime = performance.now();
 let hadPointerLock = false;
 let usingGrenade = false;
+let activeSlot: 'primary' | 'pistol' | 'knife' | 'grenade' = 'primary';
+let equippedPrimary = 'rifle';
+let equippedPistol = 'pistol';
 const recordedKills = new Set<string>();
 
 scene.getArenaColliders().forEach(collider => {
@@ -127,6 +131,9 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   setInputMode('playing');
   currentMode = mode;
   usingGrenade = false;
+  activeSlot = 'primary';
+  equippedPrimary = 'rifle';
+  equippedPistol = 'pistol';
   recordedKills.clear();
 
   player = new PlayerController(scene, physics, input, INDUSTRIAL_ARENA.playerSpawn.clone());
@@ -135,6 +142,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   grenades.reset();
 
   hud.updateWeapon(weaponManager.getCurrentWeapon());
+  syncWeaponHud();
   hud.updateHealth(player.getHealth(), player.getMaxHealth());
   hud.showNotification(mode === 'solo' ? '单人任务已开始' : '正在等待玩家...');
 
@@ -204,14 +212,16 @@ document.addEventListener('keydown', (e) => {
   if (!gameRunning) return;
   if (inputMode === 'paused' || inputMode === 'gameOver') return;
 
-  if (e.key === '1') { usingGrenade = false; weaponManager.switchWeapon('rifle'); }
-  if (e.key === '2') { usingGrenade = false; weaponManager.switchWeapon('pistol'); }
-  if (e.key === '3') { usingGrenade = false; weaponManager.switchWeapon('knife'); }
+  if (e.key === '1') { usingGrenade = false; activeSlot = 'primary'; weaponManager.switchWeapon(equippedPrimary); }
+  if (e.key === '2') { usingGrenade = false; activeSlot = 'pistol'; weaponManager.switchWeapon(equippedPistol); }
+  if (e.key === '3') { usingGrenade = false; activeSlot = 'knife'; weaponManager.switchWeapon('knife'); }
   if (e.key === '4') {
     usingGrenade = true;
+    activeSlot = 'grenade';
     const selected = grenades.cycle();
     hud.showNotification(`已选择${grenades.getSelectedLabel()}`);
     hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[selected]);
+    syncWeaponHud();
   }
   if (e.key === 'r' || e.key === 'R') {
     weaponManager.startReload();
@@ -220,6 +230,7 @@ document.addEventListener('keydown', (e) => {
 
   if (['1', '2', '3'].includes(e.key)) {
     hud.updateWeapon(weaponManager.getCurrentWeapon());
+    syncWeaponHud();
     if (currentMode === 'multiplayer') network.send({ type: 'switchWeapon', weaponId: currentMultiplayerWeaponId() });
   }
 
@@ -285,6 +296,7 @@ function endGame(): void {
   localPlayerId = undefined;
   currentMode = null;
   usingGrenade = false;
+  activeSlot = 'primary';
   weaponManager.dispose();
   hud.hideResults();
   if (player) {
@@ -355,6 +367,7 @@ function gameLoop(now: number) {
   hud.updateReloadProgress(currentWeapon.getReloadProgress());
   hud.updateCrosshair(currentWeapon.spread * currentWeapon.getSpreadMultiplier());
   hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[grenades.getSelected()]);
+  syncWeaponHud();
 
   const grenadeResult = grenades.update(dt, playerPos);
   if (grenadeResult.damage > 0 && player) {
@@ -371,6 +384,7 @@ function gameLoop(now: number) {
       } else {
         hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
       }
+      syncWeaponHud();
     } else {
       const result = weaponManager.shoot(scene.getCamera(), now);
     if (result) {
@@ -527,6 +541,7 @@ window.__debugInputState = () => ({
   collisionHeight: player?.getCollisionHeight() ?? 0,
   mapBounds: INDUSTRIAL_ARENA.bounds,
   weaponId: usingGrenade ? 'grenade' : weaponManager.getCurrentWeaponId(),
+  activeSlot,
   ammo: weaponManager.getCurrentWeapon().currentAmmo,
   grenadeId: grenades.getSelected(),
   grenadeInventory: grenades.getInventory(),
@@ -536,8 +551,18 @@ window.__debugInputState = () => ({
 function switchLocalWeaponFromBuy(weaponId: WeaponId): void {
   usingGrenade = false;
   const localWeapon = multiplayerWeaponToLocal(weaponId);
+  if (localWeapon === 'knife') {
+    activeSlot = 'knife';
+  } else if (localWeapon === 'pistol' || localWeapon === 'heavy_pistol') {
+    equippedPistol = localWeapon;
+    activeSlot = 'pistol';
+  } else {
+    equippedPrimary = localWeapon;
+    activeSlot = 'primary';
+  }
   weaponManager.switchWeapon(localWeapon);
   hud.updateWeapon(weaponManager.getCurrentWeapon());
+  syncWeaponHud();
 }
 
 function updateScoreboardPanel(): void {
@@ -546,6 +571,31 @@ function updateScoreboardPanel(): void {
   } else if (currentSnapshot) {
     hud.updateMatch(currentSnapshot, localPlayerId);
   }
+}
+
+function syncWeaponHud(): void {
+  hud.updateWeaponSlots({
+    activeSlot,
+    primary: weaponDisplayName(equippedPrimary),
+    pistol: weaponDisplayName(equippedPistol),
+    knife: '战术刀',
+    grenadeLabel: grenades.getSelectedLabel(),
+    grenadeCount: grenades.getInventory()[grenades.getSelected()]
+  });
+}
+
+function weaponDisplayName(localWeaponId: string): string {
+  const labels: Record<string, string> = {
+    rifle: '突击步枪',
+    defender_rifle: '防守步枪',
+    sniper: '狙击枪',
+    smg: '冲锋枪',
+    shotgun: '散弹枪',
+    pistol: '制式手枪',
+    heavy_pistol: '重型手枪',
+    knife: '战术刀'
+  };
+  return labels[localWeaponId] ?? localWeaponId;
 }
 
 function multiplayerWeaponToLocal(weaponId: WeaponId): string {

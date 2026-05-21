@@ -368,11 +368,6 @@ export class HUD {
     this.resultPanel.innerHTML = '';
   }
 
-    if (this.notificationTimeout) {
-      clearTimeout(this.notificationTimeout);
-      this.notificationTimeout = null;
-    }
-
   showNotification(message: string, duration: number = 1000): void {
     if (this.notificationTimeout) {
       clearTimeout(this.notificationTimeout);

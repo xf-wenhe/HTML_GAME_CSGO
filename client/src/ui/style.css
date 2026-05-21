@@ -223,6 +223,57 @@ body {
   gap: 4px;
 }
 
+.weapon-slots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(104px, 1fr));
+  gap: 6px;
+  width: min(260px, 32vw);
+  margin-top: 6px;
+}
+
+.weapon-slot {
+  display: grid;
+  grid-template-columns: 22px 24px 1fr;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(8, 11, 15, 0.42);
+  color: rgba(203, 213, 225, 0.62);
+  font-size: 11px;
+  line-height: 1;
+  text-align: left;
+}
+
+.weapon-slot.active {
+  border-color: rgba(255, 209, 102, 0.82);
+  background: rgba(214, 168, 79, 0.18);
+  color: var(--text-primary);
+  box-shadow: 0 0 14px rgba(214, 168, 79, 0.16);
+}
+
+.slot-key {
+  color: var(--primary-hover);
+  font-weight: 900;
+}
+
+.slot-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid currentColor;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.slot-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ammo-current {
   color: var(--text-primary);
 }
@@ -453,13 +504,16 @@ body {
 .notification {
   background: var(--hud-bg);
   border: 1px solid var(--hud-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: 15px;
-  font-weight: 500;
+  border-radius: var(--radius-sm);
+  max-width: min(360px, calc(100vw - 40px));
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 800;
   backdrop-filter: blur(12px);
   animation: slide-up var(--transition-normal) ease-out;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  text-align: center;
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 @keyframes slide-up {
