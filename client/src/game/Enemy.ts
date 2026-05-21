@@ -31,6 +31,7 @@ export class Enemy {
   private currentPatrolIndex = 0;
   private lastAttackTime = 0;
   private attackCooldown = 1000;
+  private animationClock = 0;
   public readonly damage = 10;
 
   constructor(config: EnemyConfig, scene: THREE.Scene, physics: Physics) {
@@ -111,6 +112,7 @@ export class Enemy {
     this.mesh.position.set(this.body.position.x, this.body.position.y - 1, this.body.position.z);
     this.healthBar.lookAt(playerPosition);
     this.healthBar.visible = this.mesh.position.distanceTo(playerPosition) < 22;
+    this.animate(dt);
 
     const distanceToPlayer = this.mesh.position.distanceTo(playerPosition);
     let damage = 0;
@@ -174,6 +176,21 @@ export class Enemy {
 
     const angle = Math.atan2(direction.x, direction.z);
     this.mesh.rotation.y = angle;
+  }
+
+  private animate(dt: number): void {
+    const speed = Math.hypot(this.body.velocity.x, this.body.velocity.z);
+    this.animationClock += dt * Math.max(2, speed * 4);
+    const swing = Math.sin(this.animationClock) * Math.min(0.35, speed * 0.08);
+    const leftArm = this.mesh.getObjectByName('left-arm');
+    const rightArm = this.mesh.getObjectByName('right-arm');
+    const leftLeg = this.mesh.getObjectByName('left-leg');
+    const rightLeg = this.mesh.getObjectByName('right-leg');
+    if (leftArm) leftArm.rotation.x = swing;
+    if (rightArm) rightArm.rotation.x = -swing;
+    if (leftLeg) leftLeg.rotation.x = -swing;
+    if (rightLeg) rightLeg.rotation.x = swing;
+    this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, speed > 0.1 ? -0.035 : 0, 0.08);
   }
 
   private attack(now: number): number {

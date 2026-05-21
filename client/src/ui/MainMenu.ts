@@ -2,6 +2,7 @@ export class MainMenu {
   private element: HTMLElement;
   private eventHandlers: Map<string, (() => void)[]> = new Map();
   private buttons: Map<string, HTMLButtonElement> = new Map();
+  private difficulty: 'easy' | 'normal' | 'hard' | 'expert' = 'normal';
 
   constructor() {
     this.element = this.createElement();
@@ -16,30 +17,39 @@ export class MainMenu {
     menu.setAttribute('aria-modal', 'true');
     menu.innerHTML = `
       <div class="menu-content">
-        <p class="menu-kicker">Industrial Survival Arena</p>
-        <h1 id="game-title" class="game-title">FORGEPOINT</h1>
-        <nav class="menu-buttons" role="navigation" aria-label="Game modes">
+        <p class="menu-kicker">工业战术训练场</p>
+        <h1 id="game-title" class="game-title">锻点行动</h1>
+        <nav class="menu-buttons" role="navigation" aria-label="游戏模式">
           <button class="menu-button" data-action="solo" type="button">
-            Survival
+            单人任务闯关
           </button>
           <button class="menu-button" data-action="tdm" type="button">
-            Team Deathmatch
+            团队死斗
           </button>
           <button class="menu-button" data-action="defusal" type="button">
-            5v5 Defusal
+            5v5 爆破
           </button>
         </nav>
-        <div class="game-info" role="note" aria-label="Controls and instructions">
-          <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> — Move</p>
-          <p><kbd>Shift</kbd> — Sprint</p>
-          <p><kbd>Mouse</kbd> — Look</p>
-          <p><kbd>Left Click</kbd> — Shoot</p>
-          <p><kbd>R</kbd> — Reload</p>
-          <p><kbd>B</kbd> — Buy Menu</p>
-          <p><kbd>E</kbd> — Plant / Defuse</p>
-          <p><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> — Switch Weapon</p>
-          <p><kbd>Space</kbd> — Jump</p>
-          <p><kbd>ESC</kbd> — Menu</p>
+        <div class="difficulty-panel" role="group" aria-label="NPC 难度">
+          <span>NPC 难度</span>
+          <button class="difficulty-option" data-difficulty="easy" type="button">简单</button>
+          <button class="difficulty-option active" data-difficulty="normal" type="button">普通</button>
+          <button class="difficulty-option" data-difficulty="hard" type="button">困难</button>
+          <button class="difficulty-option" data-difficulty="expert" type="button">专家</button>
+        </div>
+        <div class="game-info" role="note" aria-label="操作说明">
+          <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> — 移动</p>
+          <p><kbd>Shift</kbd> — 静步</p>
+          <p><kbd>Ctrl</kbd> — 蹲下</p>
+          <p><kbd>Ctrl</kbd> + <kbd>Space</kbd> — 大跳上箱</p>
+          <p><kbd>Mouse</kbd> — 视角</p>
+          <p><kbd>左键</kbd> — 射击 / 投掷</p>
+          <p><kbd>R</kbd> — 换弹</p>
+          <p><kbd>B</kbd> — 购买 / 武器选择</p>
+          <p><kbd>E</kbd> — 开门 / 互动 / 拆包</p>
+          <p><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> — 武器 / 投掷物</p>
+          <p><kbd>Tab</kbd> — 战绩面板</p>
+          <p><kbd>ESC</kbd> — 暂停菜单</p>
         </div>
       </div>
     `;
@@ -67,6 +77,14 @@ export class MainMenu {
         }
       });
     });
+    this.element.querySelectorAll<HTMLButtonElement>('.difficulty-option').forEach(button => {
+      button.addEventListener('click', () => {
+        const selected = button.dataset.difficulty as 'easy' | 'normal' | 'hard' | 'expert' | undefined;
+        if (!selected) return;
+        this.difficulty = selected;
+        this.element.querySelectorAll('.difficulty-option').forEach(item => item.classList.toggle('active', item === button));
+      });
+    });
   }
 
   on(event: string, handler: () => void): void {
@@ -83,6 +101,10 @@ export class MainMenu {
 
   getElement(): HTMLElement {
     return this.element;
+  }
+
+  getDifficulty(): 'easy' | 'normal' | 'hard' | 'expert' {
+    return this.difficulty;
   }
 
   show(): void {

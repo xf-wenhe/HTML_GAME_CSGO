@@ -12,14 +12,20 @@ export class PlayerController {
   private physics: Physics;
 
   private movementParams: MovementParams = CSGO_MOVEMENT;
-  private jumpForce = 6.6;
+  private jumpForce = 6.4;
   private mouseSensitivity = 0.00165;
   private pitch = 0;
   private yaw = 0;
   private health = 100;
   private maxHealth = 100;
   private moving = false;
-  private readonly eyeHeight = 0.7;
+  private eyeHeight = 0.7;
+  private readonly standingEyeHeight = 0.7;
+  private readonly crouchEyeHeight = 0.32;
+  private grounded = false;
+  private airborneTime = 0;
+  private crouched = false;
+  private crouchJumpActive = false;
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = scene.getCamera();
@@ -40,6 +46,7 @@ export class PlayerController {
   }
 
   update(dt: number): void {
+    this.updateCrouchState(dt);
     this.camera.position.set(
       this.body.position.x,
       this.body.position.y + this.eyeHeight,
@@ -74,14 +81,22 @@ export class PlayerController {
 
     if (this.input.isKeyPressed('Space')) {
       this.input.setKeyPressed('Space', false);
-      if (this.canJump()) {
-        this.body.velocity.y = this.jumpForce;
+      if (this.grounded) {
+        this.crouchJumpActive = this.crouched;
+        this.body.velocity.y = this.jumpForce + (this.crouched ? 0.75 : 0);
+        this.grounded = false;
       }
+    }
+
+    if (this.grounded) {
+      this.airborneTime = 0;
+    } else {
+      this.airborneTime += dt;
     }
   }
 
   private applyMovement(wishDirection: THREE.Vector3, dt: number): void {
-    const grounded = this.canJump();
+    this.grounded = this.canJump();
     const velocity = new THREE.Vector3(this.body.velocity.x, this.body.velocity.y, this.body.velocity.z);
     const horizontalVelocity = new THREE.Vector3(velocity.x, 0, velocity.z);
     const targetSpeed = this.input.isKeyPressed('ControlLeft') || this.input.isKeyPressed('ControlRight')
@@ -90,15 +105,15 @@ export class PlayerController {
         ? this.movementParams.walkSpeed
         : this.movementParams.runSpeed;
 
-    if (grounded) {
+    if (this.grounded) {
       applyFriction(velocity, dt, this.movementParams);
     }
 
     if (wishDirection.lengthSq() > 0) {
       wishDirection.normalize();
-      const acceleration = grounded ? this.movementParams.groundAcceleration : this.movementParams.airAcceleration;
+      const acceleration = this.grounded ? this.movementParams.groundAcceleration : this.movementParams.airAcceleration;
       accelerate(horizontalVelocity.set(velocity.x, 0, velocity.z), wishDirection, targetSpeed, acceleration, dt);
-      if (!grounded) {
+      if (!this.grounded) {
         horizontalVelocity.lerp(new THREE.Vector3(velocity.x, 0, velocity.z), 1 - this.movementParams.airControl);
       }
       velocity.x = horizontalVelocity.x;
@@ -108,6 +123,26 @@ export class PlayerController {
 
     this.body.velocity.x = velocity.x;
     this.body.velocity.z = velocity.z;
+  }
+
+  private updateCrouchState(dt: number): void {
+    const wantsCrouch = this.input.isKeyPressed('ControlLeft') || this.input.isKeyPressed('ControlRight');
+    if (wantsCrouch) {
+      this.crouched = true;
+    } else if (this.canStand()) {
+      this.crouched = false;
+    }
+    const targetEyeHeight = this.crouched ? this.crouchEyeHeight : this.standingEyeHeight;
+    this.eyeHeight = THREE.MathUtils.lerp(this.eyeHeight, targetEyeHeight, Math.min(1, dt * 14));
+    if (this.grounded) this.crouchJumpActive = false;
+  }
+
+  private canStand(): boolean {
+    const from = new CANNON.Vec3(this.body.position.x, this.body.position.y + 0.85, this.body.position.z);
+    const to = new CANNON.Vec3(this.body.position.x, this.body.position.y + 1.35, this.body.position.z);
+    const ray = new CANNON.Ray(from, to);
+    const result = new CANNON.RaycastResult();
+    return !ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: true, result });
   }
 
   private canJump(): boolean {
@@ -128,6 +163,26 @@ export class PlayerController {
 
   getHorizontalSpeed(): number {
     return Math.hypot(this.body.velocity.x, this.body.velocity.z);
+  }
+
+  isGrounded(): boolean {
+    return this.grounded;
+  }
+
+  getAirborneTime(): number {
+    return this.airborneTime;
+  }
+
+  isCrouched(): boolean {
+    return this.crouched;
+  }
+
+  isCrouchJumping(): boolean {
+    return this.crouchJumpActive;
+  }
+
+  getCollisionHeight(): number {
+    return this.crouched ? 1.35 : 2;
   }
 
   takeDamage(amount: number): void {

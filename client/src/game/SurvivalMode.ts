@@ -3,6 +3,7 @@ import { EnemyManager } from './EnemyManager.js';
 import { INDUSTRIAL_ARENA } from './MapData.js';
 
 export type GamePhase = 'menu' | 'playing' | 'waveComplete' | 'gameOver';
+export type NpcDifficulty = 'easy' | 'normal' | 'hard' | 'expert';
 
 export interface SurvivalStats {
   phase: GamePhase;
@@ -12,6 +13,8 @@ export interface SurvivalStats {
   enemiesRemaining: number;
   timeSurvived: number;
   prepRemaining: number;
+  objective: string;
+  difficulty: NpcDifficulty;
 }
 
 export class SurvivalMode {
@@ -24,11 +27,13 @@ export class SurvivalMode {
   private prepRemaining = 0;
   private startedAt = 0;
   private lastSpawnIndex = 0;
+  private difficulty: NpcDifficulty = 'normal';
 
   constructor(private enemies: EnemyManager) {}
 
-  start(now: number): void {
+  start(now: number, difficulty: NpcDifficulty = 'normal'): void {
     this.phase = 'waveComplete';
+    this.difficulty = difficulty;
     this.wave = 0;
     this.kills = 0;
     this.score = 0;
@@ -72,7 +77,9 @@ export class SurvivalMode {
       score: this.score,
       enemiesRemaining: this.enemies.getAliveCount(),
       timeSurvived: this.startedAt ? (now - this.startedAt) / 1000 : 0,
-      prepRemaining: this.prepRemaining
+      prepRemaining: this.prepRemaining,
+      objective: this.currentObjective(),
+      difficulty: this.difficulty
     };
   }
 
@@ -80,7 +87,8 @@ export class SurvivalMode {
     this.phase = 'playing';
     this.wave++;
     this.waveKills = 0;
-    this.waveTarget = Math.min(4 + this.wave * 2, 18);
+    const tuning = this.difficultyTuning();
+    this.waveTarget = Math.min(Math.round((4 + this.wave * 2) * tuning.count), 22);
 
     for (let i = 0; i < this.waveTarget; i++) {
       const spawn = INDUSTRIAL_ARENA.enemySpawns[(this.lastSpawnIndex + i) % INDUSTRIAL_ARENA.enemySpawns.length];
@@ -90,8 +98,8 @@ export class SurvivalMode {
       this.enemies.spawnEnemy({
         type,
         position,
-        health: 90 + this.wave * 8,
-        speed: type === 'assault' ? 3.4 + this.wave * 0.12 : 2.2 + this.wave * 0.08,
+        health: (90 + this.wave * 8) * tuning.health,
+        speed: (type === 'assault' ? 3.4 + this.wave * 0.12 : 2.2 + this.wave * 0.08) * tuning.speed,
         patrolPath: [
           position.clone(),
           position.clone().add(new THREE.Vector3(3, 0, -2)),
@@ -100,5 +108,31 @@ export class SurvivalMode {
       });
     }
     this.lastSpawnIndex = (this.lastSpawnIndex + this.waveTarget) % INDUSTRIAL_ARENA.enemySpawns.length;
+  }
+
+  private currentObjective(): string {
+    if (this.phase === 'waveComplete') return `准备进入 ${this.wave === 0 ? '入口大厅' : '下一片区域'}，检查武器与投掷物`;
+    const objectives = [
+      '清理入口大厅，夺取第一道大门控制权',
+      '推进中路仓库，肃清掩体后的敌人',
+      '打开侧翼大门，清理 A/B 两侧房间',
+      '守住爆破点并阻止敌人反扑',
+      '完成撤离前清场，保持生命值'
+    ];
+    return objectives[Math.min(this.wave - 1, objectives.length - 1)];
+  }
+
+  private difficultyTuning(): { health: number; speed: number; count: number } {
+    switch (this.difficulty) {
+      case 'easy':
+        return { health: 0.78, speed: 0.82, count: 0.75 };
+      case 'hard':
+        return { health: 1.22, speed: 1.12, count: 1.15 };
+      case 'expert':
+        return { health: 1.45, speed: 1.24, count: 1.3 };
+      case 'normal':
+      default:
+        return { health: 1, speed: 1, count: 1 };
+    }
   }
 }

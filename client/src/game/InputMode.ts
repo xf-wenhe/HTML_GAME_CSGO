@@ -1,4 +1,5 @@
 export type InputMode = 'menu' | 'playing' | 'paused' | 'buyMenu' | 'scoreboard' | 'gameOver';
+export type PointerLockState = 'supported' | 'locked' | 'denied' | 'focusedNoLock';
 
 export function canMove(mode: InputMode): boolean {
   return mode === 'playing' || mode === 'scoreboard';

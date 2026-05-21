@@ -105,5 +105,20 @@ export const MULTIPLAYER_WEAPONS: Record<string, WeaponBalance> = {
     armorPenetration: 0.3,
     headshotMultiplier: 1.5,
     range: 26
+  },
+  knife: {
+    id: 'knife',
+    name: '战术刀',
+    price: 0,
+    teams: 'both',
+    damage: 55,
+    fireRate: 1.8,
+    magazineSize: 1,
+    reloadTime: 0,
+    spread: 0,
+    movementSpeedMultiplier: 1.05,
+    armorPenetration: 0.2,
+    headshotMultiplier: 1,
+    range: 2.4
   }
 };

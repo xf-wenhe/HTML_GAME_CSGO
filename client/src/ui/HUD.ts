@@ -1,6 +1,17 @@
 import { Weapon } from '../game/Weapon.js';
 import { MatchSnapshot, WeaponId } from '../game/types.js';
 
+export type WeaponSlotId = 'primary' | 'pistol' | 'knife' | 'grenade';
+
+export interface WeaponSlotState {
+  activeSlot: WeaponSlotId;
+  primary: string;
+  pistol: string;
+  knife: string;
+  grenadeLabel: string;
+  grenadeCount: number;
+}
+
 export class HUD {
   private element: HTMLElement;
   private healthFill: HTMLElement;
@@ -20,6 +31,7 @@ export class HUD {
   private buyMenu: HTMLElement;
   private crosshair: HTMLElement;
   private notificationContainer: HTMLElement;
+  private weaponSlots: HTMLElement;
   private currentHealth = 100;
   private maxHealth = 100;
   private currentAmmo = 0;
@@ -47,6 +59,7 @@ export class HUD {
     this.buyMenu = this.element.querySelector('.buy-menu') as HTMLElement;
     this.crosshair = this.element.querySelector('.crosshair') as HTMLElement;
     this.notificationContainer = this.element.querySelector('.notifications') as HTMLElement;
+    this.weaponSlots = this.element.querySelector('.weapon-slots') as HTMLElement;
   }
 
   private createElement(): HTMLElement {
@@ -60,24 +73,30 @@ export class HUD {
           <div class="health-bar" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Health">
             <div class="health-fill" style="width: 100%"></div>
           </div>
-          <span class="health-text" aria-label="Health points">100 HP</span>
+          <span class="health-text" aria-label="生命值">100 生命</span>
         </div>
       </div>
       <div class="hud-top-center">
         <div class="round-strip">
-          <span class="wave-text">WAVE 0</span>
-          <span class="enemies-text">0 HOSTILES</span>
+          <span class="wave-text">任务待命</span>
+          <span class="enemies-text">0 名敌人</span>
           <span class="timer-text">00:00</span>
         </div>
       </div>
       <div class="hud-top-right">
         <div class="ammo-container">
           <span class="score-text">0</span>
-          <span class="weapon-name" aria-label="Current weapon">Pistol</span>
-          <div class="ammo-display" aria-label="Ammunition">
+          <span class="weapon-name" aria-label="当前武器">制式手枪</span>
+          <div class="ammo-display" aria-label="弹药">
             <span class="ammo-current">12</span>
             <span class="ammo-separator" aria-hidden="true">/</span>
             <span class="ammo-reserve" aria-hidden="true">∞</span>
+          </div>
+          <div class="weapon-slots" aria-label="武器槽位">
+            <div class="weapon-slot active" data-slot="primary"><span class="slot-key">1</span><span class="slot-icon">步</span><span class="slot-name">突击步枪</span></div>
+            <div class="weapon-slot" data-slot="pistol"><span class="slot-key">2</span><span class="slot-icon">手</span><span class="slot-name">制式手枪</span></div>
+            <div class="weapon-slot" data-slot="knife"><span class="slot-key">3</span><span class="slot-icon">刀</span><span class="slot-name">战术刀</span></div>
+            <div class="weapon-slot" data-slot="grenade"><span class="slot-key">4</span><span class="slot-icon">雷</span><span class="slot-name">高爆雷 x1</span></div>
           </div>
         </div>
       </div>
@@ -85,22 +104,23 @@ export class HUD {
         <div class="crosshair" aria-hidden="true"></div>
       </div>
       <div class="damage-overlay" aria-hidden="true"></div>
-      <div class="result-panel hidden" role="dialog" aria-label="Match results"></div>
-      <div class="pause-panel hidden" role="dialog" aria-label="Paused">
-        <h2>PAUSED</h2>
-        <p>Click resume to lock mouse and continue.</p>
-        <button class="resume-button" type="button">Resume</button>
-        <p class="result-hint">Press ESC again to return to menu</p>
+      <div class="result-panel hidden" role="dialog" aria-label="任务结果"></div>
+      <div class="pause-panel hidden" role="dialog" aria-label="已暂停">
+        <h2>已暂停</h2>
+        <p>点击继续后重新进入游戏焦点。</p>
+        <button class="resume-button" type="button">继续游戏</button>
+        <p class="result-hint">再次按 ESC 返回主菜单</p>
       </div>
-      <div class="scoreboard hidden" aria-label="Scoreboard"></div>
-      <div class="buy-menu hidden" aria-label="Buy menu">
-        <button data-weapon="sidearm">S-9</button>
-        <button data-weapon="heavy_pistol">Rook</button>
-        <button data-weapon="vandal">Vandal</button>
-        <button data-weapon="sentinel">Sentinel</button>
-        <button data-weapon="operator">Longbow</button>
-        <button data-weapon="specter">Specter</button>
-        <button data-weapon="bulldog">Bulldog</button>
+      <div class="scoreboard hidden" aria-label="战绩面板"></div>
+      <div class="buy-menu hidden" aria-label="购买菜单">
+        <button data-weapon="sidearm">制式手枪</button>
+        <button data-weapon="heavy_pistol">重型手枪</button>
+        <button data-weapon="vandal">突击步枪</button>
+        <button data-weapon="sentinel">防守步枪</button>
+        <button data-weapon="operator">狙击枪</button>
+        <button data-weapon="specter">冲锋枪</button>
+        <button data-weapon="bulldog">散弹枪</button>
+        <button data-weapon="knife">战术刀</button>
       </div>
       <div class="hud-bottom">
         <div class="notifications" aria-live="polite" aria-atomic="true"></div>
@@ -126,7 +146,7 @@ export class HUD {
     const percentage = (this.currentHealth / this.maxHealth) * 100;
 
     this.healthFill.style.width = `${percentage}%`;
-    this.healthText.textContent = `${this.currentHealth} HP`;
+    this.healthText.textContent = `${this.currentHealth} 生命`;
 
     // Update aria for screen readers
     const healthBar = this.element.querySelector('.health-bar') as HTMLElement;
@@ -138,10 +158,10 @@ export class HUD {
     // Update color based on health level
     if (this.currentHealth <= this.maxHealth * 0.25) {
       this.healthFill.style.background = 'var(--health-low)';
-      this.healthFill.setAttribute('aria-label', `Critical health: ${this.currentHealth} HP`);
+      this.healthFill.setAttribute('aria-label', `生命危急：${this.currentHealth}`);
     } else if (this.currentHealth <= this.maxHealth * 0.5) {
       this.healthFill.style.background = 'var(--health-medium)';
-      this.healthFill.setAttribute('aria-label', `Low health: ${this.currentHealth} HP`);
+      this.healthFill.setAttribute('aria-label', `生命偏低：${this.currentHealth}`);
     } else {
       this.healthFill.style.background = 'var(--health-full)';
       this.healthFill.removeAttribute('aria-label');
@@ -158,7 +178,7 @@ export class HUD {
       this.ammoCurrent.classList.add('ammo-low');
       // Announce only once when low ammo starts
       if (!this.ammoCurrent.dataset.lowAnnounced) {
-        this.announceForScreenReader('Low ammunition');
+        this.announceForScreenReader('弹药不足');
         this.ammoCurrent.dataset.lowAnnounced = 'true';
       }
     } else {
@@ -168,38 +188,56 @@ export class HUD {
   }
 
   updateWeapon(weapon: Weapon): void {
-    this.weaponName.textContent = weapon.name;
+    this.weaponName.textContent = weapon.displayName;
     this.updateAmmo(weapon.currentAmmo, weapon.magazineSize);
   }
 
   updateReloadProgress(progress: number): void {
     if (progress < 1) {
-      this.ammoCurrent.textContent = `Reloading ${Math.round(progress * 100)}%`;
+      this.ammoCurrent.textContent = `换弹 ${Math.round(progress * 100)}%`;
       this.ammoCurrent.classList.remove('ammo-low');
     }
   }
 
-  updateSurvival(stats: { wave: number; enemiesRemaining: number; score: number; timeSurvived: number; prepRemaining: number; phase: string }): void {
+  updateSurvival(stats: { wave: number; enemiesRemaining: number; score: number; timeSurvived: number; prepRemaining: number; phase: string; kills?: number; objective?: string }): void {
     this.waveText.textContent = stats.prepRemaining > 0
-      ? `WAVE ${stats.wave + 1} IN ${Math.ceil(stats.prepRemaining)}`
-      : `WAVE ${stats.wave}`;
-    this.enemiesText.textContent = `${stats.enemiesRemaining} HOSTILES`;
+      ? `准备 ${Math.ceil(stats.prepRemaining)} 秒`
+      : (stats.objective ?? `第 ${stats.wave} 阶段`);
+    this.enemiesText.textContent = `${stats.enemiesRemaining} 名敌人`;
     this.scoreText.textContent = stats.score.toString().padStart(5, '0');
     const minutes = Math.floor(stats.timeSurvived / 60).toString().padStart(2, '0');
     const seconds = Math.floor(stats.timeSurvived % 60).toString().padStart(2, '0');
     this.timerText.textContent = `${minutes}:${seconds}`;
   }
 
+  updateSurvivalScoreboard(stats: { wave: number; kills: number; score: number; enemiesRemaining: number; timeSurvived: number }): void {
+    this.scoreboard.innerHTML = `
+      <table>
+        <thead><tr><th>模式</th><th>阶段</th><th>击杀</th><th>分数</th><th>剩余</th><th>时间</th></tr></thead>
+        <tbody>
+          <tr class="local">
+            <td>单人任务</td>
+            <td>${stats.wave}</td>
+            <td>${stats.kills}</td>
+            <td>${stats.score}</td>
+            <td>${stats.enemiesRemaining}</td>
+            <td>${Math.floor(stats.timeSurvived)} 秒</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
+
   updateMatch(snapshot: MatchSnapshot, localPlayerId?: string): void {
     const localPlayer = snapshot.players.find(player => player.id === localPlayerId);
-    this.waveText.textContent = `${snapshot.config.mode.toUpperCase()} R${snapshot.round}`;
+    this.waveText.textContent = `${snapshot.config.mode === 'tdm' ? '团队死斗' : '爆破'} 第 ${snapshot.round} 回合`;
     this.enemiesText.textContent = `${snapshot.score.attackers} - ${snapshot.score.defenders}`;
-    this.timerText.textContent = `${Math.ceil(snapshot.roundTimeRemaining)}s`;
-    this.scoreText.textContent = localPlayer ? `$${localPlayer.money}` : 'READY';
+    this.timerText.textContent = `${Math.ceil(snapshot.roundTimeRemaining)} 秒`;
+    this.scoreText.textContent = localPlayer ? `$${localPlayer.money}` : '就绪';
     if (localPlayer) {
       this.updateHealth(localPlayer.health, 100);
       this.ammoCurrent.textContent = localPlayer.ammo.toString();
-      this.weaponName.textContent = localPlayer.weaponId.replace('_', ' ').toUpperCase();
+      this.weaponName.textContent = this.weaponLabel(localPlayer.weaponId);
     }
 
     const rows = snapshot.players
@@ -207,7 +245,7 @@ export class HUD {
       .sort((a, b) => b.kills - a.kills)
       .map(player => `
         <tr class="${player.id === localPlayerId ? 'local' : ''}">
-          <td>${player.team === 'attackers' ? 'ATK' : 'DEF'}</td>
+          <td>${player.team === 'attackers' ? '进攻' : '防守'}</td>
           <td>${player.name}</td>
           <td>${player.kills}</td>
           <td>${player.deaths}</td>
@@ -217,7 +255,7 @@ export class HUD {
       .join('');
     this.scoreboard.innerHTML = `
       <table>
-        <thead><tr><th>Team</th><th>Name</th><th>K</th><th>D</th><th>$</th></tr></thead>
+        <thead><tr><th>队伍</th><th>名称</th><th>击杀</th><th>死亡</th><th>经济</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       <div class="kill-feed">${snapshot.killFeed.map(item => `<p>${item}</p>`).join('')}</div>
@@ -228,8 +266,19 @@ export class HUD {
     this.scoreboard.classList.toggle('hidden', show === undefined ? !this.scoreboard.classList.contains('hidden') : !show);
   }
 
-  toggleBuyMenu(show?: boolean): void {
+  toggleBuyMenu(show?: boolean, options?: { solo?: boolean; disabledReason?: string }): void {
     this.buyMenu.classList.toggle('hidden', show === undefined ? !this.buyMenu.classList.contains('hidden') : !show);
+    this.buyMenu.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
+      button.disabled = Boolean(options?.disabledReason);
+      button.title = options?.disabledReason ?? (options?.solo ? '选择武器' : '购买武器');
+    });
+    let hint = this.buyMenu.querySelector('.buy-hint') as HTMLElement | null;
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.className = 'buy-hint';
+      this.buyMenu.prepend(hint);
+    }
+    hint.textContent = options?.disabledReason ?? (options?.solo ? '单人武器配置：选择武器 / 投掷物按 4 切换' : '购买菜单');
   }
 
   isBuyMenuOpen(): boolean {
@@ -265,15 +314,53 @@ export class HUD {
   showResults(stats: { wave: number; kills: number; score: number; timeSurvived: number }): void {
     this.resultPanel.classList.remove('hidden');
     this.resultPanel.innerHTML = `
-      <h2>MISSION FAILED</h2>
-      <p>Wave ${stats.wave} reached</p>
+      <h2>任务失败</h2>
+      <p>推进到第 ${stats.wave} 阶段</p>
       <dl>
-        <div><dt>Kills</dt><dd>${stats.kills}</dd></div>
-        <div><dt>Score</dt><dd>${stats.score}</dd></div>
-        <div><dt>Time</dt><dd>${Math.floor(stats.timeSurvived)}s</dd></div>
+        <div><dt>击杀</dt><dd>${stats.kills}</dd></div>
+        <div><dt>分数</dt><dd>${stats.score}</dd></div>
+        <div><dt>时间</dt><dd>${Math.floor(stats.timeSurvived)} 秒</dd></div>
       </dl>
-      <p class="result-hint">Press ESC to return to menu</p>
+      <p class="result-hint">按 ESC 返回主菜单</p>
     `;
+  }
+
+  updateObjective(text: string): void {
+    this.waveText.textContent = text;
+  }
+
+  updateGrenade(label: string, count: number): void {
+    this.ammoReserve.textContent = `${label} x${count}`;
+  }
+
+  updateWeaponSlots(state: WeaponSlotState): void {
+    const names: Record<WeaponSlotId, string> = {
+      primary: state.primary,
+      pistol: state.pistol,
+      knife: state.knife,
+      grenade: `${state.grenadeLabel} x${state.grenadeCount}`
+    };
+    this.weaponSlots.querySelectorAll<HTMLElement>('.weapon-slot').forEach(slot => {
+      const slotId = slot.dataset.slot as WeaponSlotId | undefined;
+      if (!slotId) return;
+      slot.classList.toggle('active', slotId === state.activeSlot);
+      const name = slot.querySelector('.slot-name');
+      if (name) name.textContent = names[slotId];
+    });
+  }
+
+  private weaponLabel(weaponId: string): string {
+    const labels: Record<string, string> = {
+      sidearm: '制式手枪',
+      heavy_pistol: '重型手枪',
+      vandal: '突击步枪',
+      sentinel: '防守步枪',
+      operator: '狙击枪',
+      specter: '冲锋枪',
+      bulldog: '散弹枪',
+      knife: '战术刀'
+    };
+    return labels[weaponId] ?? weaponId;
   }
 
   hideResults(): void {
@@ -281,26 +368,31 @@ export class HUD {
     this.resultPanel.innerHTML = '';
   }
 
-  showNotification(message: string, duration: number = 3000): void {
-    // Remove existing notification of same type to avoid spam
-    const existing = this.notificationContainer.querySelector('.notification');
-    if (existing && existing.textContent === message) {
-      return;
-    }
-
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    notification.textContent = message;
-    notification.setAttribute('role', 'alert');
-    this.notificationContainer.appendChild(notification);
-
     if (this.notificationTimeout) {
       clearTimeout(this.notificationTimeout);
+      this.notificationTimeout = null;
     }
+
+  showNotification(message: string, duration: number = 1000): void {
+    if (this.notificationTimeout) {
+      clearTimeout(this.notificationTimeout);
+      this.notificationTimeout = null;
+    }
+
+    let notification = this.notificationContainer.querySelector('.notification') as HTMLElement | null;
+    if (!notification) {
+      notification = document.createElement('div');
+      notification.className = 'notification';
+      notification.setAttribute('role', 'alert');
+      this.notificationContainer.appendChild(notification);
+    }
+    notification.textContent = message;
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateY(0)';
 
     this.notificationTimeout = window.setTimeout(() => {
       notification.style.opacity = '0';
-      notification.style.transform = 'translateY(-10px)';
+      notification.style.transform = 'translateY(6px)';
       setTimeout(() => notification.remove(), 250);
     }, duration);
   }
@@ -315,7 +407,7 @@ export class HUD {
 
   showHitMarker(): void {
     this.crosshair.classList.add('hit');
-    this.announceForScreenReader('Hit confirmed');
+    this.announceForScreenReader('命中确认');
     setTimeout(() => {
       this.crosshair.classList.remove('hit');
     }, 100);

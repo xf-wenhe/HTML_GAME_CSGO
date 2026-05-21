@@ -1,16 +1,13 @@
-# Asset Attribution
+# Assets Attribution
 
-This project is prepared for free GLB/HDR/PBR assets, with procedural fallbacks for every required gameplay object.
+This project loads local GLB assets from `client/public/assets/` when available and falls back to procedural models when files are missing.
 
-Current implementation:
-- Weapon models: procedural fallback meshes in `client/src/game/assets.ts`.
-- Enemy model: procedural fallback mesh in `client/src/game/assets.ts`.
-- Arena props/materials: procedural Three.js geometry and materials.
+No third-party GLB files are currently committed in this folder.
 
-Approved sources for future replacements:
-- Quaternius free game assets: https://quaternius.com/
-- Poly Haven CC0 HDRIs/materials: https://polyhaven.com/license
-- Open Source 3D Assets CC0 GLB collection: https://www.opensource3dassets.com/
-- FreePixel free GLB game assets: https://freepixel.art/3d-assets
+Recommended free/CC0 sources for future model drops:
 
-When a downloaded model or texture is added, record its source URL, author, license, and filename here before committing it.
+- Quaternius / Poly Pizza Ultimate Guns Pack, Public Domain / CC0.
+- Quaternius Sci-Fi Modular Gun Pack, CC0.
+- Poly Haven HDRIs and materials, CC0.
+
+When adding models, list each file here with source URL, author, license, and date downloaded.

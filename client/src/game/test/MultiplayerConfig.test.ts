@@ -11,10 +11,12 @@ describe('multiplayer config', () => {
       'sentinel',
       'operator',
       'specter',
-      'bulldog'
+      'bulldog',
+      'knife'
     ]);
     expect(MULTIPLAYER_WEAPONS.operator.damage).toBeGreaterThan(MULTIPLAYER_WEAPONS.vandal.damage);
     expect(MULTIPLAYER_WEAPONS.vandal.price).toBeGreaterThan(MULTIPLAYER_WEAPONS.sidearm.price);
+    expect(MULTIPLAYER_WEAPONS.knife.price).toBe(0);
   });
 
   it('defines Forgepoint for TDM and defusal layouts', () => {

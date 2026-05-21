@@ -11,8 +11,9 @@ import { EnemyManager } from './game/EnemyManager.js';
 import { INDUSTRIAL_ARENA } from './game/MapData.js';
 import { RemotePlayers } from './game/RemotePlayers.js';
 import { SurvivalMode } from './game/SurvivalMode.js';
+import { GrenadeSystem } from './game/GrenadeSystem.js';
 import { MatchMode, MatchSnapshot, WeaponId } from './game/types.js';
-import { InputMode, canMove, canShoot } from './game/InputMode.js';
+import { InputMode, PointerLockState, canMove, canShoot } from './game/InputMode.js';
 import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
 import './ui/style.css';
@@ -23,9 +24,21 @@ declare global {
     __debugInputState?: () => {
       mode: InputMode;
       pointerLocked: boolean;
+      pointerLockState: PointerLockState;
+      activePanel: string;
+      isBuyMenuOpen: boolean;
+      isScoreboardOpen: boolean;
       horizontalSpeed: number;
+      grounded: boolean;
+      airborneTime: number;
+      mapBounds: { width: number; depth: number; centerZ: number };
       weaponId: string;
       ammo: number;
+      crouched: boolean;
+      crouchJumping: boolean;
+      collisionHeight: number;
+      grenadeId: string;
+      grenadeInventory: { he: number; flash: number; smoke: number; incendiary: number; decoy: number };
       keys: string[];
     };
   }
@@ -39,6 +52,7 @@ const projectileSystem = new ProjectileSystem(scene.getScene(), physics);
 const network = new NetworkManager();
 const enemyManager = new EnemyManager(scene.getScene(), physics);
 const survival = new SurvivalMode(enemyManager);
+const grenades = new GrenadeSystem(scene.getScene());
 const remotePlayers = new RemotePlayers(scene.getScene());
 const hud = new HUD();
 const mainMenu = new MainMenu();
@@ -46,6 +60,7 @@ const mainMenu = new MainMenu();
 let player: PlayerController | null = null;
 let gameRunning = false;
 let inputMode: InputMode = 'menu';
+let pointerLockState: PointerLockState = 'supported';
 let currentMode: 'solo' | 'multiplayer' | null = null;
 let desiredMultiplayerMode: MatchMode = 'tdm';
 let currentSnapshot: MatchSnapshot | null = null;
@@ -53,6 +68,7 @@ let localPlayerId: string | undefined;
 let lastNetworkInputAt = 0;
 let lastFrameTime = performance.now();
 let hadPointerLock = false;
+let usingGrenade = false;
 const recordedKills = new Set<string>();
 
 scene.getArenaColliders().forEach(collider => {
@@ -87,7 +103,11 @@ mainMenu.on('defusal', () => {
 });
 
 hud.onBuy((weaponId) => {
-  network.send({ type: 'buyWeapon', request: { weaponId } });
+  if (currentMode === 'solo') {
+    switchLocalWeaponFromBuy(weaponId);
+  } else {
+    network.send({ type: 'buyWeapon', request: { weaponId } });
+  }
   closeBuyMenu(true);
 });
 
@@ -106,18 +126,20 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   gameRunning = true;
   setInputMode('playing');
   currentMode = mode;
+  usingGrenade = false;
   recordedKills.clear();
 
   player = new PlayerController(scene, physics, input, INDUSTRIAL_ARENA.playerSpawn.clone());
   player.healFull();
   weaponManager.setPlayerCamera(scene.getCamera());
+  grenades.reset();
 
   hud.updateWeapon(weaponManager.getCurrentWeapon());
   hud.updateHealth(player.getHealth(), player.getMaxHealth());
-  hud.showNotification(mode === 'solo' ? 'Survival protocol online' : 'Waiting for players...');
+  hud.showNotification(mode === 'solo' ? '单人任务已开始' : '正在等待玩家...');
 
   if (mode === 'solo') {
-    survival.start(performance.now());
+    survival.start(performance.now(), mainMenu.getDifficulty());
   } else {
     network.connect();
   }
@@ -155,7 +177,7 @@ network.on('roomJoined', (data) => {
   localPlayerId = data.playerId;
   currentSnapshot = data.snapshot ?? null;
   network.send({ type: 'setReady', ready: true });
-  hud.showNotification(`${desiredMultiplayerMode.toUpperCase()} room ready`);
+  hud.showNotification(`${desiredMultiplayerMode === 'tdm' ? '团队死斗' : '爆破'} 房间已就绪`);
 });
 
 network.on('roomState', (data) => {
@@ -182,9 +204,15 @@ document.addEventListener('keydown', (e) => {
   if (!gameRunning) return;
   if (inputMode === 'paused' || inputMode === 'gameOver') return;
 
-  if (e.key === '1') weaponManager.switchWeapon('pistol');
-  if (e.key === '2') weaponManager.switchWeapon('rifle');
-  if (e.key === '3') weaponManager.switchWeapon('shotgun');
+  if (e.key === '1') { usingGrenade = false; weaponManager.switchWeapon('rifle'); }
+  if (e.key === '2') { usingGrenade = false; weaponManager.switchWeapon('pistol'); }
+  if (e.key === '3') { usingGrenade = false; weaponManager.switchWeapon('knife'); }
+  if (e.key === '4') {
+    usingGrenade = true;
+    const selected = grenades.cycle();
+    hud.showNotification(`已选择${grenades.getSelectedLabel()}`);
+    hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[selected]);
+  }
   if (e.key === 'r' || e.key === 'R') {
     weaponManager.startReload();
     if (currentMode === 'multiplayer') network.send({ type: 'reload' });
@@ -202,6 +230,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Tab') {
     e.preventDefault();
     if (inputMode === 'playing') {
+      updateScoreboardPanel();
       setInputMode('scoreboard');
       hud.toggleScoreboard(true);
     }
@@ -230,11 +259,15 @@ document.addEventListener('click', () => {
 document.addEventListener('pointerlockchange', () => {
   if (input.isPointerLocked()) {
     hadPointerLock = true;
+    pointerLockState = 'locked';
     return;
   }
   if (gameRunning && inputMode === 'playing' && hadPointerLock) {
     hadPointerLock = false;
     pauseGame();
+  }
+  if (gameRunning && input.wasPointerLockDenied()) {
+    pointerLockState = 'focusedNoLock';
   }
 });
 
@@ -251,6 +284,7 @@ function endGame(): void {
   currentSnapshot = null;
   localPlayerId = undefined;
   currentMode = null;
+  usingGrenade = false;
   weaponManager.dispose();
   hud.hideResults();
   if (player) {
@@ -320,9 +354,25 @@ function gameLoop(now: number) {
   hud.updateAmmo(currentWeapon.currentAmmo, currentWeapon.magazineSize);
   hud.updateReloadProgress(currentWeapon.getReloadProgress());
   hud.updateCrosshair(currentWeapon.spread * currentWeapon.getSpreadMultiplier());
+  hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[grenades.getSelected()]);
 
-  if (canShoot(inputMode) && input.isPointerLocked() && input.isKeyPressed('MouseLeft') && player) {
-    const result = weaponManager.shoot(scene.getCamera(), now);
+  const grenadeResult = grenades.update(dt, playerPos);
+  if (grenadeResult.damage > 0 && player) {
+    player.takeDamage(grenadeResult.damage);
+    hud.updateHealth(player.getHealth(), player.getMaxHealth());
+    hud.showDamage();
+  }
+
+  if (canShoot(inputMode) && hasGameplayFocus() && input.isKeyPressed('MouseLeft') && player) {
+    if (usingGrenade) {
+      input.setKeyPressed('MouseLeft', false);
+      if (grenades.throwSelected(scene.getCamera())) {
+        hud.showNotification(`投掷${grenades.getSelectedLabel()}`);
+      } else {
+        hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
+      }
+    } else {
+      const result = weaponManager.shoot(scene.getCamera(), now);
     if (result) {
       if (currentMode === 'multiplayer') {
         network.send({
@@ -352,11 +402,12 @@ function gameLoop(now: number) {
         const hitDirection = result.direction.clone().normalize();
         const dot = hitDirection.dot(direction);
 
-        if (dot > 0.985 && distance < 65) {
+        if (dot > (weaponManager.getCurrentWeapon().isMelee ? 0.72 : 0.985) && distance < weaponManager.getCurrentWeapon().range) {
           enemy.takeDamage(result.damage);
           hud.showHitMarker();
         }
       });
+    }
     }
   }
 
@@ -377,12 +428,19 @@ function requestGameFocus(): void {
   hud.toggleBuyMenu(false);
   input.clearActionKeys();
   setInputMode('playing');
-  input.requestPointerLock();
+  void input.requestPointerLock().then((locked) => {
+    pointerLockState = locked ? 'locked' : input.wasPointerLockDenied() ? 'focusedNoLock' : 'supported';
+  });
+}
+
+function hasGameplayFocus(): boolean {
+  return input.isPointerLocked() || pointerLockState === 'focusedNoLock';
 }
 
 function pauseGame(): void {
   if (!gameRunning) return;
   hadPointerLock = false;
+  pointerLockState = input.wasPointerLockDenied() ? 'denied' : 'supported';
   setInputMode('paused');
   input.exitPointerLock();
   hud.toggleBuyMenu(false);
@@ -396,10 +454,13 @@ function resumeGame(): void {
 }
 
 function openBuyMenu(): void {
-  if (!gameRunning || currentMode !== 'multiplayer') return;
+  if (!gameRunning) return;
   setInputMode('buyMenu');
   input.exitPointerLock();
-  hud.toggleBuyMenu(true);
+  const disabledReason = currentMode === 'multiplayer' && currentSnapshot?.config.mode === 'defusal' && currentSnapshot.phase !== 'buy'
+    ? '只能在购买阶段购买'
+    : undefined;
+  hud.toggleBuyMenu(true, { solo: currentMode === 'solo', disabledReason });
 }
 
 function closeBuyMenu(refocus: boolean): void {
@@ -424,8 +485,18 @@ function currentMultiplayerWeaponId(): WeaponId {
   switch (weaponManager.getCurrentWeaponId()) {
     case 'pistol':
       return 'sidearm';
+    case 'heavy_pistol':
+      return 'heavy_pistol';
     case 'shotgun':
       return 'bulldog';
+    case 'sniper':
+      return 'operator';
+    case 'smg':
+      return 'specter';
+    case 'knife':
+      return 'knife';
+    case 'defender_rifle':
+      return 'sentinel';
     case 'rifle':
     default:
       return currentSnapshot?.players.find(playerSnapshot => playerSnapshot.id === localPlayerId)?.team === 'defenders'
@@ -443,9 +514,50 @@ function nearestBombSite(): 'A' | 'B' {
 window.__debugPlayerPosition = () => player ? vectorToPlain(player.getPosition()) : null;
 window.__debugInputState = () => ({
   mode: inputMode,
+  pointerLockState,
+  activePanel: hud.isBuyMenuOpen() ? 'buyMenu' : hud.isScoreboardOpen() ? 'scoreboard' : inputMode === 'paused' ? 'pause' : 'none',
+  isBuyMenuOpen: hud.isBuyMenuOpen(),
+  isScoreboardOpen: hud.isScoreboardOpen(),
   pointerLocked: input.isPointerLocked(),
   horizontalSpeed: player?.getHorizontalSpeed() ?? 0,
-  weaponId: weaponManager.getCurrentWeaponId(),
+  grounded: player?.isGrounded() ?? false,
+  airborneTime: player?.getAirborneTime() ?? 0,
+  crouched: player?.isCrouched() ?? false,
+  crouchJumping: player?.isCrouchJumping() ?? false,
+  collisionHeight: player?.getCollisionHeight() ?? 0,
+  mapBounds: INDUSTRIAL_ARENA.bounds,
+  weaponId: usingGrenade ? 'grenade' : weaponManager.getCurrentWeaponId(),
   ammo: weaponManager.getCurrentWeapon().currentAmmo,
+  grenadeId: grenades.getSelected(),
+  grenadeInventory: grenades.getInventory(),
   keys: input.getPressedKeys()
 });
+
+function switchLocalWeaponFromBuy(weaponId: WeaponId): void {
+  usingGrenade = false;
+  const localWeapon = multiplayerWeaponToLocal(weaponId);
+  weaponManager.switchWeapon(localWeapon);
+  hud.updateWeapon(weaponManager.getCurrentWeapon());
+}
+
+function updateScoreboardPanel(): void {
+  if (currentMode === 'solo') {
+    hud.updateSurvivalScoreboard(survival.getStats(performance.now()));
+  } else if (currentSnapshot) {
+    hud.updateMatch(currentSnapshot, localPlayerId);
+  }
+}
+
+function multiplayerWeaponToLocal(weaponId: WeaponId): string {
+  const map: Record<WeaponId, string> = {
+    sidearm: 'pistol',
+    heavy_pistol: 'heavy_pistol',
+    vandal: 'rifle',
+    sentinel: 'defender_rifle',
+    operator: 'sniper',
+    specter: 'smg',
+    bulldog: 'shotgun',
+    knife: 'knife'
+  };
+  return map[weaponId];
+}

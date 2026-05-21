@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 
-const url = process.env.E2E_URL || 'http://localhost:5174/';
+const url = process.env.E2E_URL || 'http://localhost:5173/';
 
 const browser = await chromium.launch({
   headless: process.env.HEADLESS !== 'false',
@@ -60,12 +60,25 @@ console.log(JSON.stringify(report, null, 2));
 if (errors.some(error => /WebGLRenderer: Error creating WebGL context|Error creating WebGL context/.test(error))) {
   throw new Error('WebGL failed in this browser runtime; run the same script in a hardware-accelerated browser.');
 }
-if (distance < 8) throw new Error(`Expected fast FPS movement, got only ${distance.toFixed(2)} units in 1s.`);
+if (distance < 10 || distance > 12.2) throw new Error(`Expected tuned FPS movement around 10-12 units, got ${distance.toFixed(2)} units in 1s.`);
 const pointerLockUnavailable = errors.some(error => /not valid for pointer lock|pointer lock/i.test(error)) && !stateAfterShoot?.pointerLocked;
 if (!pointerLockUnavailable && stateAfterShoot && stateAfterMove && stateAfterShoot.ammo >= stateAfterMove.ammo) {
   throw new Error('Expected left click to consume ammo while focused.');
 }
 if (paused?.mode !== 'paused') throw new Error('Expected Escape to enter paused mode.');
 if (resumed?.mode !== 'playing') throw new Error('Expected Resume to return to playing mode.');
+
+await page.keyboard.press('KeyB');
+await page.waitForTimeout(150);
+const buyOpen = await page.evaluate(() => window.__debugInputState?.());
+if (!buyOpen?.isBuyMenuOpen) throw new Error('Expected B to open buy/loadout menu.');
+
+await page.keyboard.press('KeyB');
+await page.waitForTimeout(150);
+await page.keyboard.down('Tab');
+await page.waitForTimeout(150);
+const tabOpen = await page.evaluate(() => window.__debugInputState?.());
+await page.keyboard.up('Tab');
+if (!tabOpen?.isScoreboardOpen) throw new Error('Expected Tab to open scoreboard.');
 
 await browser.close();

@@ -7,7 +7,7 @@ export interface Vector3 {
 export type MatchMode = 'tdm' | 'defusal';
 export type Team = 'attackers' | 'defenders';
 export type MatchPhase = 'warmup' | 'buy' | 'live' | 'roundEnd' | 'matchEnd';
-export type WeaponId = 'sidearm' | 'heavy_pistol' | 'vandal' | 'sentinel' | 'operator' | 'specter' | 'bulldog';
+export type WeaponId = 'sidearm' | 'heavy_pistol' | 'vandal' | 'sentinel' | 'operator' | 'specter' | 'bulldog' | 'knife';
 export type MapId = 'forgepoint';
 
 export interface RoomConfig {

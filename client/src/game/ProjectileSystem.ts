@@ -19,7 +19,7 @@ export class ProjectileSystem {
 
   fireRaycast(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number): RaycastResult {
     const raycaster = new THREE.Raycaster(origin, direction, 0, maxDistance);
-    const intersects = raycaster.intersectObjects(this.scene.children, true);
+    const intersects = raycaster.intersectObjects(this.getRaycastTargets(), false);
 
     if (intersects.length > 0) {
       return {
@@ -42,4 +42,14 @@ export class ProjectileSystem {
   }
 
   dispose(): void {}
+
+  private getRaycastTargets(): THREE.Object3D[] {
+    const targets: THREE.Object3D[] = [];
+    this.scene.traverse(object => {
+      if (!object.visible) return;
+      if (object instanceof THREE.Sprite) return;
+      if ((object as THREE.Mesh).isMesh) targets.push(object);
+    });
+    return targets;
+  }
 }

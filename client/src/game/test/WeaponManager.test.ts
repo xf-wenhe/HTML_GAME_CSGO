@@ -12,6 +12,30 @@ describe('WeaponManager', () => {
     expect(manager.getCurrentWeaponId()).toBe('shotgun');
   });
 
+  it('supports the expanded CSGO-style weapon roles', () => {
+    const manager = new WeaponManager();
+
+    expect(manager.switchWeapon('sniper')).toBe(true);
+    expect(manager.getCurrentWeapon().displayName).toBe('狙击枪');
+    expect(manager.getCurrentWeapon().damage).toBeGreaterThan(100);
+    expect(manager.switchWeapon('smg')).toBe(true);
+    expect(manager.getCurrentWeapon().fireRate).toBeGreaterThan(12);
+    expect(manager.switchWeapon('knife')).toBe(true);
+    expect(manager.getCurrentWeapon().isMelee).toBe(true);
+  });
+
+  it('blocks shooting during weapon draw animation', () => {
+    const manager = new WeaponManager();
+
+    manager.switchWeapon('sniper');
+
+    expect(manager.isSwitching()).toBe(true);
+    expect(manager.shoot(new (class {
+      position = { clone: () => ({}) };
+      quaternion = {};
+    })() as any, 1000)).toBeNull();
+  });
+
   it('starts reload when the current magazine is not full', () => {
     const manager = new WeaponManager();
     const weapon = manager.getCurrentWeapon();
@@ -19,6 +43,6 @@ describe('WeaponManager', () => {
     weapon.shoot(1000);
     manager.startReload(1100);
 
-    expect(weapon.getReloadProgress()).toBeLessThan(1);
+    expect(weapon.getReloadProgress(1200)).toBeLessThan(1);
   });
 });

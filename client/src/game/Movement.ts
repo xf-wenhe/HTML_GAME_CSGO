@@ -12,14 +12,14 @@ export interface MovementParams {
 }
 
 export const CSGO_MOVEMENT: MovementParams = {
-  runSpeed: 13.5,
-  walkSpeed: 5.4,
-  crouchSpeed: 4.2,
-  groundAcceleration: 48,
-  airAcceleration: 8,
-  friction: 10,
-  stopSpeed: 5.5,
-  airControl: 0.22
+  runSpeed: 11.1,
+  walkSpeed: 4.85,
+  crouchSpeed: 3.8,
+  groundAcceleration: 44,
+  airAcceleration: 6,
+  friction: 12,
+  stopSpeed: 6,
+  airControl: 0.16
 };
 
 export function applyFriction(velocity: THREE.Vector3, dt: number, params: MovementParams): THREE.Vector3 {

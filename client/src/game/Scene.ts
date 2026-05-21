@@ -11,8 +11,8 @@ export class Scene {
 
   constructor() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x111827);
-    this.scene.fog = new THREE.Fog(0x111827, 26, 74);
+    this.scene.background = new THREE.Color(0x202733);
+    this.scene.fog = new THREE.Fog(0x202733, 42, 108);
 
     this.camera = new THREE.PerspectiveCamera(
       82,
@@ -54,7 +54,7 @@ export class Scene {
     const hemiLight = new THREE.HemisphereLight(0x9fc4ff, 0x403a31, 0.82);
     this.scene.add(hemiLight);
 
-    const groundGeometry = new THREE.PlaneGeometry(46, 48, 12, 12);
+    const groundGeometry = new THREE.PlaneGeometry(INDUSTRIAL_ARENA.bounds.width, INDUSTRIAL_ARENA.bounds.depth, 18, 24);
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0x555e66,
       metalness: 0.1,
@@ -62,7 +62,7 @@ export class Scene {
     });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.z = -5.5;
+    ground.position.z = INDUSTRIAL_ARENA.bounds.centerZ;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
@@ -88,30 +88,37 @@ export class Scene {
       emissive: 0x1a1204
     });
 
-    for (const x of [-12, 12]) {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 31), laneMaterial);
-      stripe.position.set(x, 0.025, -5.5);
+    for (const x of [-22, 0, 22]) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 76), laneMaterial);
+      stripe.position.set(x, 0.025, -8);
       stripe.receiveShadow = true;
       this.scene.add(stripe);
     }
 
-    for (const position of [new THREE.Vector3(-15, 3.2, -13), new THREE.Vector3(15, 3.2, -13), new THREE.Vector3(0, 3.6, 8)]) {
+    for (const position of [
+      new THREE.Vector3(-25, 4.5, -28),
+      new THREE.Vector3(25, 4.5, -28),
+      new THREE.Vector3(0, 4.8, -10),
+      new THREE.Vector3(-21, 3.8, 7),
+      new THREE.Vector3(21, 3.8, 7),
+      new THREE.Vector3(0, 4.6, 26)
+    ]) {
       const lamp = new THREE.PointLight(0xffc98b, 1.85, 24, 2.0);
       lamp.position.copy(position);
       this.scene.add(lamp);
     }
 
-    this.addBombSiteMarker('A', new THREE.Vector3(-13, 0.04, -13));
-    this.addBombSiteMarker('B', new THREE.Vector3(13, 0.04, -13));
+    this.addBombSiteMarker('A', new THREE.Vector3(-24, 0.04, -27));
+    this.addBombSiteMarker('B', new THREE.Vector3(24, 0.04, -27));
 
     const particleGeometry = new THREE.BufferGeometry();
     const particleCount = 80;
     const positions = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 42;
+      positions[i * 3] = (Math.random() - 0.5) * INDUSTRIAL_ARENA.bounds.width;
       positions[i * 3 + 1] = 1 + Math.random() * 7;
-      positions[i * 3 + 2] = -28 + Math.random() * 45;
+      positions[i * 3 + 2] = INDUSTRIAL_ARENA.bounds.centerZ - INDUSTRIAL_ARENA.bounds.depth / 2 + Math.random() * INDUSTRIAL_ARENA.bounds.depth;
     }
 
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));

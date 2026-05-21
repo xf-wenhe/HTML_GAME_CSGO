@@ -7,6 +7,7 @@ export class InputManager {
   private keys = new Set<string>();
   private mouseDelta: MouseDelta = { x: 0, y: 0 };
   private mousePosition = { x: 0, y: 0 };
+  private pointerLockDenied = false;
 
   constructor() {
     this.setupEventListeners();
@@ -37,8 +38,16 @@ export class InputManager {
     });
 
     document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement === document.body) {
+        this.pointerLockDenied = false;
+      }
       this.keys.delete('MouseLeft');
       this.mouseDelta = { x: 0, y: 0 };
+    });
+
+    document.addEventListener('pointerlockerror', () => {
+      this.pointerLockDenied = true;
+      this.keys.delete('MouseLeft');
     });
   }
 
@@ -72,10 +81,16 @@ export class InputManager {
     return Array.from(this.keys);
   }
 
-  requestPointerLock(): void {
+  async requestPointerLock(): Promise<boolean> {
     if (!this.isPointerLocked()) {
-      void document.body.requestPointerLock();
+      try {
+        await document.body.requestPointerLock();
+        this.pointerLockDenied = false;
+      } catch {
+        this.pointerLockDenied = true;
+      }
     }
+    return this.isPointerLocked();
   }
 
   exitPointerLock(): void {
@@ -88,6 +103,10 @@ export class InputManager {
 
   isPointerLocked(): boolean {
     return document.pointerLockElement === document.body;
+  }
+
+  wasPointerLockDenied(): boolean {
+    return this.pointerLockDenied;
   }
 
   clearActionKeys(): void {

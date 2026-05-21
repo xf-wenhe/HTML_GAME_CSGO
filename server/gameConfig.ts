@@ -7,7 +7,8 @@ export const WEAPON_BALANCE: Record<WeaponId, WeaponBalance> = {
   sentinel: { id: 'sentinel', name: 'Sentinel M4', price: 2900, teams: ['defenders'], damage: 33, fireRate: 10, magazineSize: 30, reloadTime: 2.25, spread: 0.045, movementSpeedMultiplier: 0.9, armorPenetration: 0.74, headshotMultiplier: 4, range: 86 },
   operator: { id: 'operator', name: 'Longbow AWP', price: 4750, teams: 'both', damage: 115, fireRate: 0.8, magazineSize: 5, reloadTime: 3.3, spread: 0.015, movementSpeedMultiplier: 0.72, armorPenetration: 0.98, headshotMultiplier: 2, range: 130 },
   specter: { id: 'specter', name: 'Specter SMG', price: 1600, teams: 'both', damage: 22, fireRate: 13, magazineSize: 30, reloadTime: 2, spread: 0.075, movementSpeedMultiplier: 0.98, armorPenetration: 0.45, headshotMultiplier: 2.6, range: 45 },
-  bulldog: { id: 'bulldog', name: 'Bulldog Shotgun', price: 1200, teams: 'both', damage: 18, fireRate: 1.1, magazineSize: 8, reloadTime: 2.8, spread: 0.22, movementSpeedMultiplier: 0.86, armorPenetration: 0.3, headshotMultiplier: 1.5, range: 26 }
+  bulldog: { id: 'bulldog', name: 'Bulldog Shotgun', price: 1200, teams: 'both', damage: 18, fireRate: 1.1, magazineSize: 8, reloadTime: 2.8, spread: 0.22, movementSpeedMultiplier: 0.86, armorPenetration: 0.3, headshotMultiplier: 1.5, range: 26 },
+  knife: { id: 'knife', name: 'Tactical Knife', price: 0, teams: 'both', damage: 55, fireRate: 1.8, magazineSize: 1, reloadTime: 0, spread: 0, movementSpeedMultiplier: 1.05, armorPenetration: 0.2, headshotMultiplier: 1, range: 2.4 }
 };
 
 export interface ServerMapConfig {
@@ -22,31 +23,33 @@ export const MAP_CONFIGS: Record<MapId, ServerMapConfig> = {
     id: 'forgepoint',
     spawns: {
       attackers: [
-        { x: -8, y: 1.7, z: 12 },
-        { x: -4, y: 1.7, z: 12 },
-        { x: 0, y: 1.7, z: 12 },
-        { x: 4, y: 1.7, z: 12 },
-        { x: 8, y: 1.7, z: 12 }
+        { x: -10, y: 1.7, z: 30 },
+        { x: -5, y: 1.7, z: 30 },
+        { x: 0, y: 1.7, z: 30 },
+        { x: 5, y: 1.7, z: 30 },
+        { x: 10, y: 1.7, z: 30 }
       ],
       defenders: [
-        { x: -8, y: 1.7, z: -23 },
-        { x: -4, y: 1.7, z: -23 },
-        { x: 0, y: 1.7, z: -23 },
-        { x: 4, y: 1.7, z: -23 },
-        { x: 8, y: 1.7, z: -23 }
+        { x: -10, y: 1.7, z: -46 },
+        { x: -5, y: 1.7, z: -46 },
+        { x: 0, y: 1.7, z: -46 },
+        { x: 5, y: 1.7, z: -46 },
+        { x: 10, y: 1.7, z: -46 }
       ]
     },
     tdmSpawns: [
-      { x: -16, y: 1.7, z: 11 },
-      { x: 16, y: 1.7, z: 11 },
-      { x: -16, y: 1.7, z: -20 },
-      { x: 16, y: 1.7, z: -20 },
-      { x: -3, y: 1.7, z: 6 },
-      { x: 3, y: 1.7, z: -17 }
+      { x: -30, y: 1.7, z: 25 },
+      { x: 30, y: 1.7, z: 25 },
+      { x: -30, y: 1.7, z: -40 },
+      { x: 30, y: 1.7, z: -40 },
+      { x: -8, y: 1.7, z: 8 },
+      { x: 8, y: 1.7, z: -22 },
+      { x: -24, y: 1.7, z: -8 },
+      { x: 24, y: 1.7, z: -8 }
     ],
     bombSites: [
-      { id: 'A', position: { x: -13, y: 1.7, z: -13 }, radius: 5 },
-      { id: 'B', position: { x: 13, y: 1.7, z: -13 }, radius: 5 }
+      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
+      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
     ]
   }
 };

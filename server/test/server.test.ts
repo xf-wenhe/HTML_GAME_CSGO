@@ -65,11 +65,11 @@ describe('Server', () => {
     rooms.setReady('attacker', true);
     rooms.setReady('defender', true);
 
-    rooms.applyInput('attacker', { position: { x: -13, y: 1.7, z: -13 }, rotation: { x: 0, y: 0, z: 0 } });
+    rooms.applyInput('attacker', { position: { x: -24, y: 1.7, z: -27 }, rotation: { x: 0, y: 0, z: 0 } });
     const planted = rooms.plantBomb('attacker', { site: 'A' })!;
     expect(planted.bomb?.site).toBe('A');
 
-    rooms.applyInput('defender', { position: { x: -13, y: 1.7, z: -13 }, rotation: { x: 0, y: 0, z: 0 } });
+    rooms.applyInput('defender', { position: { x: -24, y: 1.7, z: -27 }, rotation: { x: 0, y: 0, z: 0 } });
     const defused = rooms.defuseBomb('defender')!;
     expect(defused.phase).toBe('roundEnd');
     expect(defused.score.defenders).toBe(1);

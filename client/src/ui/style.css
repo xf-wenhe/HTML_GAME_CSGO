@@ -419,6 +419,17 @@ body {
   pointer-events: auto;
 }
 
+.buy-hint {
+  flex-basis: 100%;
+  text-align: center;
+  color: var(--primary-hover);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
 .buy-menu button {
   min-width: 88px;
   height: 40px;
@@ -431,6 +442,11 @@ body {
 
 .buy-menu button:hover {
   background: rgba(214, 168, 79, 0.2);
+}
+
+.buy-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Notifications */
@@ -521,7 +537,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
 }
 
 .menu-button {
@@ -577,6 +593,35 @@ body {
 .menu-button:focus-visible {
   outline: 2px solid var(--primary-hover);
   outline-offset: 2px;
+}
+
+.difficulty-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 auto var(--spacing-lg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.difficulty-option {
+  height: 34px;
+  min-width: 58px;
+  padding: 0 12px;
+  border: 1px solid rgba(214, 168, 79, 0.38);
+  background: rgba(10, 13, 17, 0.72);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.difficulty-option.active,
+.difficulty-option:hover {
+  border-color: var(--primary-hover);
+  background: rgba(214, 168, 79, 0.2);
+  color: var(--text-primary);
 }
 
 /* Game Info */

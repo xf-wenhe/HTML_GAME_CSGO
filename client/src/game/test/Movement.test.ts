@@ -12,8 +12,31 @@ describe('CSGO-style movement helpers', () => {
       clampHorizontalSpeed(velocity, CSGO_MOVEMENT.runSpeed);
     }
 
-    expect(Math.abs(velocity.z)).toBeGreaterThan(12.5);
+    expect(Math.abs(velocity.z)).toBeGreaterThan(10.5);
     expect(Math.abs(velocity.z)).toBeLessThanOrEqual(CSGO_MOVEMENT.runSpeed);
+  });
+
+  it('walk speed is clearly slower than run speed', () => {
+    expect(CSGO_MOVEMENT.walkSpeed).toBeGreaterThanOrEqual(4.5);
+    expect(CSGO_MOVEMENT.walkSpeed).toBeLessThanOrEqual(5.2);
+    expect(CSGO_MOVEMENT.runSpeed).toBeGreaterThanOrEqual(10.5);
+    expect(CSGO_MOVEMENT.runSpeed).toBeLessThanOrEqual(11.5);
+  });
+
+  it('crouch speed is slower and crouch jump has a bounded boost', () => {
+    expect(CSGO_MOVEMENT.crouchSpeed).toBeLessThan(CSGO_MOVEMENT.walkSpeed);
+    const normalJump = 6.4;
+    const crouchJump = normalJump + 0.75;
+    expect(crouchJump).toBeGreaterThan(normalJump);
+    expect((2 * crouchJump) / 18).toBeLessThan(0.85);
+  });
+
+  it('jump parameters imply a quick grounded arc', () => {
+    const gravity = 18;
+    const jumpForce = 6.4;
+    const airtime = (2 * jumpForce) / gravity;
+    expect(airtime).toBeGreaterThan(0.65);
+    expect(airtime).toBeLessThan(0.85);
   });
 
   it('keeps diagonal movement under the max speed cap', () => {

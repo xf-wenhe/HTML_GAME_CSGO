@@ -18,6 +18,8 @@ export class WeaponManager {
   private muzzleFlash: THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>;
   private recoil = 0;
   private swayClock = 0;
+  private switchProgress = 0;
+  private switchDuration = 0;
 
   constructor() {
     Object.entries(WEAPON_DEFINITIONS).forEach(([id, weapon]) => {
@@ -48,6 +50,10 @@ export class WeaponManager {
   switchWeapon(weaponId: string): boolean {
     if (!this.weapons.has(weaponId) || weaponId === this.currentWeaponId) return this.weapons.has(weaponId);
     this.currentWeaponId = weaponId;
+    const weapon = this.getCurrentWeapon();
+    this.switchDuration = weapon.switchTime;
+    this.switchProgress = weapon.switchTime;
+    this.recoil = 0;
     void this.applyWeaponModel();
     return true;
   }
@@ -62,6 +68,7 @@ export class WeaponManager {
 
   shoot(camera: THREE.Camera, now: number = performance.now()): ShootResult | null {
     const weapon = this.getCurrentWeapon();
+    if (this.isSwitching()) return null;
     if (!weapon.shoot(now)) {
       if (weapon.currentAmmo === 0 && !weapon.getIsReloading()) {
         this.startReload(now);
@@ -70,7 +77,7 @@ export class WeaponManager {
     }
 
     this.recoil = Math.min(this.recoil + 0.08, 0.26);
-    this.muzzleFlash.material.opacity = 0.95;
+    this.muzzleFlash.material.opacity = weapon.isMelee ? 0 : 0.95;
 
     const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     const spread = weapon.spread * weapon.getSpreadMultiplier();
@@ -93,18 +100,26 @@ export class WeaponManager {
   update(now: number = performance.now(), dt = 0.016, isMoving = false): void {
     this.weapons.forEach(weapon => weapon.update(now));
     this.recoil = Math.max(0, this.recoil - dt * 0.9);
+    this.switchProgress = Math.max(0, this.switchProgress - dt);
     this.swayClock += dt * (isMoving ? 9 : 3.5);
 
     const swayX = Math.sin(this.swayClock) * (isMoving ? 0.018 : 0.006);
     const swayY = Math.cos(this.swayClock * 1.7) * (isMoving ? 0.014 : 0.004);
-    this.weaponRoot.position.set(0.46 + swayX, -0.43 + swayY - this.recoil * 0.1, -0.82 + this.recoil * 0.82);
-    this.weaponRoot.rotation.set(-0.08 - this.recoil * 0.28, -0.14 + swayX * 0.55, 0.02 + swayX * 0.38);
+    const switchRatio = this.switchDuration > 0 ? this.switchProgress / this.switchDuration : 0;
+    const drawDip = Math.sin(switchRatio * Math.PI) * 0.34;
+    const drawSlide = switchRatio * 0.18;
+    this.weaponRoot.position.set(0.46 + swayX + drawSlide, -0.43 + swayY - this.recoil * 0.1 - drawDip, -0.82 + this.recoil * 0.82 + drawSlide);
+    this.weaponRoot.rotation.set(-0.08 - this.recoil * 0.28 - drawDip * 0.45, -0.14 + swayX * 0.55 + drawSlide, 0.02 + swayX * 0.38 + drawDip * 0.2);
 
     this.muzzleFlash.material.opacity = Math.max(0, this.muzzleFlash.material.opacity - dt * 9);
   }
 
   dispose(): void {
     this.camera?.remove(this.weaponRoot);
+  }
+
+  isSwitching(): boolean {
+    return this.switchProgress > 0;
   }
 
   private async applyWeaponModel(): Promise<void> {
