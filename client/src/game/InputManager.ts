@@ -35,6 +35,11 @@ export class InputManager {
     document.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.keys.delete('MouseLeft');
     });
+
+    document.addEventListener('pointerlockchange', () => {
+      this.keys.delete('MouseLeft');
+      this.mouseDelta = { x: 0, y: 0 };
+    });
   }
 
   isKeyPressed(key: string): boolean {
@@ -63,15 +68,30 @@ export class InputManager {
     return { ...this.mousePosition };
   }
 
+  getPressedKeys(): string[] {
+    return Array.from(this.keys);
+  }
+
   requestPointerLock(): void {
-    document.body.requestPointerLock();
+    if (!this.isPointerLocked()) {
+      void document.body.requestPointerLock();
+    }
   }
 
   exitPointerLock(): void {
-    document.exitPointerLock();
+    if (this.isPointerLocked()) {
+      document.exitPointerLock();
+    }
+    this.keys.delete('MouseLeft');
+    this.mouseDelta = { x: 0, y: 0 };
   }
 
   isPointerLocked(): boolean {
     return document.pointerLockElement === document.body;
+  }
+
+  clearActionKeys(): void {
+    this.keys.delete('MouseLeft');
+    this.keys.delete('Space');
   }
 }

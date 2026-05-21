@@ -26,9 +26,10 @@ export class EnemyManager {
     return Array.from(this.enemies.values());
   }
 
-  update(dt: number, playerPosition: THREE.Vector3, now: number): void {
+  update(dt: number, playerPosition: THREE.Vector3, now: number): number {
+    let damage = 0;
     this.enemies.forEach((enemy, id) => {
-      enemy.update(dt, playerPosition, now);
+      damage += enemy.update(dt, playerPosition, now);
 
       if (enemy.isDead()) {
         setTimeout(() => {
@@ -36,6 +37,7 @@ export class EnemyManager {
         }, 3000);
       }
     });
+    return damage;
   }
 
   removeEnemy(id: string): void {

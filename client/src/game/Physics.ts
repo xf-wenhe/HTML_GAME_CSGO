@@ -7,12 +7,14 @@ export class Physics {
   constructor() {
     this.world = new CANNON.World();
     this.world.gravity.set(0, -9.82, 0);
+    this.world.defaultContactMaterial.friction = 0;
+    this.world.defaultContactMaterial.restitution = 0;
 
     const defaultMaterial = new CANNON.Material('default');
     const defaultContactMaterial = new CANNON.ContactMaterial(
       defaultMaterial,
       defaultMaterial,
-      { friction: 0.1, restitution: 0.3 }
+      { friction: 0, restitution: 0 }
     );
     this.world.addContactMaterial(defaultContactMaterial);
 
@@ -31,6 +33,16 @@ export class Physics {
   addBody(body: CANNON.Body): void {
     this.world.addBody(body);
     this.bodies.push(body);
+  }
+
+  addStaticBox(position: CANNON.Vec3, halfExtents: CANNON.Vec3): CANNON.Body {
+    const body = new CANNON.Body({
+      mass: 0,
+      shape: new CANNON.Box(halfExtents),
+      position
+    });
+    this.addBody(body);
+    return body;
   }
 
   removeBody(body: CANNON.Body): void {

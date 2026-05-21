@@ -1,8 +1,22 @@
-export interface Vector3 {
-  x: number;
-  y: number;
-  z: number;
-}
+export type {
+  BombActionRequest,
+  BombState,
+  BuyRequest,
+  MapId,
+  MatchMode,
+  MatchPhase,
+  MatchSnapshot,
+  PlayerInputRequest,
+  PlayerSnapshot,
+  RoomConfig,
+  RoomListItem,
+  ShootRequest,
+  Team,
+  Vector3,
+  WeaponId
+} from '../../../shared/types.js';
+
+import { Vector3 } from '../../../shared/types.js';
 
 export type GameMode = 'solo' | 'multiplayer';
 

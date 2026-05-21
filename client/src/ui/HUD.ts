@@ -1,4 +1,5 @@
 import { Weapon } from '../game/Weapon.js';
+import { MatchSnapshot, WeaponId } from '../game/types.js';
 
 export class HUD {
   private element: HTMLElement;
@@ -8,6 +9,15 @@ export class HUD {
   private ammoSeparator: HTMLElement;
   private ammoReserve: HTMLElement;
   private weaponName: HTMLElement;
+  private waveText: HTMLElement;
+  private enemiesText: HTMLElement;
+  private scoreText: HTMLElement;
+  private timerText: HTMLElement;
+  private damageOverlay: HTMLElement;
+  private resultPanel: HTMLElement;
+  private pausePanel: HTMLElement;
+  private scoreboard: HTMLElement;
+  private buyMenu: HTMLElement;
   private crosshair: HTMLElement;
   private notificationContainer: HTMLElement;
   private currentHealth = 100;
@@ -15,6 +25,8 @@ export class HUD {
   private currentAmmo = 0;
   private maxAmmo = 0;
   private notificationTimeout: number | null = null;
+  private buyHandler: ((weaponId: WeaponId) => void) | null = null;
+  private resumeHandler: (() => void) | null = null;
 
   constructor() {
     this.element = this.createElement();
@@ -24,6 +36,15 @@ export class HUD {
     this.ammoSeparator = this.element.querySelector('.ammo-separator') as HTMLElement;
     this.ammoReserve = this.element.querySelector('.ammo-reserve') as HTMLElement;
     this.weaponName = this.element.querySelector('.weapon-name') as HTMLElement;
+    this.waveText = this.element.querySelector('.wave-text') as HTMLElement;
+    this.enemiesText = this.element.querySelector('.enemies-text') as HTMLElement;
+    this.scoreText = this.element.querySelector('.score-text') as HTMLElement;
+    this.timerText = this.element.querySelector('.timer-text') as HTMLElement;
+    this.damageOverlay = this.element.querySelector('.damage-overlay') as HTMLElement;
+    this.resultPanel = this.element.querySelector('.result-panel') as HTMLElement;
+    this.pausePanel = this.element.querySelector('.pause-panel') as HTMLElement;
+    this.scoreboard = this.element.querySelector('.scoreboard') as HTMLElement;
+    this.buyMenu = this.element.querySelector('.buy-menu') as HTMLElement;
     this.crosshair = this.element.querySelector('.crosshair') as HTMLElement;
     this.notificationContainer = this.element.querySelector('.notifications') as HTMLElement;
   }
@@ -42,8 +63,16 @@ export class HUD {
           <span class="health-text" aria-label="Health points">100 HP</span>
         </div>
       </div>
+      <div class="hud-top-center">
+        <div class="round-strip">
+          <span class="wave-text">WAVE 0</span>
+          <span class="enemies-text">0 HOSTILES</span>
+          <span class="timer-text">00:00</span>
+        </div>
+      </div>
       <div class="hud-top-right">
         <div class="ammo-container">
+          <span class="score-text">0</span>
           <span class="weapon-name" aria-label="Current weapon">Pistol</span>
           <div class="ammo-display" aria-label="Ammunition">
             <span class="ammo-current">12</span>
@@ -55,10 +84,35 @@ export class HUD {
       <div class="hud-center">
         <div class="crosshair" aria-hidden="true"></div>
       </div>
+      <div class="damage-overlay" aria-hidden="true"></div>
+      <div class="result-panel hidden" role="dialog" aria-label="Match results"></div>
+      <div class="pause-panel hidden" role="dialog" aria-label="Paused">
+        <h2>PAUSED</h2>
+        <p>Click resume to lock mouse and continue.</p>
+        <button class="resume-button" type="button">Resume</button>
+        <p class="result-hint">Press ESC again to return to menu</p>
+      </div>
+      <div class="scoreboard hidden" aria-label="Scoreboard"></div>
+      <div class="buy-menu hidden" aria-label="Buy menu">
+        <button data-weapon="sidearm">S-9</button>
+        <button data-weapon="heavy_pistol">Rook</button>
+        <button data-weapon="vandal">Vandal</button>
+        <button data-weapon="sentinel">Sentinel</button>
+        <button data-weapon="operator">Longbow</button>
+        <button data-weapon="specter">Specter</button>
+        <button data-weapon="bulldog">Bulldog</button>
+      </div>
       <div class="hud-bottom">
         <div class="notifications" aria-live="polite" aria-atomic="true"></div>
       </div>
     `;
+    hud.querySelectorAll<HTMLButtonElement>('.buy-menu button').forEach(button => {
+      button.addEventListener('click', () => {
+        const weaponId = button.dataset.weapon as WeaponId | undefined;
+        if (weaponId) this.buyHandler?.(weaponId);
+      });
+    });
+    hud.querySelector<HTMLButtonElement>('.resume-button')?.addEventListener('click', () => this.resumeHandler?.());
     return hud;
   }
 
@@ -125,6 +179,108 @@ export class HUD {
     }
   }
 
+  updateSurvival(stats: { wave: number; enemiesRemaining: number; score: number; timeSurvived: number; prepRemaining: number; phase: string }): void {
+    this.waveText.textContent = stats.prepRemaining > 0
+      ? `WAVE ${stats.wave + 1} IN ${Math.ceil(stats.prepRemaining)}`
+      : `WAVE ${stats.wave}`;
+    this.enemiesText.textContent = `${stats.enemiesRemaining} HOSTILES`;
+    this.scoreText.textContent = stats.score.toString().padStart(5, '0');
+    const minutes = Math.floor(stats.timeSurvived / 60).toString().padStart(2, '0');
+    const seconds = Math.floor(stats.timeSurvived % 60).toString().padStart(2, '0');
+    this.timerText.textContent = `${minutes}:${seconds}`;
+  }
+
+  updateMatch(snapshot: MatchSnapshot, localPlayerId?: string): void {
+    const localPlayer = snapshot.players.find(player => player.id === localPlayerId);
+    this.waveText.textContent = `${snapshot.config.mode.toUpperCase()} R${snapshot.round}`;
+    this.enemiesText.textContent = `${snapshot.score.attackers} - ${snapshot.score.defenders}`;
+    this.timerText.textContent = `${Math.ceil(snapshot.roundTimeRemaining)}s`;
+    this.scoreText.textContent = localPlayer ? `$${localPlayer.money}` : 'READY';
+    if (localPlayer) {
+      this.updateHealth(localPlayer.health, 100);
+      this.ammoCurrent.textContent = localPlayer.ammo.toString();
+      this.weaponName.textContent = localPlayer.weaponId.replace('_', ' ').toUpperCase();
+    }
+
+    const rows = snapshot.players
+      .slice()
+      .sort((a, b) => b.kills - a.kills)
+      .map(player => `
+        <tr class="${player.id === localPlayerId ? 'local' : ''}">
+          <td>${player.team === 'attackers' ? 'ATK' : 'DEF'}</td>
+          <td>${player.name}</td>
+          <td>${player.kills}</td>
+          <td>${player.deaths}</td>
+          <td>${player.money}</td>
+        </tr>
+      `)
+      .join('');
+    this.scoreboard.innerHTML = `
+      <table>
+        <thead><tr><th>Team</th><th>Name</th><th>K</th><th>D</th><th>$</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="kill-feed">${snapshot.killFeed.map(item => `<p>${item}</p>`).join('')}</div>
+    `;
+  }
+
+  toggleScoreboard(show?: boolean): void {
+    this.scoreboard.classList.toggle('hidden', show === undefined ? !this.scoreboard.classList.contains('hidden') : !show);
+  }
+
+  toggleBuyMenu(show?: boolean): void {
+    this.buyMenu.classList.toggle('hidden', show === undefined ? !this.buyMenu.classList.contains('hidden') : !show);
+  }
+
+  isBuyMenuOpen(): boolean {
+    return !this.buyMenu.classList.contains('hidden');
+  }
+
+  isScoreboardOpen(): boolean {
+    return !this.scoreboard.classList.contains('hidden');
+  }
+
+  showPause(): void {
+    this.pausePanel.classList.remove('hidden');
+  }
+
+  hidePause(): void {
+    this.pausePanel.classList.add('hidden');
+  }
+
+  onBuy(handler: (weaponId: WeaponId) => void): void {
+    this.buyHandler = handler;
+  }
+
+  onResume(handler: () => void): void {
+    this.resumeHandler = handler;
+  }
+
+  showDamage(): void {
+    this.damageOverlay.classList.remove('damage-flash');
+    void this.damageOverlay.offsetWidth;
+    this.damageOverlay.classList.add('damage-flash');
+  }
+
+  showResults(stats: { wave: number; kills: number; score: number; timeSurvived: number }): void {
+    this.resultPanel.classList.remove('hidden');
+    this.resultPanel.innerHTML = `
+      <h2>MISSION FAILED</h2>
+      <p>Wave ${stats.wave} reached</p>
+      <dl>
+        <div><dt>Kills</dt><dd>${stats.kills}</dd></div>
+        <div><dt>Score</dt><dd>${stats.score}</dd></div>
+        <div><dt>Time</dt><dd>${Math.floor(stats.timeSurvived)}s</dd></div>
+      </dl>
+      <p class="result-hint">Press ESC to return to menu</p>
+    `;
+  }
+
+  hideResults(): void {
+    this.resultPanel.classList.add('hidden');
+    this.resultPanel.innerHTML = '';
+  }
+
   showNotification(message: string, duration: number = 3000): void {
     // Remove existing notification of same type to avoid spam
     const existing = this.notificationContainer.querySelector('.notification');
@@ -167,10 +323,15 @@ export class HUD {
 
   hide(): void {
     this.element.classList.add('hidden');
+    this.toggleBuyMenu(false);
+    this.toggleScoreboard(false);
+    this.hidePause();
   }
 
   show(): void {
     this.element.classList.remove('hidden');
+    this.hideResults();
+    this.hidePause();
   }
 
   private announceForScreenReader(message: string): void {

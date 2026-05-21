@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Physics } from './Physics.js';
 import * as CANNON from 'cannon-es';
+import { ASSETS, loadAsset } from './assets.js';
 
 export type EnemyType = 'patrol' | 'shooter' | 'assault';
 export type EnemyState = 'idle' | 'patrol' | 'chase' | 'attack' | 'dead';
@@ -23,6 +24,8 @@ export class Enemy {
   public readonly attackRange: number;
 
   private mesh: THREE.Group;
+  private healthBar!: THREE.Group;
+  private healthFill!: THREE.Mesh;
   private body: CANNON.Body;
   private patrolPath: THREE.Vector3[];
   private currentPatrolIndex = 0;
@@ -55,6 +58,7 @@ export class Enemy {
     this.mesh = this.createEnemyMesh();
     this.mesh.position.copy(config.position);
     scene.add(this.mesh);
+    void this.loadModel();
 
     const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5));
     this.body = new CANNON.Body({
@@ -73,27 +77,43 @@ export class Enemy {
   private createEnemyMesh(): THREE.Group {
     const group = new THREE.Group();
 
-    const bodyGeometry = new THREE.BoxGeometry(1, 1.5, 0.5);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xcc0000 });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.position.y = 0.75;
-    group.add(body);
+    const fallback = ASSETS.enemy_assault.fallback();
+    group.add(fallback);
 
-    const headGeometry = new THREE.SphereGeometry(0.3);
-    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffcc99 });
-    const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 1.8;
-    group.add(head);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.58, 0.025, 8, 32),
+      new THREE.MeshBasicMaterial({ color: 0xff4040, transparent: true, opacity: 0.72 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.03;
+    group.add(ring);
+
+    this.healthBar = new THREE.Group();
+    this.healthBar.position.y = 2.35;
+    const bg = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.9, 0.08),
+      new THREE.MeshBasicMaterial({ color: 0x130f0f, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+    );
+    this.healthFill = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.86, 0.045),
+      new THREE.MeshBasicMaterial({ color: 0xff3b30, side: THREE.DoubleSide })
+    );
+    this.healthFill.position.z = 0.002;
+    this.healthBar.add(bg, this.healthFill);
+    group.add(this.healthBar);
 
     return group;
   }
 
-  update(dt: number, playerPosition: THREE.Vector3, now: number): void {
-    if (this.state === 'dead') return;
+  update(dt: number, playerPosition: THREE.Vector3, now: number): number {
+    if (this.state === 'dead') return 0;
 
-    this.mesh.position.set(this.body.position.x, this.body.position.y, this.mesh.position.y);
+    this.mesh.position.set(this.body.position.x, this.body.position.y - 1, this.body.position.z);
+    this.healthBar.lookAt(playerPosition);
+    this.healthBar.visible = this.mesh.position.distanceTo(playerPosition) < 22;
 
     const distanceToPlayer = this.mesh.position.distanceTo(playerPosition);
+    let damage = 0;
 
     switch (this.state) {
       case 'idle':
@@ -119,10 +139,12 @@ export class Enemy {
         if (distanceToPlayer > this.attackRange * 1.2) {
           this.state = 'chase';
         } else {
-          this.attack(now);
+          damage = this.attack(now);
         }
         break;
     }
+
+    return damage;
   }
 
   private patrol(dt: number): void {
@@ -154,16 +176,22 @@ export class Enemy {
     this.mesh.rotation.y = angle;
   }
 
-  private attack(now: number): void {
-    if (now - this.lastAttackTime < this.attackCooldown) return;
+  private attack(now: number): number {
+    this.body.velocity.x = 0;
+    this.body.velocity.z = 0;
+    if (now - this.lastAttackTime < this.attackCooldown) return 0;
 
     this.lastAttackTime = now;
+    return this.damage;
   }
 
   takeDamage(amount: number): void {
     if (this.state === 'dead') return;
 
     this.health -= amount;
+    const healthRatio = Math.max(0, this.health / 100);
+    this.healthFill.scale.x = healthRatio;
+    this.healthFill.position.x = -(1 - healthRatio) * 0.43;
     if (this.health <= 0) {
       this.health = 0;
       this.die();
@@ -188,5 +216,19 @@ export class Enemy {
   dispose(scene: THREE.Scene, physics: Physics): void {
     scene.remove(this.mesh);
     physics.removeBody(this.body);
+  }
+
+  getHealthRatio(): number {
+    return Math.max(0, this.health / 100);
+  }
+
+  private async loadModel(): Promise<void> {
+    const loaded = await loadAsset(ASSETS.enemy_assault);
+    if (this.state === 'dead') return;
+
+    const oldModel = this.mesh.children[0];
+    this.mesh.remove(oldModel);
+    loaded.position.set(0, 0, 0);
+    this.mesh.add(loaded);
   }
 }

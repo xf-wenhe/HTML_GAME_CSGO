@@ -40,6 +40,10 @@ export class Weapon {
     return !this.isReloading && this.currentAmmo > 0;
   }
 
+  getIsReloading(): boolean {
+    return this.isReloading;
+  }
+
   shoot(now: number = performance.now()): boolean {
     if (!this.canShoot()) return false;
 

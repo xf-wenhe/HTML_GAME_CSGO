@@ -16,20 +16,27 @@ export class MainMenu {
     menu.setAttribute('aria-modal', 'true');
     menu.innerHTML = `
       <div class="menu-content">
-        <h1 id="game-title" class="game-title">FPS Web Game</h1>
+        <p class="menu-kicker">Industrial Survival Arena</p>
+        <h1 id="game-title" class="game-title">FORGEPOINT</h1>
         <nav class="menu-buttons" role="navigation" aria-label="Game modes">
           <button class="menu-button" data-action="solo" type="button">
-            Solo Campaign
+            Survival
           </button>
-          <button class="menu-button" data-action="multiplayer" type="button">
-            Multiplayer
+          <button class="menu-button" data-action="tdm" type="button">
+            Team Deathmatch
+          </button>
+          <button class="menu-button" data-action="defusal" type="button">
+            5v5 Defusal
           </button>
         </nav>
         <div class="game-info" role="note" aria-label="Controls and instructions">
           <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> — Move</p>
+          <p><kbd>Shift</kbd> — Sprint</p>
           <p><kbd>Mouse</kbd> — Look</p>
           <p><kbd>Left Click</kbd> — Shoot</p>
           <p><kbd>R</kbd> — Reload</p>
+          <p><kbd>B</kbd> — Buy Menu</p>
+          <p><kbd>E</kbd> — Plant / Defuse</p>
           <p><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> — Switch Weapon</p>
           <p><kbd>Space</kbd> — Jump</p>
           <p><kbd>ESC</kbd> — Menu</p>
@@ -42,9 +49,10 @@ export class MainMenu {
   private setupEventListeners(): void {
     const buttons = this.element.querySelectorAll('.menu-button');
     buttons.forEach(button => {
-      this.buttons.set(button.getAttribute('data-action')!, button as HTMLButtonElement);
+      const htmlButton = button as HTMLButtonElement;
+      this.buttons.set(htmlButton.getAttribute('data-action')!, htmlButton);
 
-      button.addEventListener('click', (e) => {
+      htmlButton.addEventListener('click', (e) => {
         const action = (e.currentTarget as HTMLElement).getAttribute('data-action');
         if (action) {
           this.emit(action);
@@ -52,10 +60,10 @@ export class MainMenu {
       });
 
       // Keyboard support for better accessibility
-      button.addEventListener('keydown', (e) => {
+      htmlButton.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          button.click();
+          htmlButton.click();
         }
       });
     });

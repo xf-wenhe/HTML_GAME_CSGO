@@ -6,7 +6,8 @@
     "dev": "node --import tsx/esm server/index.ts & vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "test:e2e:feel": "node tests/e2e/csgo-feel-smoke.mjs"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
@@ -18,7 +19,9 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^20.10.0",
+    "@types/three": "^0.184.1",
     "jsdom": "^29.1.1",
+    "playwright": "^1.44.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",

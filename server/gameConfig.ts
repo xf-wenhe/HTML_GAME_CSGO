@@ -1,0 +1,52 @@
+import { MapId, Team, Vector3, WeaponBalance, WeaponId } from '../shared/types.js';
+
+export const WEAPON_BALANCE: Record<WeaponId, WeaponBalance> = {
+  sidearm: { id: 'sidearm', name: 'S-9 Sidearm', price: 200, teams: 'both', damage: 28, fireRate: 5, magazineSize: 12, reloadTime: 1.45, spread: 0.035, movementSpeedMultiplier: 1, armorPenetration: 0.35, headshotMultiplier: 3.5, range: 48 },
+  heavy_pistol: { id: 'heavy_pistol', name: 'Rook Heavy', price: 700, teams: 'both', damage: 55, fireRate: 2.2, magazineSize: 7, reloadTime: 1.9, spread: 0.045, movementSpeedMultiplier: 0.95, armorPenetration: 0.72, headshotMultiplier: 3.2, range: 65 },
+  vandal: { id: 'vandal', name: 'Vandal AR', price: 2700, teams: ['attackers'], damage: 36, fireRate: 9.5, magazineSize: 30, reloadTime: 2.35, spread: 0.055, movementSpeedMultiplier: 0.88, armorPenetration: 0.78, headshotMultiplier: 4, range: 90 },
+  sentinel: { id: 'sentinel', name: 'Sentinel M4', price: 2900, teams: ['defenders'], damage: 33, fireRate: 10, magazineSize: 30, reloadTime: 2.25, spread: 0.045, movementSpeedMultiplier: 0.9, armorPenetration: 0.74, headshotMultiplier: 4, range: 86 },
+  operator: { id: 'operator', name: 'Longbow AWP', price: 4750, teams: 'both', damage: 115, fireRate: 0.8, magazineSize: 5, reloadTime: 3.3, spread: 0.015, movementSpeedMultiplier: 0.72, armorPenetration: 0.98, headshotMultiplier: 2, range: 130 },
+  specter: { id: 'specter', name: 'Specter SMG', price: 1600, teams: 'both', damage: 22, fireRate: 13, magazineSize: 30, reloadTime: 2, spread: 0.075, movementSpeedMultiplier: 0.98, armorPenetration: 0.45, headshotMultiplier: 2.6, range: 45 },
+  bulldog: { id: 'bulldog', name: 'Bulldog Shotgun', price: 1200, teams: 'both', damage: 18, fireRate: 1.1, magazineSize: 8, reloadTime: 2.8, spread: 0.22, movementSpeedMultiplier: 0.86, armorPenetration: 0.3, headshotMultiplier: 1.5, range: 26 }
+};
+
+export interface ServerMapConfig {
+  id: MapId;
+  spawns: Record<Team, Vector3[]>;
+  tdmSpawns: Vector3[];
+  bombSites: Array<{ id: 'A' | 'B'; position: Vector3; radius: number }>;
+}
+
+export const MAP_CONFIGS: Record<MapId, ServerMapConfig> = {
+  forgepoint: {
+    id: 'forgepoint',
+    spawns: {
+      attackers: [
+        { x: -8, y: 1.7, z: 12 },
+        { x: -4, y: 1.7, z: 12 },
+        { x: 0, y: 1.7, z: 12 },
+        { x: 4, y: 1.7, z: 12 },
+        { x: 8, y: 1.7, z: 12 }
+      ],
+      defenders: [
+        { x: -8, y: 1.7, z: -23 },
+        { x: -4, y: 1.7, z: -23 },
+        { x: 0, y: 1.7, z: -23 },
+        { x: 4, y: 1.7, z: -23 },
+        { x: 8, y: 1.7, z: -23 }
+      ]
+    },
+    tdmSpawns: [
+      { x: -16, y: 1.7, z: 11 },
+      { x: 16, y: 1.7, z: 11 },
+      { x: -16, y: 1.7, z: -20 },
+      { x: 16, y: 1.7, z: -20 },
+      { x: -3, y: 1.7, z: 6 },
+      { x: 3, y: 1.7, z: -17 }
+    ],
+    bombSites: [
+      { id: 'A', position: { x: -13, y: 1.7, z: -13 }, radius: 5 },
+      { id: 'B', position: { x: 13, y: 1.7, z: -13 }, radius: 5 }
+    ]
+  }
+};
