@@ -12,7 +12,10 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     spread: 0.04,
     projectileSpeed: 50,
     switchTime: 0.24,
-    range: 48
+    range: 48,
+    reserveAmmo: 36,
+    armorPenetration: 0.35,
+    adsSpreadMultiplier: 0.52
   }),
   heavy_pistol: new Weapon({
     id: 'heavy_pistol',
@@ -25,7 +28,10 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     spread: 0.05,
     projectileSpeed: 58,
     switchTime: 0.3,
-    range: 65
+    range: 65,
+    reserveAmmo: 21,
+    armorPenetration: 0.72,
+    adsSpreadMultiplier: 0.48
   }),
   rifle: new Weapon({
     id: 'rifle',
@@ -38,7 +44,10 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     spread: 0.055,
     projectileSpeed: 80,
     switchTime: 0.42,
-    range: 90
+    range: 90,
+    reserveAmmo: 90,
+    armorPenetration: 0.78,
+    adsSpreadMultiplier: 0.46
   }),
   defender_rifle: new Weapon({
     id: 'defender_rifle',
@@ -51,7 +60,10 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     spread: 0.045,
     projectileSpeed: 80,
     switchTime: 0.4,
-    range: 86
+    range: 86,
+    reserveAmmo: 90,
+    armorPenetration: 0.74,
+    adsSpreadMultiplier: 0.44
   }),
   sniper: new Weapon({
     id: 'sniper',
@@ -64,7 +76,10 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     spread: 0.015,
     projectileSpeed: 120,
     switchTime: 0.64,
-    range: 130
+    range: 130,
+    reserveAmmo: 30,
+    armorPenetration: 0.98,
+    adsSpreadMultiplier: 0.08
   }),
   smg: new Weapon({
     id: 'smg',
@@ -77,7 +92,10 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     spread: 0.075,
     projectileSpeed: 62,
     switchTime: 0.28,
-    range: 45
+    range: 45,
+    reserveAmmo: 120,
+    armorPenetration: 0.45,
+    adsSpreadMultiplier: 0.6
   }),
   shotgun: new Weapon({
     id: 'shotgun',
@@ -90,7 +108,11 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     spread: 0.22,
     projectileSpeed: 40,
     switchTime: 0.45,
-    range: 26
+    range: 26,
+    reserveAmmo: 32,
+    armorPenetration: 0.3,
+    adsSpreadMultiplier: 0.62,
+    pellets: 8
   }),
   knife: new Weapon({
     id: 'knife',
@@ -105,6 +127,9 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     ammoConsumed: false,
     isMelee: true,
     switchTime: 0.18,
-    range: 2.4
+    range: 2.35,
+    reserveAmmo: 0,
+    armorPenetration: 0.2,
+    adsSpreadMultiplier: 1
   })
 };

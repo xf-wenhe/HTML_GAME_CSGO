@@ -45,4 +45,33 @@ describe('WeaponManager', () => {
 
     expect(weapon.getReloadProgress(1200)).toBeLessThan(1);
   });
+
+  it('tracks reserve ammo and right-click aim spread', () => {
+    const manager = new WeaponManager();
+    const weapon = manager.getCurrentWeapon();
+
+    weapon.currentAmmo = 1;
+    weapon.shoot(1000);
+    manager.startReload(1100);
+    weapon.update(4000);
+
+    expect(weapon.currentAmmo).toBeGreaterThan(1);
+    expect(weapon.currentReserveAmmo).toBeLessThan(weapon.reserveAmmo);
+
+    manager.setAiming(true);
+    expect(manager.isAiming()).toBe(true);
+    expect(weapon.adsSpreadMultiplier).toBeLessThan(1);
+  });
+
+  it('keeps the knife as ammo-free melee with short range', () => {
+    const manager = new WeaponManager();
+
+    manager.switchWeapon('knife');
+    const knife = manager.getCurrentWeapon();
+
+    expect(knife.isMelee).toBe(true);
+    expect(knife.ammoConsumed).toBe(false);
+    expect(knife.currentReserveAmmo).toBe(0);
+    expect(knife.range).toBeLessThan(3);
+  });
 });

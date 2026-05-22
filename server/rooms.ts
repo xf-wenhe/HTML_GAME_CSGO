@@ -70,6 +70,10 @@ export class RoomManager {
     return this.rooms.get(id);
   }
 
+  findJoinableRoom(mode: MatchMode): MatchRoom | undefined {
+    return Array.from(this.rooms.values()).find(room => room.config.mode === mode && room.players.size < room.config.maxPlayers);
+  }
+
   removeRoom(id: string): void {
     this.rooms.delete(id);
   }

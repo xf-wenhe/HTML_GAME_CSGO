@@ -19,6 +19,24 @@ await page.waitForSelector('#game-title', { timeout: 10_000 });
 await page.click('[data-action="solo"]');
 await page.waitForFunction(() => Boolean(window.__debugInputState), null, { timeout: 10_000 });
 
+const startState = await page.evaluate(() => window.__debugInputState?.());
+if (!startState?.pointerLockRequired) throw new Error('Expected gameplay to require Pointer Lock.');
+if (!startState?.pointerLocked) {
+  const ammoBeforeDeniedClick = startState?.ammo;
+  await page.mouse.down();
+  await page.waitForTimeout(120);
+  await page.mouse.up();
+  const deniedShoot = await page.evaluate(() => window.__debugInputState?.());
+  if (deniedShoot?.ammo !== ammoBeforeDeniedClick) {
+    throw new Error('Expected denied Pointer Lock state to block shooting.');
+  }
+  if (deniedShoot?.canShoot) throw new Error('Expected canShoot=false before Pointer Lock.');
+  await page.evaluate(() => window.__debugAllowPointerLockBypassForTests?.());
+}
+
+await waitForDebugState(page, state => state?.canShoot === true, 'canShoot=true');
+await waitForDebugState(page, state => state?.assetSource === 'glb', 'weapon assetSource=glb');
+
 const initial = await page.evaluate(() => window.__debugPlayerPosition?.());
 await page.keyboard.down('KeyW');
 await page.waitForTimeout(1000);
@@ -61,8 +79,7 @@ if (errors.some(error => /WebGLRenderer: Error creating WebGL context|Error crea
   throw new Error('WebGL failed in this browser runtime; run the same script in a hardware-accelerated browser.');
 }
 if (distance < 10 || distance > 12.2) throw new Error(`Expected tuned FPS movement around 10-12 units, got ${distance.toFixed(2)} units in 1s.`);
-const pointerLockUnavailable = errors.some(error => /not valid for pointer lock|pointer lock/i.test(error)) && !stateAfterShoot?.pointerLocked;
-if (!pointerLockUnavailable && stateAfterShoot && stateAfterMove && stateAfterShoot.ammo >= stateAfterMove.ammo) {
+if (stateAfterShoot && stateAfterMove && stateAfterShoot.ammo >= stateAfterMove.ammo) {
   throw new Error('Expected left click to consume ammo while focused.');
 }
 if (paused?.mode !== 'paused') throw new Error('Expected Escape to enter paused mode.');
@@ -72,11 +89,25 @@ await page.keyboard.press('Digit2');
 await page.waitForTimeout(120);
 const pistolSlot = await page.evaluate(() => window.__debugInputState?.());
 if (pistolSlot?.activeSlot !== 'pistol') throw new Error('Expected 2 to activate pistol slot.');
+if (pistolSlot?.assetSource !== 'glb') throw new Error('Expected pistol GLB asset to load.');
+
+await page.keyboard.press('Digit1');
+await page.mouse.down({ button: 'right' });
+await page.waitForTimeout(120);
+const aimingState = await page.evaluate(() => window.__debugInputState?.());
+await page.mouse.up({ button: 'right' });
+if (!aimingState?.aiming) throw new Error('Expected right mouse to enable ADS/aiming on guns.');
 
 await page.keyboard.press('Digit3');
 await page.waitForTimeout(120);
 const knifeSlot = await page.evaluate(() => window.__debugInputState?.());
 if (knifeSlot?.activeSlot !== 'knife') throw new Error('Expected 3 to activate knife slot.');
+if (knifeSlot?.assetSource !== 'glb') throw new Error('Expected knife GLB asset to load.');
+await page.mouse.down({ button: 'right' });
+await page.waitForTimeout(80);
+await page.mouse.up({ button: 'right' });
+const knifeAfterHeavy = await page.evaluate(() => window.__debugInputState?.());
+if (knifeAfterHeavy?.aiming) throw new Error('Expected knife right click to heavy attack, not ADS.');
 
 await page.keyboard.press('Digit4');
 await page.keyboard.press('Digit4');
@@ -113,4 +144,22 @@ const tabOpen = await page.evaluate(() => window.__debugInputState?.());
 await page.keyboard.up('Tab');
 if (!tabOpen?.isScoreboardOpen) throw new Error('Expected Tab to open scoreboard.');
 
+await page.keyboard.up('Tab');
+await page.waitForTimeout(2600);
+const enemyAssets = await page.evaluate(() => window.__debugInputState?.enemyAssetSources ?? []);
+if (enemyAssets.length > 0 && !enemyAssets.includes('glb')) {
+  throw new Error('Expected at least one enemy to use a GLB asset when enemies are spawned.');
+}
+
 await browser.close();
+
+async function waitForDebugState(page, predicate, label, timeout = 10_000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const state = await page.evaluate(() => window.__debugInputState?.());
+    if (predicate(state)) return state;
+    await page.waitForTimeout(100);
+  }
+  const last = await page.evaluate(() => window.__debugInputState?.());
+  throw new Error(`Timed out waiting for ${label}: ${JSON.stringify(last)}`);
+}

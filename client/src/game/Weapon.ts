@@ -1,3 +1,5 @@
+import { DEFAULT_HIT_MULTIPLIERS, DamageProfile, HitRegion } from './Combat.js';
+
 export interface WeaponConfig {
   id: string;
   name: string;
@@ -12,6 +14,11 @@ export interface WeaponConfig {
   isMelee?: boolean;
   switchTime?: number;
   range?: number;
+  reserveAmmo?: number;
+  armorPenetration?: number;
+  hitMultipliers?: Partial<Record<HitRegion, number>>;
+  adsSpreadMultiplier?: number;
+  pellets?: number;
 }
 
 export class Weapon {
@@ -28,8 +35,14 @@ export class Weapon {
   public readonly isMelee: boolean;
   public readonly switchTime: number;
   public readonly range: number;
+  public readonly reserveAmmo: number;
+  public readonly armorPenetration: number;
+  public readonly hitMultipliers: Record<HitRegion, number>;
+  public readonly adsSpreadMultiplier: number;
+  public readonly pellets: number;
 
   public currentAmmo: number;
+  public currentReserveAmmo: number;
   private lastShotTime: number = 0;
   private isReloading: boolean = false;
   private reloadStartTime: number = 0;
@@ -48,6 +61,12 @@ export class Weapon {
     this.isMelee = config.isMelee ?? false;
     this.switchTime = config.switchTime ?? 0.32;
     this.range = config.range ?? 65;
+    this.reserveAmmo = config.reserveAmmo ?? this.magazineSize * 3;
+    this.currentReserveAmmo = this.ammoConsumed ? this.reserveAmmo : 0;
+    this.armorPenetration = config.armorPenetration ?? 0.45;
+    this.hitMultipliers = { ...DEFAULT_HIT_MULTIPLIERS, ...config.hitMultipliers };
+    this.adsSpreadMultiplier = config.adsSpreadMultiplier ?? 0.58;
+    this.pellets = config.pellets ?? 1;
     this.currentAmmo = this.magazineSize;
   }
 
@@ -71,7 +90,7 @@ export class Weapon {
   }
 
   startReload(now: number = performance.now()): void {
-    if (this.isReloading || this.currentAmmo === this.magazineSize) return;
+    if (!this.ammoConsumed || this.isReloading || this.currentAmmo === this.magazineSize || this.currentReserveAmmo <= 0) return;
     this.isReloading = true;
     this.reloadStartTime = now;
   }
@@ -80,7 +99,10 @@ export class Weapon {
     if (this.isReloading) {
       const reloadProgress = (now - this.reloadStartTime) / 1000;
       if (reloadProgress >= this.reloadTime) {
-        this.currentAmmo = this.magazineSize;
+        const needed = this.magazineSize - this.currentAmmo;
+        const loaded = Math.min(needed, this.currentReserveAmmo);
+        this.currentAmmo += loaded;
+        this.currentReserveAmmo -= loaded;
         this.isReloading = false;
       }
     }
@@ -93,6 +115,14 @@ export class Weapon {
 
   getSpreadMultiplier(): number {
     return 1 + (this.magazineSize - this.currentAmmo) * 0.05;
+  }
+
+  getDamageProfile(): DamageProfile {
+    return {
+      baseDamage: this.damage,
+      armorPenetration: this.armorPenetration,
+      multipliers: this.hitMultipliers
+    };
   }
 
   clone(): Weapon {
@@ -109,7 +139,12 @@ export class Weapon {
       ammoConsumed: this.ammoConsumed,
       isMelee: this.isMelee,
       switchTime: this.switchTime,
-      range: this.range
+      range: this.range,
+      reserveAmmo: this.reserveAmmo,
+      armorPenetration: this.armorPenetration,
+      hitMultipliers: this.hitMultipliers,
+      adsSpreadMultiplier: this.adsSpreadMultiplier,
+      pellets: this.pellets
     });
   }
 }

@@ -4,14 +4,17 @@ import { Scene } from './game/Scene.js';
 import { Physics } from './game/Physics.js';
 import { InputManager } from './game/InputManager.js';
 import { PlayerController } from './game/PlayerController.js';
-import { WeaponManager } from './game/WeaponManager.js';
+import { ShootResult, WeaponManager } from './game/WeaponManager.js';
 import { ProjectileSystem } from './game/ProjectileSystem.js';
 import { NetworkManager } from './network/NetworkManager.js';
 import { EnemyManager } from './game/EnemyManager.js';
+import { Enemy } from './game/Enemy.js';
 import { INDUSTRIAL_ARENA } from './game/MapData.js';
 import { RemotePlayers } from './game/RemotePlayers.js';
 import { SurvivalMode } from './game/SurvivalMode.js';
 import { GrenadeSystem } from './game/GrenadeSystem.js';
+import { DroppedWeapon, DroppedWeaponSystem } from './game/DroppedWeaponSystem.js';
+import { HitRegion, calculateDamage } from './game/Combat.js';
 import { MatchMode, MatchSnapshot, WeaponId } from './game/types.js';
 import { InputMode, PointerLockState, canMove, canShoot } from './game/InputMode.js';
 import { HUD } from './ui/HUD.js';
@@ -25,6 +28,9 @@ declare global {
       mode: InputMode;
       pointerLocked: boolean;
       pointerLockState: PointerLockState;
+      pointerLockRequired: boolean;
+      lockFailureReason: string | null;
+      canShoot: boolean;
       activePanel: string;
       isBuyMenuOpen: boolean;
       isScoreboardOpen: boolean;
@@ -33,15 +39,26 @@ declare global {
       airborneTime: number;
       mapBounds: { width: number; depth: number; centerZ: number };
       weaponId: string;
+      assetSource: 'glb' | 'fallback';
+      enemyAssetSources: Array<'glb' | 'fallback'>;
       activeSlot: 'primary' | 'pistol' | 'knife' | 'grenade';
       ammo: number;
+      reserveAmmo: number;
+      armor: number;
+      aiming: boolean;
+      nearbyPickup: string | null;
+      lastHitRegion: string | null;
       crouched: boolean;
       crouchJumping: boolean;
       collisionHeight: number;
       grenadeId: string;
       grenadeInventory: { he: number; flash: number; smoke: number; incendiary: number; decoy: number };
       keys: string[];
+      mousePlatform: string;
+      rawMouseInput: boolean;
+      mouseSensitivity: number;
     };
+    __debugAllowPointerLockBypassForTests?: () => void;
   }
 }
 
@@ -54,6 +71,7 @@ const network = new NetworkManager();
 const enemyManager = new EnemyManager(scene.getScene(), physics);
 const survival = new SurvivalMode(enemyManager);
 const grenades = new GrenadeSystem(scene.getScene());
+const droppedWeapons = new DroppedWeaponSystem(scene.getScene());
 const remotePlayers = new RemotePlayers(scene.getScene());
 const hud = new HUD();
 const mainMenu = new MainMenu();
@@ -62,6 +80,10 @@ let player: PlayerController | null = null;
 let gameRunning = false;
 let inputMode: InputMode = 'menu';
 let pointerLockState: PointerLockState = 'supported';
+const pointerLockRequired = true;
+let lockFailureReason: string | null = null;
+let debugPointerLockBypass = false;
+const allowDebugPointerLockBypass = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
 let currentMode: 'solo' | 'multiplayer' | null = null;
 let desiredMultiplayerMode: MatchMode = 'tdm';
 let currentSnapshot: MatchSnapshot | null = null;
@@ -73,6 +95,8 @@ let usingGrenade = false;
 let activeSlot: 'primary' | 'pistol' | 'knife' | 'grenade' = 'primary';
 let equippedPrimary = 'rifle';
 let equippedPistol = 'pistol';
+let nearbyDrop: DroppedWeapon | null = null;
+let lastHitRegion: HitRegion | null = null;
 const recordedKills = new Set<string>();
 
 scene.getArenaColliders().forEach(collider => {
@@ -129,12 +153,16 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   hud.show();
   gameRunning = true;
   setInputMode('playing');
+  debugPointerLockBypass = false;
   currentMode = mode;
   usingGrenade = false;
   activeSlot = 'primary';
   equippedPrimary = 'rifle';
   equippedPistol = 'pistol';
   recordedKills.clear();
+  droppedWeapons.clear();
+  nearbyDrop = null;
+  lastHitRegion = null;
 
   player = new PlayerController(scene, physics, input, INDUSTRIAL_ARENA.playerSpawn.clone());
   player.healFull();
@@ -143,7 +171,9 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
 
   hud.updateWeapon(weaponManager.getCurrentWeapon());
   syncWeaponHud();
-  hud.updateHealth(player.getHealth(), player.getMaxHealth());
+  hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
+  hud.updateNetworkStatus(mode === 'solo' ? '单机' : '连接中...');
+  hud.updateRoomPlayers(mode === 'solo' ? 1 : 0, mode === 'solo' ? 1 : 10);
   hud.showNotification(mode === 'solo' ? '单人任务已开始' : '正在等待玩家...');
 
   if (mode === 'solo') {
@@ -156,25 +186,17 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
 }
 
 network.on('connected', () => {
-  console.log('Connected to game server!');
-  network.send({ type: 'joinLobby' });
+  debugLog('Connected to game server!');
+  hud.updateNetworkStatus(`已连接 ${network.getServerUrl()}`);
   network.send({
-    type: 'createRoom',
-    config: {
-      mode: desiredMultiplayerMode,
-      mapId: 'forgepoint',
-      maxPlayers: 10,
-      tickRate: 30,
-      isPrivate: false,
-      friendlyFire: false,
-      roundLimit: desiredMultiplayerMode === 'tdm' ? 100 : 15,
-      warmupSeconds: desiredMultiplayerMode === 'tdm' ? 3 : 8
-    }
+    type: 'joinOrCreateRoom',
+    mode: desiredMultiplayerMode,
+    playerName: `Player-${Math.floor(Math.random() * 1000)}`
   });
 });
 
 network.on('roomList', (data) => {
-  console.log('Available rooms:', data.rooms);
+  debugLog('Available rooms:', data.rooms);
 });
 
 network.on('roomCreated', (data) => {
@@ -184,6 +206,9 @@ network.on('roomCreated', (data) => {
 network.on('roomJoined', (data) => {
   localPlayerId = data.playerId;
   currentSnapshot = data.snapshot ?? null;
+  if (data.snapshot) {
+    hud.updateRoomPlayers(data.snapshot.players.length, data.snapshot.config.maxPlayers);
+  }
   network.send({ type: 'setReady', ready: true });
   hud.showNotification(`${desiredMultiplayerMode === 'tdm' ? '团队死斗' : '爆破'} 房间已就绪`);
 });
@@ -197,6 +222,7 @@ network.on('matchSnapshot', (data) => {
 });
 
 network.on('roomError', (data) => {
+  hud.updateNetworkStatus('连接异常');
   hud.showNotification(data.message);
 });
 
@@ -247,6 +273,11 @@ document.addEventListener('keydown', (e) => {
     }
   }
   if (e.key === 'e' || e.key === 'E') {
+    if (nearbyDrop) {
+      equipPickedWeapon(droppedWeapons.pickup(nearbyDrop));
+      nearbyDrop = null;
+      return;
+    }
     const site = nearestBombSite();
     if (currentSnapshot?.bomb?.plantedAt) network.send({ type: 'defuseBomb' });
     else network.send({ type: 'plantBomb', request: { site } });
@@ -271,6 +302,8 @@ document.addEventListener('pointerlockchange', () => {
   if (input.isPointerLocked()) {
     hadPointerLock = true;
     pointerLockState = 'locked';
+    lockFailureReason = null;
+    hud.hidePointerLockGuide();
     return;
   }
   if (gameRunning && inputMode === 'playing' && hadPointerLock) {
@@ -278,7 +311,9 @@ document.addEventListener('pointerlockchange', () => {
     pauseGame();
   }
   if (gameRunning && input.wasPointerLockDenied()) {
-    pointerLockState = 'focusedNoLock';
+    pointerLockState = 'denied';
+    lockFailureReason = '浏览器没有允许鼠标锁定';
+    hud.showPointerLockGuide();
   }
 });
 
@@ -292,11 +327,15 @@ function endGame(): void {
   remotePlayers.clear();
   network.send({ type: 'leaveRoom' });
   network.disconnect();
+  hud.updateNetworkStatus('离线');
+  hud.updateRoomPlayers(0, 0);
   currentSnapshot = null;
   localPlayerId = undefined;
   currentMode = null;
   usingGrenade = false;
   activeSlot = 'primary';
+  droppedWeapons.clear();
+  nearbyDrop = null;
   weaponManager.dispose();
   hud.hideResults();
   if (player) {
@@ -315,7 +354,7 @@ function gameLoop(now: number) {
     return;
   }
 
-  if (player && canMove(inputMode)) {
+  if (player && canMove(inputMode) && hasGameplayFocus()) {
     player.update(dt);
   } else {
     input.getMouseDelta();
@@ -324,10 +363,16 @@ function gameLoop(now: number) {
   weaponManager.update(now, dt, player?.isMoving() ?? false);
 
   const playerPos = player?.getPosition() || new THREE.Vector3(0, 0, 0);
+  weaponManager.setAiming(canShoot(inputMode) && hasGameplayFocus() && !usingGrenade && input.isKeyPressed('MouseRight'));
+  updateAimFov(dt);
+  nearbyDrop = player ? droppedWeapons.update(playerPos) : null;
+  if (nearbyDrop) {
+    hud.showNotification(`按 E 拾取 ${weaponDisplayName(nearbyDrop.weaponId)}`, 450);
+  }
   const enemyDamage = enemyManager.update(dt, playerPos, now);
   if (enemyDamage > 0 && player) {
-    player.takeDamage(enemyDamage);
-    hud.updateHealth(player.getHealth(), player.getMaxHealth());
+    player.takeDamage(enemyDamage, 'chest', 0.28);
+    hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
     hud.showDamage();
     if (player.isDead()) {
       survival.gameOver();
@@ -363,23 +408,39 @@ function gameLoop(now: number) {
   }
 
   const currentWeapon = weaponManager.getCurrentWeapon();
-  hud.updateAmmo(currentWeapon.currentAmmo, currentWeapon.magazineSize);
+  hud.updateAmmo(currentWeapon.currentAmmo, currentWeapon.magazineSize, currentWeapon.currentReserveAmmo);
   hud.updateReloadProgress(currentWeapon.getReloadProgress());
-  hud.updateCrosshair(currentWeapon.spread * currentWeapon.getSpreadMultiplier());
+  hud.updateCrosshair(currentWeapon.spread * currentWeapon.getSpreadMultiplier() * (weaponManager.isAiming() ? currentWeapon.adsSpreadMultiplier : 1));
   hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[grenades.getSelected()]);
   syncWeaponHud();
 
   const grenadeResult = grenades.update(dt, playerPos);
   if (grenadeResult.damage > 0 && player) {
-    player.takeDamage(grenadeResult.damage);
-    hud.updateHealth(player.getHealth(), player.getMaxHealth());
+    player.takeDamage(grenadeResult.damage, 'chest', 0.15);
+    hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
     hud.showDamage();
+  }
+
+  if (canShoot(inputMode) && hasGameplayFocus() && usingGrenade && input.isKeyPressed('MouseRight') && player) {
+    input.setKeyPressed('MouseRight', false);
+    if (grenades.throwSelected(scene.getCamera(), 'light')) {
+      hud.showNotification(`轻抛${grenades.getSelectedLabel()}`);
+    } else {
+      hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
+    }
+    syncWeaponHud();
+  }
+
+  if (canShoot(inputMode) && hasGameplayFocus() && !usingGrenade && input.isKeyPressed('MouseRight') && weaponManager.getCurrentWeapon().isMelee && player) {
+    input.setKeyPressed('MouseRight', false);
+    const result = weaponManager.shoot(scene.getCamera(), now, { heavyMelee: true });
+    if (result) applyLocalWeaponHit(result);
   }
 
   if (canShoot(inputMode) && hasGameplayFocus() && input.isKeyPressed('MouseLeft') && player) {
     if (usingGrenade) {
       input.setKeyPressed('MouseLeft', false);
-      if (grenades.throwSelected(scene.getCamera())) {
+      if (grenades.throwSelected(scene.getCamera(), 'full')) {
         hud.showNotification(`投掷${grenades.getSelectedLabel()}`);
       } else {
         hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
@@ -399,28 +460,13 @@ function gameLoop(now: number) {
           }
         });
       }
-      const hitscanResult = projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
+      const hitscanResult = result.isMelee ? { hit: false } : projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
 
       if (hitscanResult.hit) {
         hud.showHitMarker();
       }
 
-      enemyManager.getAllEnemies().forEach(enemy => {
-        if (enemy.isDead()) return;
-
-        const enemyPos = enemy.getPosition();
-        const toEnemy = new THREE.Vector3().subVectors(enemyPos, result.origin);
-        const distance = toEnemy.length();
-        const direction = toEnemy.normalize();
-
-        const hitDirection = result.direction.clone().normalize();
-        const dot = hitDirection.dot(direction);
-
-        if (dot > (weaponManager.getCurrentWeapon().isMelee ? 0.72 : 0.985) && distance < weaponManager.getCurrentWeapon().range) {
-          enemy.takeDamage(result.damage);
-          hud.showHitMarker();
-        }
-      });
+      applyLocalWeaponHit(result);
     }
     }
   }
@@ -439,26 +485,35 @@ function setInputMode(mode: InputMode): void {
 
 function requestGameFocus(): void {
   hud.hidePause();
+  hud.hidePointerLockGuide();
   hud.toggleBuyMenu(false);
   input.clearActionKeys();
   setInputMode('playing');
   void input.requestPointerLock().then((locked) => {
-    pointerLockState = locked ? 'locked' : input.wasPointerLockDenied() ? 'focusedNoLock' : 'supported';
+    pointerLockState = locked ? 'locked' : input.wasPointerLockDenied() ? 'denied' : 'supported';
+    lockFailureReason = locked ? null : '浏览器没有允许鼠标锁定';
+    if (!locked) {
+      input.clearActionKeys();
+      hud.showPointerLockGuide();
+      hud.showNotification('请点击锁定鼠标后再开始战斗', 1600);
+    }
   });
 }
 
 function hasGameplayFocus(): boolean {
-  return input.isPointerLocked() || pointerLockState === 'focusedNoLock';
+  return input.isPointerLocked() || (allowDebugPointerLockBypass && debugPointerLockBypass);
 }
 
 function pauseGame(): void {
   if (!gameRunning) return;
   hadPointerLock = false;
   pointerLockState = input.wasPointerLockDenied() ? 'denied' : 'supported';
+  lockFailureReason = null;
   setInputMode('paused');
   input.exitPointerLock();
   hud.toggleBuyMenu(false);
   hud.toggleScoreboard(false);
+  hud.hidePointerLockGuide();
   hud.showPause();
 }
 
@@ -487,12 +542,98 @@ function closeBuyMenu(refocus: boolean): void {
 
 function applyMatchSnapshot(snapshot: MatchSnapshot): void {
   currentSnapshot = snapshot;
+  hud.updateRoomPlayers(snapshot.players.length, snapshot.config.maxPlayers);
   remotePlayers.update(snapshot, localPlayerId);
   hud.updateMatch(snapshot, localPlayerId);
 }
 
 function vectorToPlain(vector: THREE.Vector3) {
   return { x: vector.x, y: vector.y, z: vector.z };
+}
+
+function updateAimFov(dt: number): void {
+  const camera = scene.getCamera();
+  const weapon = weaponManager.getCurrentWeapon();
+  const targetFov = weaponManager.isAiming()
+    ? (weapon.id === 'sniper' ? 42 : 68)
+    : 82;
+  camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, Math.min(1, dt * 14));
+  camera.updateProjectionMatrix();
+}
+
+function applyLocalWeaponHit(result: ShootResult): void {
+  const weapon = weaponManager.getCurrentWeapon();
+  if (result.isMelee) {
+    const target = findMeleeTarget(result.origin, result.direction, weapon.range);
+    if (!target) return;
+    const damage = calculateDamage(
+      { ...weapon.getDamageProfile(), baseDamage: result.damage },
+      target.region,
+      0
+    ).healthDamage;
+    target.enemy.takeDamage(damage, target.region);
+    lastHitRegion = target.region;
+    hud.showHitMarker();
+    hud.showNotification(result.heavyMelee ? `重击命中 ${regionLabel(target.region)}` : `挥刀命中 ${regionLabel(target.region)}`, 650);
+    return;
+  }
+
+  const shots = weapon.pellets > 1 ? weapon.pellets : 1;
+  for (let i = 0; i < shots; i++) {
+    const pelletDirection = shots === 1 ? result.direction : spreadDirection(result.direction, weapon.spread * 0.75);
+    const target = findClosestRayTarget(result.origin, pelletDirection, weapon.range);
+    if (!target) continue;
+    const damage = calculateDamage(weapon.getDamageProfile(), target.region, 0).healthDamage;
+    target.enemy.takeDamage(damage, target.region);
+    lastHitRegion = target.region;
+    hud.showHitMarker();
+    if (target.region === 'head') hud.showNotification('爆头命中', 650);
+  }
+}
+
+function findClosestRayTarget(origin: THREE.Vector3, direction: THREE.Vector3, range: number) {
+  let best: { enemy: Enemy; region: HitRegion; distance: number } | null = null;
+  for (const enemy of enemyManager.getAllEnemies()) {
+    const hit = enemy.getRayHit(origin, direction, range);
+    if (!hit) continue;
+    if (!best || hit.distance < best.distance) {
+      best = { enemy, region: hit.region, distance: hit.distance };
+    }
+  }
+  return best;
+}
+
+function findMeleeTarget(origin: THREE.Vector3, direction: THREE.Vector3, range: number) {
+  let best: { enemy: Enemy; region: HitRegion; distance: number } | null = null;
+  for (const enemy of enemyManager.getAllEnemies()) {
+    if (enemy.isDead()) continue;
+    const toEnemy = enemy.getPosition().add(new THREE.Vector3(0, 1.25, 0)).sub(origin);
+    const distance = toEnemy.length();
+    if (distance > range) continue;
+    const dot = direction.clone().normalize().dot(toEnemy.clone().normalize());
+    if (dot < 0.62) continue;
+    if (!best || distance < best.distance) {
+      best = { enemy, region: 'chest', distance };
+    }
+  }
+  return best;
+}
+
+function spreadDirection(direction: THREE.Vector3, spread: number): THREE.Vector3 {
+  return direction.clone()
+    .add(new THREE.Vector3((Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread))
+    .normalize();
+}
+
+function regionLabel(region: HitRegion): string {
+  const labels: Record<HitRegion, string> = {
+    head: '头部',
+    chest: '胸部',
+    stomach: '腹部',
+    arm: '手臂',
+    leg: '腿部'
+  };
+  return labels[region];
 }
 
 function currentMultiplayerWeaponId(): WeaponId {
@@ -529,7 +670,10 @@ window.__debugPlayerPosition = () => player ? vectorToPlain(player.getPosition()
 window.__debugInputState = () => ({
   mode: inputMode,
   pointerLockState,
-  activePanel: hud.isBuyMenuOpen() ? 'buyMenu' : hud.isScoreboardOpen() ? 'scoreboard' : inputMode === 'paused' ? 'pause' : 'none',
+  pointerLockRequired,
+  lockFailureReason,
+  canShoot: canShoot(inputMode) && hasGameplayFocus(),
+  activePanel: hud.isBuyMenuOpen() ? 'buyMenu' : hud.isScoreboardOpen() ? 'scoreboard' : inputMode === 'paused' ? 'pause' : lockFailureReason ? 'pointerLockGuide' : 'none',
   isBuyMenuOpen: hud.isBuyMenuOpen(),
   isScoreboardOpen: hud.isScoreboardOpen(),
   pointerLocked: input.isPointerLocked(),
@@ -541,16 +685,36 @@ window.__debugInputState = () => ({
   collisionHeight: player?.getCollisionHeight() ?? 0,
   mapBounds: INDUSTRIAL_ARENA.bounds,
   weaponId: usingGrenade ? 'grenade' : weaponManager.getCurrentWeaponId(),
+  assetSource: usingGrenade ? 'fallback' : weaponManager.getCurrentAssetSource(),
+  enemyAssetSources: enemyManager.getAllEnemies().map(enemy => enemy.getAssetSource()),
   activeSlot,
   ammo: weaponManager.getCurrentWeapon().currentAmmo,
+  reserveAmmo: weaponManager.getCurrentWeapon().currentReserveAmmo,
+  armor: player?.getArmor() ?? 0,
+  aiming: weaponManager.isAiming(),
+  nearbyPickup: nearbyDrop?.weaponId ?? null,
+  lastHitRegion,
   grenadeId: grenades.getSelected(),
   grenadeInventory: grenades.getInventory(),
-  keys: input.getPressedKeys()
+  keys: input.getPressedKeys(),
+  mousePlatform: input.getMousePlatform(),
+  rawMouseInput: input.getPointerLockInfo().rawMouseInput,
+  mouseSensitivity: input.getMouseSettings().baseSensitivity * input.getMouseSettings().platformScale
 });
+
+if (allowDebugPointerLockBypass) {
+  window.__debugAllowPointerLockBypassForTests = () => {
+    debugPointerLockBypass = true;
+    pointerLockState = 'locked';
+    lockFailureReason = null;
+    hud.hidePointerLockGuide();
+  };
+}
 
 function switchLocalWeaponFromBuy(weaponId: WeaponId): void {
   usingGrenade = false;
   const localWeapon = multiplayerWeaponToLocal(weaponId);
+  dropReplacedWeapon(localWeapon);
   if (localWeapon === 'knife') {
     activeSlot = 'knife';
   } else if (localWeapon === 'pistol' || localWeapon === 'heavy_pistol') {
@@ -563,6 +727,34 @@ function switchLocalWeaponFromBuy(weaponId: WeaponId): void {
   weaponManager.switchWeapon(localWeapon);
   hud.updateWeapon(weaponManager.getCurrentWeapon());
   syncWeaponHud();
+}
+
+function debugLog(...args: unknown[]): void {
+  if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) console.log(...args);
+}
+
+function equipPickedWeapon(localWeapon: string): void {
+  dropReplacedWeapon(localWeapon);
+  usingGrenade = false;
+  if (localWeapon === 'pistol' || localWeapon === 'heavy_pistol') {
+    equippedPistol = localWeapon;
+    activeSlot = 'pistol';
+  } else {
+    equippedPrimary = localWeapon;
+    activeSlot = 'primary';
+  }
+  weaponManager.switchWeapon(localWeapon);
+  hud.updateWeapon(weaponManager.getCurrentWeapon());
+  syncWeaponHud();
+  hud.showNotification(`已拾取 ${weaponDisplayName(localWeapon)}`);
+}
+
+function dropReplacedWeapon(nextWeapon: string): void {
+  if (!player || nextWeapon === 'knife') return;
+  const replaced = nextWeapon === 'pistol' || nextWeapon === 'heavy_pistol' ? equippedPistol : equippedPrimary;
+  if (replaced && replaced !== nextWeapon && replaced !== 'knife') {
+    droppedWeapons.dropWeapon(replaced, player.getPosition());
+  }
 }
 
 function updateScoreboardPanel(): void {

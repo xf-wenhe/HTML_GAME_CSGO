@@ -7,6 +7,9 @@ export interface ShootResult {
   origin: THREE.Vector3;
   direction: THREE.Vector3;
   damage: number;
+  pellets: number;
+  isMelee: boolean;
+  heavyMelee: boolean;
 }
 
 export class WeaponManager {
@@ -15,11 +18,15 @@ export class WeaponManager {
   private camera: THREE.Camera | null = null;
   private weaponRoot = new THREE.Group();
   private currentModel: THREE.Object3D | null = null;
+  private currentAssetSource: 'glb' | 'fallback' = 'fallback';
   private muzzleFlash: THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>;
+  private viewmodelLight: THREE.PointLight;
   private recoil = 0;
   private swayClock = 0;
   private switchProgress = 0;
   private switchDuration = 0;
+  private aiming = false;
+  private meleeSwing = 0;
 
   constructor() {
     Object.entries(WEAPON_DEFINITIONS).forEach(([id, weapon]) => {
@@ -37,6 +44,10 @@ export class WeaponManager {
     this.muzzleFlash.rotation.x = -Math.PI / 2;
     this.muzzleFlash.position.set(0, 0.03, -0.92);
     this.weaponRoot.add(this.muzzleFlash);
+
+    this.viewmodelLight = new THREE.PointLight(0xf2f6ff, 2.2, 3.2, 1.6);
+    this.viewmodelLight.position.set(0.18, 0.15, -0.38);
+    this.weaponRoot.add(this.viewmodelLight);
     void this.applyWeaponModel();
   }
 
@@ -66,7 +77,20 @@ export class WeaponManager {
     return this.currentWeaponId;
   }
 
-  shoot(camera: THREE.Camera, now: number = performance.now()): ShootResult | null {
+  getCurrentAssetSource(): 'glb' | 'fallback' {
+    return this.currentAssetSource;
+  }
+
+  setAiming(aiming: boolean): void {
+    const weapon = this.getCurrentWeapon();
+    this.aiming = aiming && !weapon.isMelee;
+  }
+
+  isAiming(): boolean {
+    return this.aiming;
+  }
+
+  shoot(camera: THREE.Camera, now: number = performance.now(), options: { heavyMelee?: boolean } = {}): ShootResult | null {
     const weapon = this.getCurrentWeapon();
     if (this.isSwitching()) return null;
     if (!weapon.shoot(now)) {
@@ -76,11 +100,13 @@ export class WeaponManager {
       return null;
     }
 
-    this.recoil = Math.min(this.recoil + 0.08, 0.26);
+    const heavyMelee = Boolean(options.heavyMelee && weapon.isMelee);
+    this.recoil = weapon.isMelee ? Math.min(this.recoil + (heavyMelee ? 0.15 : 0.09), 0.24) : Math.min(this.recoil + 0.08, 0.26);
+    this.meleeSwing = weapon.isMelee ? 1 : this.meleeSwing;
     this.muzzleFlash.material.opacity = weapon.isMelee ? 0 : 0.95;
 
     const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const spread = weapon.spread * weapon.getSpreadMultiplier();
+    const spread = weapon.spread * weapon.getSpreadMultiplier() * (this.aiming ? weapon.adsSpreadMultiplier : 1);
     direction.x += (Math.random() - 0.5) * spread;
     direction.y += (Math.random() - 0.5) * spread;
     direction.z += (Math.random() - 0.5) * spread;
@@ -89,7 +115,10 @@ export class WeaponManager {
     return {
       origin: camera.position.clone(),
       direction,
-      damage: weapon.damage
+      damage: heavyMelee ? Math.round(weapon.damage * 1.65) : weapon.damage,
+      pellets: weapon.pellets,
+      isMelee: weapon.isMelee,
+      heavyMelee
     };
   }
 
@@ -100,6 +129,7 @@ export class WeaponManager {
   update(now: number = performance.now(), dt = 0.016, isMoving = false): void {
     this.weapons.forEach(weapon => weapon.update(now));
     this.recoil = Math.max(0, this.recoil - dt * 0.9);
+    this.meleeSwing = Math.max(0, this.meleeSwing - dt * 5.8);
     this.switchProgress = Math.max(0, this.switchProgress - dt);
     this.swayClock += dt * (isMoving ? 9 : 3.5);
 
@@ -108,8 +138,23 @@ export class WeaponManager {
     const switchRatio = this.switchDuration > 0 ? this.switchProgress / this.switchDuration : 0;
     const drawDip = Math.sin(switchRatio * Math.PI) * 0.34;
     const drawSlide = switchRatio * 0.18;
-    this.weaponRoot.position.set(0.46 + swayX + drawSlide, -0.43 + swayY - this.recoil * 0.1 - drawDip, -0.82 + this.recoil * 0.82 + drawSlide);
-    this.weaponRoot.rotation.set(-0.08 - this.recoil * 0.28 - drawDip * 0.45, -0.14 + swayX * 0.55 + drawSlide, 0.02 + swayX * 0.38 + drawDip * 0.2);
+    const weapon = this.getCurrentWeapon();
+    const adsX = this.aiming ? -0.25 : 0;
+    const adsY = this.aiming ? 0.12 : 0;
+    const adsZ = this.aiming ? -0.14 : 0;
+    const knifeX = weapon.isMelee ? 0.18 : 0;
+    const knifeY = weapon.isMelee ? -0.08 : 0;
+    const swing = Math.sin(this.meleeSwing * Math.PI);
+    this.weaponRoot.position.set(
+      0.46 + adsX + knifeX + swayX + drawSlide,
+      -0.43 + adsY + knifeY + swayY - this.recoil * 0.1 - drawDip + swing * 0.08,
+      -0.82 + adsZ + this.recoil * (weapon.isMelee ? 0.2 : 0.82) + drawSlide
+    );
+    this.weaponRoot.rotation.set(
+      -0.08 - this.recoil * 0.28 - drawDip * 0.45 + swing * 0.72,
+      -0.14 + swayX * 0.55 + drawSlide - swing * 0.55,
+      0.02 + swayX * 0.38 + drawDip * 0.2 + swing * 0.46
+    );
 
     this.muzzleFlash.material.opacity = Math.max(0, this.muzzleFlash.material.opacity - dt * 9);
   }
@@ -132,8 +177,7 @@ export class WeaponManager {
     const model = definition ? await loadAsset(definition) : undefined;
     if (!model || this.currentWeaponId !== definition?.id) return;
 
-    model.position.set(0, 0, 0);
-    model.rotation.set(0, Math.PI, 0);
+    this.currentAssetSource = model.userData.assetSource === 'glb' ? 'glb' : 'fallback';
     this.currentModel = model;
     this.weaponRoot.add(model);
     this.weaponRoot.add(this.muzzleFlash);

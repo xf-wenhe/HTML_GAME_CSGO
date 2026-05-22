@@ -26,6 +26,7 @@ export type ServerEvent =
 
 export type ClientEvent =
   | { type: 'joinLobby' }
+  | { type: 'joinOrCreateRoom'; mode: MatchMode; playerName: string }
   | { type: 'createRoom'; config: Partial<RoomConfig> & { mode: MatchMode } }
   | { type: 'joinRoom'; roomId: string; playerName: string }
   | { type: 'setReady'; ready: boolean }
@@ -38,10 +39,14 @@ export type ClientEvent =
   | { type: 'defuseBomb' }
   | { type: 'leaveRoom' };
 
+type ServerEventPayload<T extends ServerEvent['type']> = Extract<ServerEvent, { type: T }>;
+
 export class NetworkManager {
   private socket: Socket | null = null;
-  private eventHandlers: Map<string, Array<(data: any) => void>> = new Map();
-  private serverUrl = (import.meta as any).env?.VITE_PUBLIC_SERVER_URL || 'http://localhost:3000';
+  private eventHandlers = new Map<ServerEvent['type'], Array<(data: ServerEvent) => void>>();
+  private serverUrl =
+    (import.meta as any).env?.VITE_PUBLIC_SERVER_URL ||
+    `${window.location.protocol}//${window.location.hostname}:3000`;
 
   constructor(serverUrl?: string) {
     if (serverUrl) this.serverUrl = serverUrl;
@@ -83,6 +88,9 @@ export class NetworkManager {
       case 'joinLobby':
         this.socket.emit('joinLobby');
         break;
+      case 'joinOrCreateRoom':
+        this.socket.emit('joinOrCreateRoom', { mode: event.mode, playerName: event.playerName });
+        break;
       case 'createRoom':
         this.socket.emit('createRoom', event.config);
         break;
@@ -119,9 +127,9 @@ export class NetworkManager {
     }
   }
 
-  on(eventType: ServerEvent['type'], handler: (data: any) => void): void {
+  on<T extends ServerEvent['type']>(eventType: T, handler: (data: ServerEventPayload<T>) => void): void {
     const handlers = this.eventHandlers.get(eventType) ?? [];
-    handlers.push(handler);
+    handlers.push(handler as (data: ServerEvent) => void);
     this.eventHandlers.set(eventType, handlers);
   }
 
@@ -132,5 +140,9 @@ export class NetworkManager {
 
   getSocketId(): string | undefined {
     return this.socket?.id;
+  }
+
+  getServerUrl(): string {
+    return this.serverUrl;
   }
 }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Physics } from './Physics.js';
 import * as CANNON from 'cannon-es';
 import { ASSETS, loadAsset } from './assets.js';
+import { HitRegion, closestPointDistanceToRay } from './Combat.js';
 
 export type EnemyType = 'patrol' | 'shooter' | 'assault';
 export type EnemyState = 'idle' | 'patrol' | 'chase' | 'attack' | 'dead';
@@ -19,6 +20,7 @@ export class Enemy {
   public type: EnemyType;
   public state: EnemyState = 'idle';
   public health: number;
+  public readonly maxHealth: number;
   public readonly speed: number;
   public readonly detectionRange: number;
   public readonly attackRange: number;
@@ -32,12 +34,14 @@ export class Enemy {
   private lastAttackTime = 0;
   private attackCooldown = 1000;
   private animationClock = 0;
+  private assetSource: 'glb' | 'fallback' = 'fallback';
   public readonly damage = 10;
 
   constructor(config: EnemyConfig, scene: THREE.Scene, physics: Physics) {
     this.id = `enemy_${Math.random().toString(36).substr(2, 9)}`;
     this.type = config.type;
     this.health = config.health ?? 100;
+    this.maxHealth = this.health;
     this.speed = config.speed ?? 2;
     this.patrolPath = config.patrolPath ?? [];
 
@@ -79,6 +83,7 @@ export class Enemy {
     const group = new THREE.Group();
 
     const fallback = ASSETS.enemy_assault.fallback();
+    fallback.userData.assetSource = 'fallback';
     group.add(fallback);
 
     const ring = new THREE.Mesh(
@@ -202,17 +207,56 @@ export class Enemy {
     return this.damage;
   }
 
-  takeDamage(amount: number): void {
+  takeDamage(amount: number, region: HitRegion = 'chest'): void {
     if (this.state === 'dead') return;
 
     this.health -= amount;
-    const healthRatio = Math.max(0, this.health / 100);
+    const healthRatio = Math.max(0, this.health / this.maxHealth);
     this.healthFill.scale.x = healthRatio;
     this.healthFill.position.x = -(1 - healthRatio) * 0.43;
+    this.flashHit(region);
     if (this.health <= 0) {
       this.health = 0;
       this.die();
     }
+  }
+
+  getRayHit(origin: THREE.Vector3, direction: THREE.Vector3, maxRange: number): { distance: number; region: HitRegion; point: THREE.Vector3 } | null {
+    if (this.state === 'dead') return null;
+
+    const base = this.mesh.position;
+    const zones: Array<{ region: HitRegion; center: THREE.Vector3; radius: number }> = [
+      { region: 'head', center: base.clone().add(new THREE.Vector3(0, 2.12, 0)), radius: 0.32 },
+      { region: 'chest', center: base.clone().add(new THREE.Vector3(0, 1.48, 0)), radius: 0.48 },
+      { region: 'stomach', center: base.clone().add(new THREE.Vector3(0, 1.02, 0)), radius: 0.44 },
+      { region: 'arm', center: base.clone().add(new THREE.Vector3(-0.52, 1.25, 0)), radius: 0.2 },
+      { region: 'arm', center: base.clone().add(new THREE.Vector3(0.52, 1.25, 0)), radius: 0.2 },
+      { region: 'leg', center: base.clone().add(new THREE.Vector3(-0.2, 0.45, 0)), radius: 0.24 },
+      { region: 'leg', center: base.clone().add(new THREE.Vector3(0.2, 0.45, 0)), radius: 0.24 }
+    ];
+
+    let best: { distance: number; region: HitRegion; point: THREE.Vector3 } | null = null;
+    zones.forEach(zone => {
+      const ray = closestPointDistanceToRay(origin, direction, zone.center);
+      if (ray.t < 0 || ray.t > maxRange || ray.distance > zone.radius) return;
+      if (!best || ray.t < best.distance) {
+        best = { distance: ray.t, region: zone.region, point: zone.center.clone() };
+      }
+    });
+    return best;
+  }
+
+  private flashHit(region: HitRegion): void {
+    const color = region === 'head' ? 0xffd166 : 0xff4d4d;
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(region === 'head' ? 0.12 : 0.08, 10, 8),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.82 })
+    );
+    marker.position.set(0, region === 'head' ? 2.18 : region === 'leg' ? 0.5 : 1.35, -0.34);
+    marker.userData.life = 0;
+    marker.name = 'hit-flash';
+    this.mesh.add(marker);
+    window.setTimeout(() => this.mesh.remove(marker), 90);
   }
 
   private die(): void {
@@ -236,7 +280,11 @@ export class Enemy {
   }
 
   getHealthRatio(): number {
-    return Math.max(0, this.health / 100);
+    return Math.max(0, this.health / this.maxHealth);
+  }
+
+  getAssetSource(): 'glb' | 'fallback' {
+    return this.assetSource;
   }
 
   private async loadModel(): Promise<void> {
@@ -246,6 +294,7 @@ export class Enemy {
     const oldModel = this.mesh.children[0];
     this.mesh.remove(oldModel);
     loaded.position.set(0, 0, 0);
+    this.assetSource = loaded.userData.assetSource === 'glb' ? 'glb' : 'fallback';
     this.mesh.add(loaded);
   }
 }

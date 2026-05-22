@@ -6,6 +6,10 @@ import { RoomManager } from './rooms.js';
 import { SERVER_CONFIG } from './config.js';
 import { BombActionRequest, BuyRequest, MatchMode, PlayerInputRequest, RoomConfig, ShootRequest, WeaponId } from './types.js';
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') console.log(...args);
+};
+
 export function createGameServer() {
   const app = express();
   const httpServer = createServer(app);
@@ -22,10 +26,26 @@ export function createGameServer() {
   });
 
   io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    debugLog(`Client connected: ${socket.id}`);
 
     socket.on('joinLobby', () => {
       socket.emit('roomList', roomManager.getRoomList());
+    });
+
+    socket.on('joinOrCreateRoom', (data: { mode: MatchMode; playerName: string }) => {
+      const mode = data.mode ?? 'tdm';
+      const playerName = data.playerName?.trim() || `Player-${Math.floor(Math.random() * 1000)}`;
+      const room = roomManager.findJoinableRoom(mode) ?? roomManager.createRoom(mode);
+
+      if (roomManager.addPlayerToRoom(room.id, socket.id, playerName)) {
+        socket.join(room.id);
+        const snapshot = roomManager.getSnapshot(room.id);
+        socket.emit('roomJoined', { roomId: room.id, playerId: socket.id, snapshot });
+        io.to(room.id).emit('roomState', snapshot);
+        io.emit('roomList', roomManager.getRoomList());
+      } else {
+        socket.emit('roomError', { message: 'Room is full' });
+      }
     });
 
     socket.on('createRoom', (data: Partial<RoomConfig> & { mode?: MatchMode; maxPlayers?: number }) => {
@@ -101,7 +121,7 @@ export function createGameServer() {
     });
 
     socket.on('disconnect', () => {
-      console.log(`Client disconnected: ${socket.id}`);
+      debugLog(`Client disconnected: ${socket.id}`);
       roomManager.removePlayer(socket.id);
       io.emit('roomList', roomManager.getRoomList());
     });
@@ -120,7 +140,7 @@ export function createGameServer() {
 export function startServer(port: number | string = SERVER_CONFIG.port) {
   const server = createGameServer();
   server.httpServer.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    debugLog(`Server running on port ${port}`);
   });
   return server;
 }

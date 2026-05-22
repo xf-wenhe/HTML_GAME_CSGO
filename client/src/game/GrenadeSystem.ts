@@ -55,10 +55,11 @@ export class GrenadeSystem {
     return this.selected;
   }
 
-  throwSelected(camera: THREE.Camera): boolean {
+  throwSelected(camera: THREE.Camera, mode: 'full' | 'light' = 'full'): boolean {
     if (this.inventory[this.selected] <= 0) return false;
     this.inventory[this.selected]--;
 
+    const power = mode === 'light' ? 0.45 : 1;
     const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(0.11, 16, 12),
@@ -73,7 +74,7 @@ export class GrenadeSystem {
       id: `grenade_${Math.random().toString(36).slice(2)}`,
       type: this.selected,
       mesh,
-      velocity: direction.multiplyScalar(16).add(new THREE.Vector3(0, 4.8, 0)),
+      velocity: direction.multiplyScalar(16 * power).add(new THREE.Vector3(0, mode === 'light' ? 2.2 : 4.8, 0)),
       timer: this.selected === 'flash' ? 1.3 : this.selected === 'smoke' ? 1.6 : 1.8,
       life: 0,
       exploded: false

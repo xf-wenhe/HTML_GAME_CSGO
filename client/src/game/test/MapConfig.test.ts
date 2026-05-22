@@ -11,6 +11,9 @@ describe('Forgepoint map scale and tactical layout', () => {
     expect(INDUSTRIAL_ARENA.colliders.some(collider => collider.name?.includes('gate'))).toBe(true);
     expect(INDUSTRIAL_ARENA.colliders.some(collider => collider.name?.includes('room'))).toBe(true);
     expect(INDUSTRIAL_ARENA.colliders.some(collider => collider.name?.includes('crouch-jump'))).toBe(true);
+    expect(INDUSTRIAL_ARENA.colliders.some(collider => collider.name?.includes('second-floor'))).toBe(true);
+    expect(INDUSTRIAL_ARENA.colliders.filter(collider => collider.name?.includes('stair-step')).length).toBeGreaterThanOrEqual(10);
+    expect(INDUSTRIAL_ARENA.colliders.some(collider => collider.name?.includes('jump-box'))).toBe(true);
   });
 
   it('has two bomb sites, spawns, and readable callouts', () => {

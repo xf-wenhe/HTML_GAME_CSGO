@@ -16,17 +16,21 @@ export class HUD {
   private element: HTMLElement;
   private healthFill: HTMLElement;
   private healthText: HTMLElement;
+  private armorText: HTMLElement;
   private ammoCurrent: HTMLElement;
   private ammoSeparator: HTMLElement;
   private ammoReserve: HTMLElement;
   private weaponName: HTMLElement;
   private waveText: HTMLElement;
   private enemiesText: HTMLElement;
+  private roomText: HTMLElement;
+  private networkText: HTMLElement;
   private scoreText: HTMLElement;
   private timerText: HTMLElement;
   private damageOverlay: HTMLElement;
   private resultPanel: HTMLElement;
   private pausePanel: HTMLElement;
+  private lockPanel: HTMLElement;
   private scoreboard: HTMLElement;
   private buyMenu: HTMLElement;
   private crosshair: HTMLElement;
@@ -44,17 +48,21 @@ export class HUD {
     this.element = this.createElement();
     this.healthFill = this.element.querySelector('.health-fill') as HTMLElement;
     this.healthText = this.element.querySelector('.health-text') as HTMLElement;
+    this.armorText = this.element.querySelector('.armor-text') as HTMLElement;
     this.ammoCurrent = this.element.querySelector('.ammo-current') as HTMLElement;
     this.ammoSeparator = this.element.querySelector('.ammo-separator') as HTMLElement;
     this.ammoReserve = this.element.querySelector('.ammo-reserve') as HTMLElement;
     this.weaponName = this.element.querySelector('.weapon-name') as HTMLElement;
     this.waveText = this.element.querySelector('.wave-text') as HTMLElement;
     this.enemiesText = this.element.querySelector('.enemies-text') as HTMLElement;
+    this.roomText = this.element.querySelector('.room-text') as HTMLElement;
+    this.networkText = this.element.querySelector('.network-text') as HTMLElement;
     this.scoreText = this.element.querySelector('.score-text') as HTMLElement;
     this.timerText = this.element.querySelector('.timer-text') as HTMLElement;
     this.damageOverlay = this.element.querySelector('.damage-overlay') as HTMLElement;
     this.resultPanel = this.element.querySelector('.result-panel') as HTMLElement;
     this.pausePanel = this.element.querySelector('.pause-panel') as HTMLElement;
+    this.lockPanel = this.element.querySelector('.lock-panel') as HTMLElement;
     this.scoreboard = this.element.querySelector('.scoreboard') as HTMLElement;
     this.buyMenu = this.element.querySelector('.buy-menu') as HTMLElement;
     this.crosshair = this.element.querySelector('.crosshair') as HTMLElement;
@@ -73,13 +81,15 @@ export class HUD {
           <div class="health-bar" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Health">
             <div class="health-fill" style="width: 100%"></div>
           </div>
-          <span class="health-text" aria-label="生命值">100 生命</span>
+          <div class="vitals-line"><span class="health-text" aria-label="生命值">100 生命</span><span class="armor-text" aria-label="护甲">100 护甲</span></div>
         </div>
       </div>
       <div class="hud-top-center">
         <div class="round-strip">
           <span class="wave-text">任务待命</span>
           <span class="enemies-text">0 名敌人</span>
+          <span class="room-text">房间 --/--</span>
+          <span class="network-text">离线</span>
           <span class="timer-text">00:00</span>
         </div>
       </div>
@@ -111,6 +121,12 @@ export class HUD {
         <button class="resume-button" type="button">继续游戏</button>
         <p class="result-hint">再次按 ESC 返回主菜单</p>
       </div>
+      <div class="lock-panel hidden" role="dialog" aria-label="鼠标锁定提示">
+        <h2>需要锁定鼠标</h2>
+        <p>为了避免 Windows 上鼠标移出浏览器，进入战斗前必须锁定鼠标。</p>
+        <button class="lock-retry-button" type="button">点击锁定鼠标</button>
+        <p class="result-hint">如果浏览器拦截，请在 Chrome / Edge 独立窗口允许 Pointer Lock。</p>
+      </div>
       <div class="scoreboard hidden" aria-label="战绩面板"></div>
       <div class="buy-menu hidden" aria-label="购买菜单">
         <button data-weapon="sidearm">制式手枪</button>
@@ -133,6 +149,7 @@ export class HUD {
       });
     });
     hud.querySelector<HTMLButtonElement>('.resume-button')?.addEventListener('click', () => this.resumeHandler?.());
+    hud.querySelector<HTMLButtonElement>('.lock-retry-button')?.addEventListener('click', () => this.resumeHandler?.());
     return hud;
   }
 
@@ -140,13 +157,16 @@ export class HUD {
     return this.element;
   }
 
-  updateHealth(health: number, maxHealth: number = 100): void {
+  updateHealth(health: number, maxHealth: number = 100, armor?: number): void {
     this.currentHealth = Math.max(0, Math.min(maxHealth, health));
     this.maxHealth = maxHealth;
     const percentage = (this.currentHealth / this.maxHealth) * 100;
 
     this.healthFill.style.width = `${percentage}%`;
     this.healthText.textContent = `${this.currentHealth} 生命`;
+    if (armor !== undefined) {
+      this.armorText.textContent = `${Math.max(0, Math.round(armor))} 护甲`;
+    }
 
     // Update aria for screen readers
     const healthBar = this.element.querySelector('.health-bar') as HTMLElement;
@@ -168,10 +188,19 @@ export class HUD {
     }
   }
 
-  updateAmmo(current: number, max: number): void {
+  updateAmmo(current: number, max: number, reserve: number = max): void {
     this.currentAmmo = current;
     this.maxAmmo = max;
+    if (max <= 1 && reserve === 0) {
+      this.ammoCurrent.textContent = '--';
+      this.ammoSeparator.textContent = '';
+      this.ammoReserve.textContent = '';
+      this.ammoCurrent.classList.remove('ammo-low');
+      return;
+    }
+    this.ammoSeparator.textContent = '/';
     this.ammoCurrent.textContent = current.toString();
+    this.ammoReserve.textContent = reserve.toString();
 
     // Low ammo warning
     if (current <= max * 0.2) {
@@ -189,7 +218,7 @@ export class HUD {
 
   updateWeapon(weapon: Weapon): void {
     this.weaponName.textContent = weapon.displayName;
-    this.updateAmmo(weapon.currentAmmo, weapon.magazineSize);
+    this.updateAmmo(weapon.currentAmmo, weapon.magazineSize, weapon.currentReserveAmmo);
   }
 
   updateReloadProgress(progress: number): void {
@@ -205,6 +234,8 @@ export class HUD {
       : (stats.objective ?? `第 ${stats.wave} 阶段`);
     this.enemiesText.textContent = `${stats.enemiesRemaining} 名敌人`;
     this.scoreText.textContent = stats.score.toString().padStart(5, '0');
+    this.roomText.textContent = '房间 1/1';
+    this.networkText.textContent = '单机';
     const minutes = Math.floor(stats.timeSurvived / 60).toString().padStart(2, '0');
     const seconds = Math.floor(stats.timeSurvived % 60).toString().padStart(2, '0');
     this.timerText.textContent = `${minutes}:${seconds}`;
@@ -232,10 +263,11 @@ export class HUD {
     const localPlayer = snapshot.players.find(player => player.id === localPlayerId);
     this.waveText.textContent = `${snapshot.config.mode === 'tdm' ? '团队死斗' : '爆破'} 第 ${snapshot.round} 回合`;
     this.enemiesText.textContent = `${snapshot.score.attackers} - ${snapshot.score.defenders}`;
+    this.roomText.textContent = `房间 ${snapshot.players.length}/${snapshot.config.maxPlayers}`;
     this.timerText.textContent = `${Math.ceil(snapshot.roundTimeRemaining)} 秒`;
     this.scoreText.textContent = localPlayer ? `$${localPlayer.money}` : '就绪';
     if (localPlayer) {
-      this.updateHealth(localPlayer.health, 100);
+      this.updateHealth(localPlayer.health, 100, localPlayer.armor);
       this.ammoCurrent.textContent = localPlayer.ammo.toString();
       this.weaponName.textContent = this.weaponLabel(localPlayer.weaponId);
     }
@@ -246,7 +278,7 @@ export class HUD {
       .map(player => `
         <tr class="${player.id === localPlayerId ? 'local' : ''}">
           <td>${player.team === 'attackers' ? '进攻' : '防守'}</td>
-          <td>${player.name}</td>
+          <td>${this.escapeHtml(player.name)}</td>
           <td>${player.kills}</td>
           <td>${player.deaths}</td>
           <td>${player.money}</td>
@@ -258,7 +290,7 @@ export class HUD {
         <thead><tr><th>队伍</th><th>名称</th><th>击杀</th><th>死亡</th><th>经济</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="kill-feed">${snapshot.killFeed.map(item => `<p>${item}</p>`).join('')}</div>
+      <div class="kill-feed">${snapshot.killFeed.map(item => `<p>${this.escapeHtml(item)}</p>`).join('')}</div>
     `;
   }
 
@@ -297,6 +329,14 @@ export class HUD {
     this.pausePanel.classList.add('hidden');
   }
 
+  showPointerLockGuide(): void {
+    this.lockPanel.classList.remove('hidden');
+  }
+
+  hidePointerLockGuide(): void {
+    this.lockPanel.classList.add('hidden');
+  }
+
   onBuy(handler: (weaponId: WeaponId) => void): void {
     this.buyHandler = handler;
   }
@@ -327,6 +367,14 @@ export class HUD {
 
   updateObjective(text: string): void {
     this.waveText.textContent = text;
+  }
+
+  updateRoomPlayers(current: number, max: number): void {
+    this.roomText.textContent = `房间 ${current}/${max}`;
+  }
+
+  updateNetworkStatus(text: string): void {
+    this.networkText.textContent = text;
   }
 
   updateGrenade(label: string, count: number): void {
@@ -413,12 +461,14 @@ export class HUD {
     this.toggleBuyMenu(false);
     this.toggleScoreboard(false);
     this.hidePause();
+    this.hidePointerLockGuide();
   }
 
   show(): void {
     this.element.classList.remove('hidden');
     this.hideResults();
     this.hidePause();
+    this.hidePointerLockGuide();
   }
 
   private announceForScreenReader(message: string): void {
@@ -430,6 +480,15 @@ export class HUD {
     announcement.textContent = message;
     this.element.appendChild(announcement);
     setTimeout(() => announcement.remove(), 1000);
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   dispose(): void {

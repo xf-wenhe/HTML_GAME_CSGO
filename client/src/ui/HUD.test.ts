@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { HUD } from './HUD.js';
+import { MatchSnapshot } from '../game/types.js';
 
 describe('HUD notifications and weapon slots', () => {
   it('replaces notifications instead of stacking them', () => {
@@ -40,4 +41,74 @@ describe('HUD notifications and weapon slots', () => {
 
     hud.dispose();
   });
+
+  it('shows magazine and reserve ammo separately and hides ammo for knife-like weapons', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+
+    hud.updateAmmo(17, 30, 73);
+    expect(hud.getElement().querySelector('.ammo-current')?.textContent).toBe('17');
+    expect(hud.getElement().querySelector('.ammo-reserve')?.textContent).toBe('73');
+
+    hud.updateAmmo(1, 1, 0);
+    expect(hud.getElement().querySelector('.ammo-current')?.textContent).toBe('--');
+
+    hud.dispose();
+  });
+
+  it('renders multiplayer names and kill feed as escaped text', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+
+    hud.updateMatch(createSnapshot(), 'local');
+
+    expect(hud.getElement().querySelector('script')).toBeNull();
+    expect(hud.getElement().textContent).toContain('<script>alert(1)</script>');
+    expect(hud.getElement().textContent).toContain('<img src=x onerror=alert(2)>');
+
+    hud.dispose();
+  });
 });
+
+function createSnapshot(): MatchSnapshot {
+  return {
+    roomId: 'room',
+    config: {
+      mode: 'tdm',
+      mapId: 'forgepoint',
+      maxPlayers: 10,
+      tickRate: 30,
+      isPrivate: false,
+      roundLimit: 20,
+      warmupSeconds: 5,
+      friendlyFire: false
+    },
+    phase: 'live',
+    serverTime: 0,
+    round: 1,
+    roundTimeRemaining: 90,
+    score: { attackers: 1, defenders: 0 },
+    players: [
+      {
+        id: 'local',
+        name: '<script>alert(1)</script>',
+        team: 'attackers',
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+        health: 100,
+        armor: 50,
+        money: 800,
+        weaponId: 'sidearm',
+        ammo: 12,
+        kills: 1,
+        deaths: 0,
+        assists: 0,
+        ping: 20,
+        isAlive: true,
+        isReady: true
+      }
+    ],
+    killFeed: ['<img src=x onerror=alert(2)>'],
+    bomb: undefined
+  };
+}

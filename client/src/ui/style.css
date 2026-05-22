@@ -117,8 +117,8 @@ body {
   min-width: 360px;
   justify-content: center;
   padding: 10px 16px;
-  border: 1px solid rgba(214, 168, 79, 0.45);
-  background: linear-gradient(180deg, rgba(10, 13, 17, 0.86), rgba(20, 27, 34, 0.62));
+  border: 1px solid rgba(214, 168, 79, 0.38);
+  background: linear-gradient(180deg, rgba(7, 10, 13, 0.78), rgba(17, 24, 31, 0.58));
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   backdrop-filter: blur(10px);
   font-size: 13px;
@@ -133,6 +133,14 @@ body {
 .timer-text,
 .enemies-text {
   color: var(--text-secondary);
+}
+
+.room-text {
+  color: #9cc8ff;
+}
+
+.network-text {
+  color: #74d399;
 }
 
 .hud-center {
@@ -190,6 +198,19 @@ body {
   text-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 
+.vitals-line {
+  display: flex;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.armor-text {
+  color: #8fb7ff;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
 /* Ammo Display */
 .ammo-container {
   display: flex;
@@ -225,20 +246,20 @@ body {
 
 .weapon-slots {
   display: grid;
-  grid-template-columns: repeat(2, minmax(104px, 1fr));
+  grid-template-columns: repeat(4, minmax(56px, 1fr));
   gap: 6px;
-  width: min(260px, 32vw);
+  width: min(390px, 40vw);
   margin-top: 6px;
 }
 
 .weapon-slot {
   display: grid;
-  grid-template-columns: 22px 24px 1fr;
+  grid-template-columns: 18px 22px 1fr;
   align-items: center;
-  min-height: 30px;
+  min-height: 34px;
   padding: 4px 7px;
   border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(8, 11, 15, 0.42);
+  background: rgba(4, 7, 10, 0.55);
   color: rgba(203, 213, 225, 0.62);
   font-size: 11px;
   line-height: 1;
@@ -247,7 +268,7 @@ body {
 
 .weapon-slot.active {
   border-color: rgba(255, 209, 102, 0.82);
-  background: rgba(214, 168, 79, 0.18);
+  background: linear-gradient(180deg, rgba(214, 168, 79, 0.24), rgba(12, 16, 20, 0.7));
   color: var(--text-primary);
   box-shadow: 0 0 14px rgba(214, 168, 79, 0.16);
 }
@@ -357,7 +378,8 @@ body {
 }
 
 .result-panel,
-.pause-panel {
+.pause-panel,
+.lock-panel {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -372,18 +394,21 @@ body {
 }
 
 .result-panel h2,
-.pause-panel h2 {
+.pause-panel h2,
+.lock-panel h2 {
   color: var(--danger-hover);
   margin-bottom: 10px;
   letter-spacing: 2px;
 }
 
-.pause-panel p {
+.pause-panel p,
+.lock-panel p {
   color: var(--text-secondary);
   margin: 10px 0;
 }
 
-.resume-button {
+.resume-button,
+.lock-retry-button {
   min-width: 140px;
   height: 44px;
   border: 1px solid rgba(214, 168, 79, 0.6);
@@ -393,7 +418,8 @@ body {
   cursor: pointer;
 }
 
-.resume-button:hover {
+.resume-button:hover,
+.lock-retry-button:hover {
   background: rgba(214, 168, 79, 0.28);
 }
 
@@ -721,6 +747,11 @@ body {
 
   .ammo-display {
     font-size: 24px;
+  }
+
+  .weapon-slots {
+    grid-template-columns: repeat(2, minmax(88px, 1fr));
+    width: min(260px, 54vw);
   }
 
   .game-info {

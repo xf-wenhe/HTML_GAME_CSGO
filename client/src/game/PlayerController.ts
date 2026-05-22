@@ -4,6 +4,7 @@ import { Physics } from './Physics.js';
 import { InputManager } from './InputManager.js';
 import { Scene } from './Scene.js';
 import { CSGO_MOVEMENT, accelerate, applyFriction, clampHorizontalSpeed, MovementParams } from './Movement.js';
+import { DamageProfile, HitRegion, calculateDamage } from './Combat.js';
 
 export class PlayerController {
   private body: CANNON.Body;
@@ -13,11 +14,12 @@ export class PlayerController {
 
   private movementParams: MovementParams = CSGO_MOVEMENT;
   private jumpForce = 6.4;
-  private mouseSensitivity = 0.00165;
   private pitch = 0;
   private yaw = 0;
   private health = 100;
   private maxHealth = 100;
+  private armor = 100;
+  private maxArmor = 100;
   private moving = false;
   private eyeHeight = 0.7;
   private readonly standingEyeHeight = 0.7;
@@ -54,8 +56,8 @@ export class PlayerController {
     );
 
     const mouseDelta = this.input.getMouseDelta();
-    this.yaw -= mouseDelta.x * this.mouseSensitivity;
-    this.pitch -= mouseDelta.y * this.mouseSensitivity;
+    this.yaw -= mouseDelta.x;
+    this.pitch -= mouseDelta.y;
 
     this.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.pitch));
 
@@ -83,7 +85,7 @@ export class PlayerController {
       this.input.setKeyPressed('Space', false);
       if (this.grounded) {
         this.crouchJumpActive = this.crouched;
-        this.body.velocity.y = this.jumpForce + (this.crouched ? 0.75 : 0);
+        this.body.velocity.y = this.jumpForce + (this.crouched ? 1.25 : 0);
         this.grounded = false;
       }
     }
@@ -185,12 +187,23 @@ export class PlayerController {
     return this.crouched ? 1.35 : 2;
   }
 
-  takeDamage(amount: number): void {
-    this.health = Math.max(0, this.health - amount);
+  takeDamage(amount: number, region: HitRegion = 'chest', armorPenetration = 0.35): void {
+    const result = calculateDamage(
+      {
+        baseDamage: amount,
+        armorPenetration,
+        multipliers: { head: 1, chest: 1, stomach: 1, arm: 1, leg: 1 }
+      } satisfies DamageProfile,
+      region,
+      this.armor
+    );
+    this.armor = Math.max(0, this.armor - result.armorDamage);
+    this.health = Math.max(0, this.health - result.healthDamage);
   }
 
   healFull(): void {
     this.health = this.maxHealth;
+    this.armor = this.maxArmor;
   }
 
   getHealth(): number {
@@ -199,6 +212,14 @@ export class PlayerController {
 
   getMaxHealth(): number {
     return this.maxHealth;
+  }
+
+  getArmor(): number {
+    return this.armor;
+  }
+
+  getMaxArmor(): number {
+    return this.maxArmor;
   }
 
   isDead(): boolean {

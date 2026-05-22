@@ -8,25 +8,59 @@ export interface AssetDefinition {
   kind: AssetKind;
   path: string;
   scale?: number;
+  rotation?: [number, number, number];
+  position?: [number, number, number];
   fallback: () => THREE.Object3D;
 }
 
 const loader = new GLTFLoader();
 const cache = new Map<string, Promise<THREE.Object3D>>();
 
-function markRenderable(object: THREE.Object3D): THREE.Object3D {
+function markRenderable(object: THREE.Object3D, source: 'glb' | 'fallback' = 'fallback'): THREE.Object3D {
+  object.userData.assetSource = source;
   object.traverse(child => {
     if (child instanceof THREE.Mesh) {
       child.castShadow = true;
       child.receiveShadow = true;
+      child.userData.assetSource = source;
     }
+  });
+  return object;
+}
+
+function applyDefinitionTransform(model: THREE.Object3D, definition: AssetDefinition): THREE.Object3D {
+  const scale = definition.scale ?? 1;
+  model.scale.setScalar(scale);
+  if (definition.rotation) model.rotation.set(...definition.rotation);
+  if (definition.position) model.position.set(...definition.position);
+  return model;
+}
+
+function tuneMaterials(object: THREE.Object3D, definition: AssetDefinition): THREE.Object3D {
+  object.traverse(child => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    materials.forEach(material => {
+      if (!(material instanceof THREE.MeshStandardMaterial)) return;
+      if (definition.kind === 'weapon') {
+        material.color.lerp(new THREE.Color(0x9aa4af), 0.18);
+        material.metalness = Math.min(0.85, Math.max(material.metalness, 0.35));
+        material.roughness = Math.min(0.72, Math.max(material.roughness, 0.28));
+        material.envMapIntensity = 1.25;
+      } else if (definition.kind === 'enemy') {
+        material.color.lerp(new THREE.Color(0xd7dde5), 0.08);
+        material.roughness = Math.min(0.78, Math.max(material.roughness, 0.42));
+        material.envMapIntensity = 0.9;
+      }
+      material.needsUpdate = true;
+    });
   });
   return object;
 }
 
 export async function loadAsset(definition: AssetDefinition): Promise<THREE.Object3D> {
   if (typeof process !== 'undefined' && process.env.VITEST) {
-    return markRenderable(definition.fallback());
+    return markRenderable(tuneMaterials(applyDefinitionTransform(definition.fallback(), definition), definition), 'fallback');
   }
 
   if (!cache.has(definition.id)) {
@@ -36,21 +70,19 @@ export async function loadAsset(definition: AssetDefinition): Promise<THREE.Obje
           definition.path,
           gltf => {
             const model = gltf.scene;
-            const scale = definition.scale ?? 1;
-            model.scale.setScalar(scale);
-            resolve(markRenderable(model));
+            resolve(markRenderable(tuneMaterials(applyDefinitionTransform(model, definition), definition), 'glb'));
           },
           undefined,
-          () => resolve(markRenderable(definition.fallback()))
+          () => resolve(markRenderable(tuneMaterials(applyDefinitionTransform(definition.fallback(), definition), definition), 'fallback'))
         );
       } catch {
-        resolve(markRenderable(definition.fallback()));
+        resolve(markRenderable(tuneMaterials(applyDefinitionTransform(definition.fallback(), definition), definition), 'fallback'));
       }
     }));
   }
 
   const model = await cache.get(definition.id)!;
-  return markRenderable(model.clone(true));
+  return markRenderable(model.clone(true), model.userData.assetSource === 'glb' ? 'glb' : 'fallback');
 }
 
 export function createFallbackWeapon(color: number, length = 0.9, variant: 'pistol' | 'rifle' | 'sniper' | 'smg' | 'shotgun' | 'knife' = 'rifle'): THREE.Object3D {
@@ -93,6 +125,26 @@ export function createFallbackWeapon(color: number, length = 0.9, variant: 'pist
   sight.position.set(0, 0.14, -length * 0.45);
   group.add(sight);
 
+  if (variant === 'pistol') {
+    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, length * 0.82), darkMetal);
+    slide.position.set(0, 0.11, -length * 0.34);
+    group.add(slide);
+    const triggerGuard = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 16), gripMaterial);
+    triggerGuard.rotation.x = Math.PI / 2;
+    triggerGuard.scale.z = 0.55;
+    triggerGuard.position.set(0.02, -0.1, -length * 0.12);
+    group.add(triggerGuard);
+  }
+
+  if (variant === 'rifle') {
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.44), gripMaterial);
+    stock.position.set(0, -0.02, length * 0.2);
+    group.add(stock);
+    const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.11, 0.45), gripMaterial);
+    handguard.position.set(0, -0.02, -length * 0.78);
+    group.add(handguard);
+  }
+
   if (variant === 'sniper') {
     const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.46, 16), gripMaterial);
     scope.rotation.z = Math.PI / 2;
@@ -107,6 +159,16 @@ export function createFallbackWeapon(color: number, length = 0.9, variant: 'pist
     const compactStock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.34), gripMaterial);
     compactStock.position.set(0, -0.01, length * 0.12);
     group.add(compactStock);
+  }
+
+  if (variant === 'shotgun') {
+    const pump = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.11, 0.34), gripMaterial);
+    pump.position.set(0, -0.04, -length * 0.74);
+    group.add(pump);
+    const secondBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, length * 0.72, 16), darkMetal);
+    secondBarrel.rotation.x = Math.PI / 2;
+    secondBarrel.position.set(0.07, 0.02, -length * 0.94);
+    group.add(secondBarrel);
   }
 
   const sideRail = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.035, length * 0.62), accentMaterial);
@@ -198,63 +260,81 @@ export const ASSETS: Record<string, AssetDefinition> = {
     id: 'pistol',
     kind: 'weapon',
     path: '/assets/models/weapons/pistol.glb',
-    scale: 1,
+    scale: 0.42,
+    rotation: [0, Math.PI / 2, 0],
+    position: [-0.18, -0.06, 0.18],
     fallback: () => createFallbackWeapon(0x3f4650, 0.55, 'pistol')
   },
   heavy_pistol: {
     id: 'heavy_pistol',
     kind: 'weapon',
     path: '/assets/models/weapons/heavy_pistol.glb',
-    scale: 1,
+    scale: 0.42,
+    rotation: [0, Math.PI / 2, 0],
+    position: [-0.22, -0.08, 0.18],
     fallback: () => createFallbackWeapon(0x4b5563, 0.62, 'pistol')
   },
   rifle: {
     id: 'rifle',
     kind: 'weapon',
     path: '/assets/models/weapons/rifle.glb',
-    scale: 1,
+    scale: 0.18,
+    rotation: [0, Math.PI / 2, 0],
+    position: [-0.18, -0.08, 0.24],
     fallback: () => createFallbackWeapon(0x3d4651, 0.95, 'rifle')
   },
   defender_rifle: {
     id: 'defender_rifle',
     kind: 'weapon',
     path: '/assets/models/weapons/defender_rifle.glb',
-    scale: 1,
+    scale: 0.18,
+    rotation: [0, Math.PI / 2, 0],
+    position: [-0.08, -0.12, 0.2],
     fallback: () => createFallbackWeapon(0x45515c, 0.9, 'rifle')
   },
   sniper: {
     id: 'sniper',
     kind: 'weapon',
     path: '/assets/models/weapons/sniper.glb',
-    scale: 1,
+    scale: 0.145,
+    rotation: [0, Math.PI / 2, 0],
+    position: [-0.25, -0.12, 0.28],
     fallback: () => createFallbackWeapon(0x303842, 1.12, 'sniper')
   },
   smg: {
     id: 'smg',
     kind: 'weapon',
     path: '/assets/models/weapons/smg.glb',
-    scale: 1,
+    scale: 0.24,
+    rotation: [0, Math.PI / 2, 0],
+    position: [-0.12, -0.1, 0.2],
     fallback: () => createFallbackWeapon(0x35404a, 0.72, 'smg')
   },
   shotgun: {
     id: 'shotgun',
     kind: 'weapon',
     path: '/assets/models/weapons/shotgun.glb',
-    scale: 1,
+    scale: 0.17,
+    rotation: [0, Math.PI / 2, 0],
+    position: [-0.18, -0.11, 0.24],
     fallback: () => createFallbackWeapon(0x47311f, 0.8, 'shotgun')
   },
   knife: {
     id: 'knife',
     kind: 'weapon',
     path: '/assets/models/weapons/knife.glb',
-    scale: 1,
+    scale: 0.62,
+    rotation: [0, Math.PI / 2, 0],
+    position: [-0.08, -0.08, 0.12],
     fallback: () => createFallbackWeapon(0xa8b0ba, 0.6, 'knife')
   },
   enemy_assault: {
     id: 'enemy_assault',
     kind: 'enemy',
     path: '/assets/models/enemies/assault.glb',
-    scale: 1,
+    scale: 0.011,
+    rotation: [-Math.PI / 2, 0, 0],
+    position: [0, 0, 0],
     fallback: createFallbackEnemy
   }
 };
