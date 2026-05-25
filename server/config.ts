@@ -11,7 +11,7 @@ export const SERVER_CONFIG = {
 export const DEFAULT_ROOM_CONFIGS: Record<'tdm' | 'defusal', RoomConfig> = {
   tdm: {
     mode: 'tdm',
-    mapId: 'forgepoint',
+    mapId: 'dust2',
     maxPlayers: 10,
     tickRate: 30,
     isPrivate: false,
@@ -21,7 +21,7 @@ export const DEFAULT_ROOM_CONFIGS: Record<'tdm' | 'defusal', RoomConfig> = {
   },
   defusal: {
     mode: 'defusal',
-    mapId: 'forgepoint',
+    mapId: 'dust2',
     maxPlayers: 10,
     tickRate: 30,
     isPrivate: false,

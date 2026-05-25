@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import { pathToFileURL } from 'url';
 import { RoomManager } from './rooms.js';
 import { SERVER_CONFIG } from './config.js';
-import { BombActionRequest, BuyRequest, MatchMode, PlayerInputRequest, RoomConfig, ShootRequest, WeaponId } from './types.js';
+import { BombActionRequest, BuyRequest, MapId, MatchMode, PlayerInputRequest, RoomConfig, ShootRequest, WeaponId } from './types.js';
 
 const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') console.log(...args);
@@ -32,10 +32,10 @@ export function createGameServer() {
       socket.emit('roomList', roomManager.getRoomList());
     });
 
-    socket.on('joinOrCreateRoom', (data: { mode: MatchMode; playerName: string }) => {
+    socket.on('joinOrCreateRoom', (data: { mode: MatchMode; playerName: string; mapId?: MapId }) => {
       const mode = data.mode ?? 'tdm';
       const playerName = data.playerName?.trim() || `Player-${Math.floor(Math.random() * 1000)}`;
-      const room = roomManager.findJoinableRoom(mode) ?? roomManager.createRoom(mode);
+      const room = roomManager.findJoinableRoom(mode, data.mapId) ?? roomManager.createRoom({ mode, mapId: data.mapId ?? 'dust2' });
 
       if (roomManager.addPlayerToRoom(room.id, socket.id, playerName)) {
         socket.join(room.id);

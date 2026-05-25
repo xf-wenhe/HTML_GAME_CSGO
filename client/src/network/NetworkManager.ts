@@ -3,6 +3,7 @@ import {
   BombActionRequest,
   BombState,
   BuyRequest,
+  MapId,
   MatchMode,
   MatchSnapshot,
   PlayerInputRequest,
@@ -26,7 +27,7 @@ export type ServerEvent =
 
 export type ClientEvent =
   | { type: 'joinLobby' }
-  | { type: 'joinOrCreateRoom'; mode: MatchMode; playerName: string }
+  | { type: 'joinOrCreateRoom'; mode: MatchMode; playerName: string; mapId?: MapId }
   | { type: 'createRoom'; config: Partial<RoomConfig> & { mode: MatchMode } }
   | { type: 'joinRoom'; roomId: string; playerName: string }
   | { type: 'setReady'; ready: boolean }
@@ -89,7 +90,7 @@ export class NetworkManager {
         this.socket.emit('joinLobby');
         break;
       case 'joinOrCreateRoom':
-        this.socket.emit('joinOrCreateRoom', { mode: event.mode, playerName: event.playerName });
+        this.socket.emit('joinOrCreateRoom', { mode: event.mode, playerName: event.playerName, mapId: event.mapId });
         break;
       case 'createRoom':
         this.socket.emit('createRoom', event.config);

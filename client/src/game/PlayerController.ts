@@ -3,7 +3,7 @@ import * as CANNON from 'cannon-es';
 import { Physics } from './Physics.js';
 import { InputManager } from './InputManager.js';
 import { Scene } from './Scene.js';
-import { CSGO_MOVEMENT, accelerate, applyFriction, clampHorizontalSpeed, MovementParams } from './Movement.js';
+import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, accelerate, applyFriction, clampHorizontalSpeed, MovementParams } from './Movement.js';
 import { DamageProfile, HitRegion, calculateDamage } from './Combat.js';
 
 export class PlayerController {
@@ -13,7 +13,7 @@ export class PlayerController {
   private physics: Physics;
 
   private movementParams: MovementParams = CSGO_MOVEMENT;
-  private jumpForce = 6.4;
+  private jumpForce = PLAYER_JUMP_FORCE;
   private pitch = 0;
   private yaw = 0;
   private health = 100;
@@ -28,6 +28,7 @@ export class PlayerController {
   private airborneTime = 0;
   private crouched = false;
   private crouchJumpActive = false;
+  private lastLandingSpeed = 0;
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = scene.getCamera();
@@ -78,6 +79,8 @@ export class PlayerController {
     if (this.input.isKeyPressed('KeyA')) wishDirection.sub(right);
     if (this.input.isKeyPressed('KeyD')) wishDirection.add(right);
 
+    const wasGrounded = this.grounded;
+    const landingVelocity = Math.abs(this.body.velocity.y);
     this.moving = wishDirection.lengthSq() > 0;
     this.applyMovement(wishDirection, dt);
 
@@ -85,7 +88,7 @@ export class PlayerController {
       this.input.setKeyPressed('Space', false);
       if (this.grounded) {
         this.crouchJumpActive = this.crouched;
-        this.body.velocity.y = this.jumpForce + (this.crouched ? 1.25 : 0);
+        this.body.velocity.y = this.jumpForce + (this.crouched ? PLAYER_CROUCH_JUMP_BONUS : 0);
         this.grounded = false;
       }
     }
@@ -94,6 +97,9 @@ export class PlayerController {
       this.airborneTime = 0;
     } else {
       this.airborneTime += dt;
+    }
+    if (!wasGrounded && this.grounded) {
+      this.lastLandingSpeed = landingVelocity;
     }
   }
 
@@ -175,6 +181,10 @@ export class PlayerController {
     return this.airborneTime;
   }
 
+  getLastLandingSpeed(): number {
+    return this.lastLandingSpeed;
+  }
+
   isCrouched(): boolean {
     return this.crouched;
   }
@@ -204,6 +214,10 @@ export class PlayerController {
   healFull(): void {
     this.health = this.maxHealth;
     this.armor = this.maxArmor;
+  }
+
+  buyArmor(amount = this.maxArmor): void {
+    this.armor = Math.max(this.armor, Math.min(this.maxArmor, amount));
   }
 
   getHealth(): number {

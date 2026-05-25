@@ -3,6 +3,25 @@ import { HUD } from './HUD.js';
 import { MatchSnapshot } from '../game/types.js';
 
 describe('HUD notifications and weapon slots', () => {
+  it('renders a categorized buy menu with armor, grenades, and prices', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+
+    hud.toggleBuyMenu(true);
+
+    const buyMenu = hud.getElement().querySelector('.buy-menu') as HTMLElement;
+    expect(buyMenu.textContent).toContain('手枪');
+    expect(buyMenu.textContent).toContain('步枪');
+    expect(buyMenu.textContent).toContain('重型 / 狙击 / 近距');
+    expect(buyMenu.textContent).toContain('投掷物 / 护甲');
+    expect(buyMenu.textContent).toContain('防弹衣');
+    expect(buyMenu.textContent).toContain('高爆雷');
+    expect(buyMenu.textContent).toContain('$650');
+    expect(buyMenu.textContent).toContain('$300');
+
+    hud.dispose();
+  });
+
   it('replaces notifications instead of stacking them', () => {
     vi.useFakeTimers();
     const hud = new HUD();
@@ -23,6 +42,7 @@ describe('HUD notifications and weapon slots', () => {
   it('marks the active weapon slot and updates grenade count', () => {
     const hud = new HUD();
     document.body.appendChild(hud.getElement());
+    const initialSlots = Array.from(hud.getElement().querySelectorAll('.weapon-slot')).map(slot => (slot as HTMLElement).dataset.slot);
 
     hud.updateWeaponSlots({
       activeSlot: 'grenade',
@@ -38,6 +58,7 @@ describe('HUD notifications and weapon slots', () => {
     expect(active.textContent).toContain('烟雾弹 x0');
     expect(hud.getElement().textContent).toContain('狙击枪');
     expect(hud.getElement().textContent).toContain('重型手枪');
+    expect(Array.from(hud.getElement().querySelectorAll('.weapon-slot')).map(slot => (slot as HTMLElement).dataset.slot)).toEqual(initialSlots);
 
     hud.dispose();
   });
@@ -65,6 +86,13 @@ describe('HUD notifications and weapon slots', () => {
     expect(hud.getElement().querySelector('script')).toBeNull();
     expect(hud.getElement().textContent).toContain('<script>alert(1)</script>');
     expect(hud.getElement().textContent).toContain('<img src=x onerror=alert(2)>');
+    expect(hud.getElement().querySelector('.kill-feed-live img')).toBeNull();
+    expect(hud.getElement().querySelector('.kill-feed-live .kill-feed-row')?.textContent).toContain('爆头');
+    expect(hud.getElement().querySelector('.kill-feed-live .kill-feed-weapon')?.textContent).toContain('Vandal AR');
+    expect(hud.getElement().querySelector('.ammo-current')?.textContent).toBe('12');
+    expect(hud.getElement().querySelector('.ammo-reserve')?.textContent).toBe('36');
+    expect(hud.getElement().querySelector('.scoreboard')?.textContent).toContain('Ping');
+    expect(hud.getElement().querySelector('.scoreboard')?.textContent).toContain('20');
 
     hud.dispose();
   });
@@ -75,7 +103,7 @@ function createSnapshot(): MatchSnapshot {
     roomId: 'room',
     config: {
       mode: 'tdm',
-      mapId: 'forgepoint',
+      mapId: 'dust2',
       maxPlayers: 10,
       tickRate: 30,
       isPrivate: false,
@@ -100,6 +128,7 @@ function createSnapshot(): MatchSnapshot {
         money: 800,
         weaponId: 'sidearm',
         ammo: 12,
+        reserveAmmo: 36,
         kills: 1,
         deaths: 0,
         assists: 0,
@@ -108,7 +137,7 @@ function createSnapshot(): MatchSnapshot {
         isReady: true
       }
     ],
-    killFeed: ['<img src=x onerror=alert(2)>'],
+    killFeed: ['<img src=x onerror=alert(2)> Vandal AR 爆头 defender'],
     bomb: undefined
   };
 }

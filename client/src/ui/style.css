@@ -113,17 +113,29 @@ body {
 .round-strip {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-width: 360px;
+  gap: 10px;
+  min-width: 420px;
   justify-content: center;
-  padding: 10px 16px;
+  padding: 7px 12px;
   border: 1px solid rgba(214, 168, 79, 0.38);
   background: linear-gradient(180deg, rgba(7, 10, 13, 0.78), rgba(17, 24, 31, 0.58));
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   backdrop-filter: blur(10px);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.round-strip > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+}
+
+.round-strip > span + span {
+  padding-left: 10px;
+  border-left: 1px solid rgba(255,255,255,0.13);
 }
 
 .wave-text {
@@ -132,7 +144,13 @@ body {
 
 .timer-text,
 .enemies-text {
-  color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.timer-text {
+  min-width: 48px;
+  justify-content: center;
+  color: #ffffff;
 }
 
 .room-text {
@@ -483,21 +501,93 @@ body {
   font-size: 12px;
 }
 
+.kill-feed-live {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  width: min(420px, 42vw);
+  min-height: 94px;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.kill-feed-row {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 4px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(5, 8, 12, 0.74);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.24);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.kill-feed-player,
+.kill-feed-weapon,
+.kill-feed-headshot {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kill-feed-player {
+  max-width: 118px;
+}
+
+.kill-feed-attacker {
+  color: #ffcf6d;
+}
+
+.kill-feed-victim {
+  color: #e5edf7;
+}
+
+.kill-feed-row.team-attackers .kill-feed-attacker {
+  color: #f87171;
+}
+
+.kill-feed-row.team-defenders .kill-feed-attacker {
+  color: #60a5fa;
+}
+
+.kill-feed-weapon {
+  max-width: 104px;
+  padding: 2px 6px;
+  border: 1px solid rgba(214, 168, 79, 0.28);
+  color: var(--primary-hover);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.kill-feed-headshot {
+  padding: 1px 5px;
+  border: 1px solid rgba(239, 68, 68, 0.42);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.42);
+  font-size: 10px;
+}
+
 .buy-menu {
   position: absolute;
   left: 50%;
-  bottom: 82px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  width: min(760px, calc(100vw - 32px));
+  bottom: 68px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+  width: min(860px, calc(100vw - 32px));
   transform: translateX(-50%);
   pointer-events: auto;
 }
 
 .buy-hint {
-  flex-basis: 100%;
+  grid-column: 1 / -1;
   text-align: center;
   color: var(--primary-hover);
   font-size: 12px;
@@ -507,14 +597,37 @@ body {
   margin-bottom: 2px;
 }
 
+.buy-category {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(214, 168, 79, 0.26);
+  background: rgba(5, 8, 12, 0.78);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.36);
+  backdrop-filter: blur(10px);
+}
+
+.buy-category h3 {
+  margin-bottom: 7px;
+  color: var(--primary-hover);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.buy-grid {
+  display: grid;
+  gap: 6px;
+}
+
 .buy-menu button {
-  min-width: 88px;
-  height: 40px;
-  border: 1px solid rgba(214, 168, 79, 0.5);
-  background: rgba(10, 13, 17, 0.84);
+  min-width: 0;
+  min-height: 52px;
+  padding: 6px 8px;
+  border: 1px solid rgba(214, 168, 79, 0.38);
+  background: rgba(10, 13, 17, 0.86);
   color: var(--text-primary);
-  font-weight: 800;
   cursor: pointer;
+  text-align: left;
 }
 
 .buy-menu button:hover {
@@ -524,6 +637,31 @@ body {
 .buy-menu button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.buy-item-name,
+.buy-item-price,
+.buy-item-status {
+  display: block;
+}
+
+.buy-item-name {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.buy-item-price {
+  margin-top: 3px;
+  color: #9be88f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.buy-item-status {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 /* Notifications */
@@ -701,6 +839,35 @@ body {
 .difficulty-option:hover {
   border-color: var(--primary-hover);
   background: rgba(214, 168, 79, 0.2);
+  color: var(--text-primary);
+}
+
+.map-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 auto var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.map-option {
+  height: 34px;
+  min-width: 74px;
+  padding: 0 12px;
+  border: 1px solid rgba(143, 199, 255, 0.38);
+  background: rgba(10, 13, 17, 0.72);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.map-option.active,
+.map-option:hover {
+  border-color: #8fc7ff;
+  background: rgba(143, 199, 255, 0.18);
   color: var(--text-primary);
 }
 

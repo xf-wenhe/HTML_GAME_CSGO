@@ -2,6 +2,9 @@ export type {
   BombActionRequest,
   BombState,
   BuyRequest,
+  GrenadeId,
+  HitRegion,
+  HitResult,
   MapId,
   MatchMode,
   MatchPhase,
@@ -13,5 +16,6 @@ export type {
   ShootRequest,
   Team,
   Vector3,
+  WeaponBalance,
   WeaponId
 } from '../shared/types.js';

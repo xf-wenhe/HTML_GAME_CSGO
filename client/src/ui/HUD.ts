@@ -1,7 +1,55 @@
 import { Weapon } from '../game/Weapon.js';
-import { MatchSnapshot, WeaponId } from '../game/types.js';
+import { BuyRequest, MatchSnapshot, WeaponId } from '../game/types.js';
 
 export type WeaponSlotId = 'primary' | 'pistol' | 'knife' | 'grenade';
+
+type BuyMenuItem = {
+  label: string;
+  price: number;
+  hint: string;
+  weaponId?: WeaponId;
+  armor?: boolean;
+  unavailable?: boolean;
+};
+
+type BuyMenuCategory = {
+  title: string;
+  items: BuyMenuItem[];
+};
+
+const BUY_MENU_CATEGORIES: BuyMenuCategory[] = [
+  {
+    title: '手枪',
+    items: [
+      { label: '制式手枪', price: 200, hint: '默认副武器', weaponId: 'sidearm' },
+      { label: '重型手枪', price: 700, hint: '高伤害慢射速', weaponId: 'heavy_pistol' }
+    ]
+  },
+  {
+    title: '步枪',
+    items: [
+      { label: '突击步枪', price: 2700, hint: '进攻方可用', weaponId: 'vandal' },
+      { label: '防守步枪', price: 2900, hint: '防守方可用', weaponId: 'sentinel' }
+    ]
+  },
+  {
+    title: '重型 / 狙击 / 近距',
+    items: [
+      { label: '狙击枪', price: 4750, hint: '远距离一击威胁', weaponId: 'operator' },
+      { label: '冲锋枪', price: 1600, hint: '移动压制', weaponId: 'specter' },
+      { label: '散弹枪', price: 1200, hint: '近点爆发', weaponId: 'bulldog' }
+    ]
+  },
+  {
+    title: '投掷物 / 护甲',
+    items: [
+      { label: '防弹衣', price: 650, hint: '补满护甲', armor: true },
+      { label: '高爆雷', price: 300, hint: '本地库存，按 4 切换', unavailable: true },
+      { label: '闪光弹', price: 200, hint: '本地库存，按 4 切换', unavailable: true },
+      { label: '烟雾弹', price: 300, hint: '本地库存，按 4 切换', unavailable: true }
+    ]
+  }
+];
 
 export interface WeaponSlotState {
   activeSlot: WeaponSlotId;
@@ -36,12 +84,13 @@ export class HUD {
   private crosshair: HTMLElement;
   private notificationContainer: HTMLElement;
   private weaponSlots: HTMLElement;
+  private liveKillFeed: HTMLElement;
   private currentHealth = 100;
   private maxHealth = 100;
   private currentAmmo = 0;
   private maxAmmo = 0;
   private notificationTimeout: number | null = null;
-  private buyHandler: ((weaponId: WeaponId) => void) | null = null;
+  private buyHandler: ((request: BuyRequest) => void) | null = null;
   private resumeHandler: (() => void) | null = null;
 
   constructor() {
@@ -68,6 +117,7 @@ export class HUD {
     this.crosshair = this.element.querySelector('.crosshair') as HTMLElement;
     this.notificationContainer = this.element.querySelector('.notifications') as HTMLElement;
     this.weaponSlots = this.element.querySelector('.weapon-slots') as HTMLElement;
+    this.liveKillFeed = this.element.querySelector('.kill-feed-live') as HTMLElement;
   }
 
   private createElement(): HTMLElement {
@@ -108,6 +158,7 @@ export class HUD {
             <div class="weapon-slot" data-slot="knife"><span class="slot-key">3</span><span class="slot-icon">刀</span><span class="slot-name">战术刀</span></div>
             <div class="weapon-slot" data-slot="grenade"><span class="slot-key">4</span><span class="slot-icon">雷</span><span class="slot-name">高爆雷 x1</span></div>
           </div>
+          <div class="kill-feed-live" aria-label="击杀提示"></div>
         </div>
       </div>
       <div class="hud-center">
@@ -129,14 +180,7 @@ export class HUD {
       </div>
       <div class="scoreboard hidden" aria-label="战绩面板"></div>
       <div class="buy-menu hidden" aria-label="购买菜单">
-        <button data-weapon="sidearm">制式手枪</button>
-        <button data-weapon="heavy_pistol">重型手枪</button>
-        <button data-weapon="vandal">突击步枪</button>
-        <button data-weapon="sentinel">防守步枪</button>
-        <button data-weapon="operator">狙击枪</button>
-        <button data-weapon="specter">冲锋枪</button>
-        <button data-weapon="bulldog">散弹枪</button>
-        <button data-weapon="knife">战术刀</button>
+        ${this.renderBuyMenu()}
       </div>
       <div class="hud-bottom">
         <div class="notifications" aria-live="polite" aria-atomic="true"></div>
@@ -144,13 +188,42 @@ export class HUD {
     `;
     hud.querySelectorAll<HTMLButtonElement>('.buy-menu button').forEach(button => {
       button.addEventListener('click', () => {
+        if (button.disabled) return;
         const weaponId = button.dataset.weapon as WeaponId | undefined;
-        if (weaponId) this.buyHandler?.(weaponId);
+        if (weaponId) this.buyHandler?.({ weaponId });
+        if (button.dataset.armor) this.buyHandler?.({ armor: true });
       });
     });
     hud.querySelector<HTMLButtonElement>('.resume-button')?.addEventListener('click', () => this.resumeHandler?.());
     hud.querySelector<HTMLButtonElement>('.lock-retry-button')?.addEventListener('click', () => this.resumeHandler?.());
     return hud;
+  }
+
+  private renderBuyMenu(): string {
+    return BUY_MENU_CATEGORIES.map(category => `
+      <section class="buy-category" aria-label="${this.escapeHtml(category.title)}">
+        <h3>${this.escapeHtml(category.title)}</h3>
+        <div class="buy-grid">
+          ${category.items.map(item => this.renderBuyItem(item)).join('')}
+        </div>
+      </section>
+    `).join('');
+  }
+
+  private renderBuyItem(item: BuyMenuItem): string {
+    const dataAttributes = [
+      item.weaponId ? `data-weapon="${item.weaponId}"` : '',
+      item.armor ? 'data-armor="kevlar"' : '',
+      item.unavailable ? 'data-unavailable="true"' : ''
+    ].filter(Boolean).join(' ');
+    const disabled = item.unavailable ? ' disabled' : '';
+    return `
+      <button class="buy-item" type="button" ${dataAttributes}${disabled} title="${this.escapeHtml(item.hint)}">
+        <span class="buy-item-name">${this.escapeHtml(item.label)}</span>
+        <span class="buy-item-price">$${item.price}</span>
+        <span class="buy-item-status">${this.escapeHtml(item.hint)}</span>
+      </button>
+    `;
   }
 
   getElement(): HTMLElement {
@@ -261,33 +334,36 @@ export class HUD {
 
   updateMatch(snapshot: MatchSnapshot, localPlayerId?: string): void {
     const localPlayer = snapshot.players.find(player => player.id === localPlayerId);
-    this.waveText.textContent = `${snapshot.config.mode === 'tdm' ? '团队死斗' : '爆破'} 第 ${snapshot.round} 回合`;
+    this.waveText.textContent = `${snapshot.config.mode === 'tdm' ? '团队死斗' : '爆破'} · ${this.phaseLabel(snapshot.phase)} · R${snapshot.round}`;
     this.enemiesText.textContent = `${snapshot.score.attackers} - ${snapshot.score.defenders}`;
     this.roomText.textContent = `房间 ${snapshot.players.length}/${snapshot.config.maxPlayers}`;
-    this.timerText.textContent = `${Math.ceil(snapshot.roundTimeRemaining)} 秒`;
+    this.networkText.textContent = localPlayer ? `${localPlayer.ping} ms` : '联机';
+    this.timerText.textContent = this.formatClock(snapshot.roundTimeRemaining);
     this.scoreText.textContent = localPlayer ? `$${localPlayer.money}` : '就绪';
     if (localPlayer) {
       this.updateHealth(localPlayer.health, 100, localPlayer.armor);
-      this.ammoCurrent.textContent = localPlayer.ammo.toString();
+      this.updateAmmo(localPlayer.ammo, Math.max(localPlayer.ammo, 1), localPlayer.reserveAmmo);
       this.weaponName.textContent = this.weaponLabel(localPlayer.weaponId);
     }
+    this.updateLiveKillFeed(snapshot.killFeed, snapshot);
 
     const rows = snapshot.players
       .slice()
       .sort((a, b) => b.kills - a.kills)
       .map(player => `
-        <tr class="${player.id === localPlayerId ? 'local' : ''}">
+        <tr class="${player.id === localPlayerId ? 'local' : ''} team-${player.team}">
           <td>${player.team === 'attackers' ? '进攻' : '防守'}</td>
           <td>${this.escapeHtml(player.name)}</td>
           <td>${player.kills}</td>
           <td>${player.deaths}</td>
-          <td>${player.money}</td>
+          <td>$${player.money}</td>
+          <td>${player.ping}</td>
         </tr>
       `)
       .join('');
     this.scoreboard.innerHTML = `
       <table>
-        <thead><tr><th>队伍</th><th>名称</th><th>击杀</th><th>死亡</th><th>经济</th></tr></thead>
+        <thead><tr><th>队伍</th><th>名称</th><th>击杀</th><th>死亡</th><th>经济</th><th>Ping</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       <div class="kill-feed">${snapshot.killFeed.map(item => `<p>${this.escapeHtml(item)}</p>`).join('')}</div>
@@ -301,8 +377,10 @@ export class HUD {
   toggleBuyMenu(show?: boolean, options?: { solo?: boolean; disabledReason?: string }): void {
     this.buyMenu.classList.toggle('hidden', show === undefined ? !this.buyMenu.classList.contains('hidden') : !show);
     this.buyMenu.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
-      button.disabled = Boolean(options?.disabledReason);
-      button.title = options?.disabledReason ?? (options?.solo ? '选择武器' : '购买武器');
+      const unavailable = button.dataset.unavailable === 'true';
+      button.disabled = Boolean(options?.disabledReason) || unavailable;
+      const itemHint = button.querySelector('.buy-item-status')?.textContent ?? '';
+      button.title = options?.disabledReason ?? itemHint ?? (options?.solo ? '选择武器' : '购买武器');
     });
     let hint = this.buyMenu.querySelector('.buy-hint') as HTMLElement | null;
     if (!hint) {
@@ -337,8 +415,75 @@ export class HUD {
     this.lockPanel.classList.add('hidden');
   }
 
-  onBuy(handler: (weaponId: WeaponId) => void): void {
+  onBuy(handler: (request: BuyRequest) => void): void {
     this.buyHandler = handler;
+  }
+
+  showKillFeedEntry(message: string): void {
+    const current = Array.from(this.liveKillFeed.querySelectorAll('.kill-feed-row')).map(item => item.textContent ?? '');
+    this.updateLiveKillFeed([message, ...current].slice(0, 5));
+  }
+
+  private updateLiveKillFeed(items: string[], snapshot?: MatchSnapshot): void {
+    this.liveKillFeed.replaceChildren(...items.slice(0, 5).map(item => this.createKillFeedRow(item, snapshot)));
+  }
+
+  private createKillFeedRow(message: string, snapshot?: MatchSnapshot): HTMLElement {
+    const row = document.createElement('p');
+    row.className = 'kill-feed-row';
+    const parsed = this.parseKillFeedMessage(message, snapshot);
+    row.classList.add(`team-${parsed.attackerTeam ?? 'neutral'}`);
+
+    const attacker = document.createElement('span');
+    attacker.className = 'kill-feed-player kill-feed-attacker';
+    attacker.textContent = parsed.attacker;
+    row.append(attacker);
+
+    const weapon = document.createElement('span');
+    weapon.className = 'kill-feed-weapon';
+    weapon.textContent = parsed.weapon;
+    row.append(weapon);
+
+    if (parsed.headshot) {
+      const headshot = document.createElement('span');
+      headshot.className = 'kill-feed-headshot';
+      headshot.textContent = '爆头';
+      row.append(headshot);
+    }
+
+    const victim = document.createElement('span');
+    victim.className = 'kill-feed-player kill-feed-victim';
+    victim.textContent = parsed.victim;
+    row.append(victim);
+
+    return row;
+  }
+
+  private parseKillFeedMessage(message: string, snapshot?: MatchSnapshot): { attacker: string; weapon: string; victim: string; headshot: boolean; attackerTeam?: string } {
+    const headshot = message.includes('爆头');
+    const players = snapshot?.players ?? [];
+    const attacker = players
+      .slice()
+      .sort((a, b) => b.name.length - a.name.length)
+      .find(player => message.startsWith(player.name));
+    const attackerName = attacker?.name ?? message;
+    const afterAttacker = attacker ? message.slice(attacker.name.length).trim() : '';
+    const victim = players
+      .slice()
+      .sort((a, b) => b.name.length - a.name.length)
+      .find(player => player.id !== attacker?.id && afterAttacker.endsWith(player.name));
+    const victimName = victim?.name ?? (attacker ? afterAttacker.replace('爆头', '').trim() : '');
+    const weapon = attacker && victim
+      ? afterAttacker.slice(0, Math.max(0, afterAttacker.length - victim.name.length)).replace('爆头', '').trim()
+      : this.inferWeaponLabel(message);
+
+    return {
+      attacker: attackerName,
+      weapon: weapon || '击杀',
+      victim: victimName || '',
+      headshot,
+      attackerTeam: attacker?.team
+    };
   }
 
   onResume(handler: () => void): void {
@@ -409,6 +554,29 @@ export class HUD {
       knife: '战术刀'
     };
     return labels[weaponId] ?? weaponId;
+  }
+
+  private inferWeaponLabel(message: string): string {
+    const knownWeapons = ['Vandal AR', 'Sentinel M4', 'Longbow AWP', 'Specter SMG', 'Bulldog Shotgun', 'S-9 Sidearm', 'Rook Heavy', 'Tactical Knife'];
+    return knownWeapons.find(weapon => message.includes(weapon)) ?? '击杀';
+  }
+
+  private phaseLabel(phase: string): string {
+    const labels: Record<string, string> = {
+      warmup: '热身',
+      buy: '购买',
+      live: '交战',
+      roundEnd: '结算',
+      matchEnd: '结束'
+    };
+    return labels[phase] ?? phase;
+  }
+
+  private formatClock(secondsRemaining: number): string {
+    const clamped = Math.max(0, Math.ceil(secondsRemaining));
+    const minutes = Math.floor(clamped / 60).toString().padStart(2, '0');
+    const seconds = Math.floor(clamped % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
   }
 
   hideResults(): void {

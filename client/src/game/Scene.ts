@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BoxSpec, INDUSTRIAL_ARENA } from './MapData.js';
+import { ARENA_MAPS, ArenaData, BoxSpec } from './MapData.js';
+import { MapId } from './types.js';
 
 export class Scene {
   private scene: THREE.Scene;
@@ -8,6 +9,8 @@ export class Scene {
   private fallbackCanvas: HTMLCanvasElement | null = null;
   private animationId: number | null = null;
   private colliders: BoxSpec[] = [];
+  private arenaObjects: THREE.Object3D[] = [];
+  private currentMapId: MapId = 'dust2';
 
   constructor() {
     this.scene = new THREE.Scene();
@@ -54,19 +57,7 @@ export class Scene {
     const hemiLight = new THREE.HemisphereLight(0x9fc4ff, 0x403a31, 0.82);
     this.scene.add(hemiLight);
 
-    const groundGeometry = new THREE.PlaneGeometry(INDUSTRIAL_ARENA.bounds.width, INDUSTRIAL_ARENA.bounds.depth, 18, 24);
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x555e66,
-      metalness: 0.1,
-      roughness: 0.78
-    });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.z = INDUSTRIAL_ARENA.bounds.centerZ;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
-
-    this.buildArena();
+    this.setArena(this.currentMapId);
 
     window.addEventListener('resize', this.handleResize.bind(this));
   }
@@ -77,9 +68,31 @@ export class Scene {
     this.renderer?.setSize(window.innerWidth, window.innerHeight);
   }
 
-  private buildArena(): void {
-    this.colliders = INDUSTRIAL_ARENA.colliders;
-    [...INDUSTRIAL_ARENA.colliders, ...INDUSTRIAL_ARENA.props].forEach(spec => this.addBox(spec));
+  setArena(mapId: MapId): void {
+    const arena = ARENA_MAPS[mapId] ?? ARENA_MAPS.dust2;
+    this.currentMapId = mapId;
+    this.clearArenaObjects();
+    this.buildArena(arena);
+  }
+
+  private buildArena(arena: ArenaData): void {
+    this.colliders = arena.colliders;
+    this.scene.background = new THREE.Color(arena.name === 'Dust2' ? 0x2b3135 : arena.name === 'Italy' ? 0x243035 : 0x202733);
+    this.scene.fog = new THREE.Fog(this.scene.background as THREE.Color, 42, 108);
+
+    const groundGeometry = new THREE.PlaneGeometry(arena.bounds.width, arena.bounds.depth, 18, 24);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: arena.name === 'Dust2' ? 0x8a7a5a : arena.name === 'Italy' ? 0x5d6870 : 0x555e66,
+      metalness: 0.1,
+      roughness: 0.78
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.z = arena.bounds.centerZ;
+    ground.receiveShadow = true;
+    this.addArenaObject(ground);
+
+    [...arena.colliders, ...arena.props].forEach(spec => this.addBox(spec));
 
     const laneMaterial = new THREE.MeshStandardMaterial({
       color: 0xd0a74f,
@@ -92,7 +105,7 @@ export class Scene {
       const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 76), laneMaterial);
       stripe.position.set(x, 0.025, -8);
       stripe.receiveShadow = true;
-      this.scene.add(stripe);
+      this.addArenaObject(stripe);
     }
 
     for (const position of [
@@ -105,7 +118,7 @@ export class Scene {
     ]) {
       const lamp = new THREE.PointLight(0xffc98b, 1.85, 24, 2.0);
       lamp.position.copy(position);
-      this.scene.add(lamp);
+      this.addArenaObject(lamp);
     }
 
     this.addBombSiteMarker('A', new THREE.Vector3(-24, 0.04, -27));
@@ -116,9 +129,9 @@ export class Scene {
     const positions = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * INDUSTRIAL_ARENA.bounds.width;
+      positions[i * 3] = (Math.random() - 0.5) * arena.bounds.width;
       positions[i * 3 + 1] = 1 + Math.random() * 7;
-      positions[i * 3 + 2] = INDUSTRIAL_ARENA.bounds.centerZ - INDUSTRIAL_ARENA.bounds.depth / 2 + Math.random() * INDUSTRIAL_ARENA.bounds.depth;
+      positions[i * 3 + 2] = arena.bounds.centerZ - arena.bounds.depth / 2 + Math.random() * arena.bounds.depth;
     }
 
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -129,7 +142,7 @@ export class Scene {
       opacity: 0.22
     });
     const particles = new THREE.Points(particleGeometry, particleMaterial);
-    this.scene.add(particles);
+    this.addArenaObject(particles);
   }
 
   private addBox(spec: BoxSpec): void {
@@ -138,14 +151,16 @@ export class Scene {
       new THREE.MeshStandardMaterial({
         color: new THREE.Color(spec.color).lerp(new THREE.Color(0xffffff), 0.14),
         metalness: spec.metalness ?? 0.2,
-        roughness: spec.roughness ?? 0.6
+        roughness: spec.roughness ?? 0.6,
+        transparent: spec.opacity !== undefined && spec.opacity < 1,
+        opacity: spec.opacity ?? 1
       })
     );
     mesh.position.copy(spec.position);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = spec.name ?? 'arena-box';
-    this.scene.add(mesh);
+    this.addArenaObject(mesh);
   }
 
   private addBombSiteMarker(label: string, position: THREE.Vector3): void {
@@ -155,7 +170,7 @@ export class Scene {
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.copy(position);
-    this.scene.add(ring);
+    this.addArenaObject(ring);
 
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -170,7 +185,25 @@ export class Scene {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
     sprite.position.set(position.x, 1.2, position.z);
     sprite.scale.set(1.4, 1.4, 1);
-    this.scene.add(sprite);
+    this.addArenaObject(sprite);
+  }
+
+  private addArenaObject(object: THREE.Object3D): void {
+    this.arenaObjects.push(object);
+    this.scene.add(object);
+  }
+
+  private clearArenaObjects(): void {
+    this.arenaObjects.forEach(object => this.scene.remove(object));
+    this.arenaObjects = [];
+  }
+
+  getCurrentArena(): ArenaData {
+    return ARENA_MAPS[this.currentMapId];
+  }
+
+  getCurrentMapId(): MapId {
+    return this.currentMapId;
   }
 
   getArenaColliders(): BoxSpec[] {

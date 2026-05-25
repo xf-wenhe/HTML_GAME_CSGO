@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --import tsx/esm server/index.ts & vite --host 0.0.0.0",
+    "serve:public": "npm run build && node --import tsx/esm server/public.ts",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",

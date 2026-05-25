@@ -39,10 +39,11 @@ await waitForDebugState(page, state => state?.assetSource === 'glb', 'weapon ass
 
 const initial = await page.evaluate(() => window.__debugPlayerPosition?.());
 await page.keyboard.down('KeyW');
-await page.waitForTimeout(1000);
-await page.keyboard.up('KeyW');
+await waitForDebugState(page, state => state?.horizontalSpeed >= 10.5, 'run speed near cap', 2500);
+await page.waitForTimeout(700);
 const moved = await page.evaluate(() => window.__debugPlayerPosition?.());
 const stateAfterMove = await page.evaluate(() => window.__debugInputState?.());
+await page.keyboard.up('KeyW');
 
 await page.mouse.down();
 await page.waitForTimeout(250);
@@ -78,7 +79,10 @@ console.log(JSON.stringify(report, null, 2));
 if (errors.some(error => /WebGLRenderer: Error creating WebGL context|Error creating WebGL context/.test(error))) {
   throw new Error('WebGL failed in this browser runtime; run the same script in a hardware-accelerated browser.');
 }
-if (distance < 10 || distance > 12.2) throw new Error(`Expected tuned FPS movement around 10-12 units, got ${distance.toFixed(2)} units in 1s.`);
+if (distance < 6.5 || distance > 14) throw new Error(`Expected tuned FPS movement around 6.5-14 units from standing start, got ${distance.toFixed(2)} units during run-up.`);
+if (stateAfterMove?.horizontalSpeed < 10.5) {
+  throw new Error(`Expected one-second run speed to settle near cap, got ${stateAfterMove?.horizontalSpeed?.toFixed?.(2) ?? stateAfterMove?.horizontalSpeed}.`);
+}
 if (stateAfterShoot && stateAfterMove && stateAfterShoot.ammo >= stateAfterMove.ammo) {
   throw new Error('Expected left click to consume ammo while focused.');
 }

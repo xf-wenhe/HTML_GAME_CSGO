@@ -10,7 +10,14 @@ export interface ShootResult {
   pellets: number;
   isMelee: boolean;
   heavyMelee: boolean;
+  spread: number;
+  recoilOffset: { x: number; y: number };
 }
+
+export type WeaponFeedbackEvent =
+  | { type: 'shoot'; weaponId: string }
+  | { type: 'empty'; weaponId: string }
+  | { type: 'reload'; weaponId: string };
 
 export class WeaponManager {
   private weapons = new Map<string, Weapon>();
@@ -27,6 +34,7 @@ export class WeaponManager {
   private switchDuration = 0;
   private aiming = false;
   private meleeSwing = 0;
+  private feedbackEvents: WeaponFeedbackEvent[] = [];
 
   constructor() {
     Object.entries(WEAPON_DEFINITIONS).forEach(([id, weapon]) => {
@@ -90,12 +98,13 @@ export class WeaponManager {
     return this.aiming;
   }
 
-  shoot(camera: THREE.Camera, now: number = performance.now(), options: { heavyMelee?: boolean } = {}): ShootResult | null {
+  shoot(camera: THREE.Camera, now: number = performance.now(), options: { heavyMelee?: boolean; isMoving?: boolean } = {}): ShootResult | null {
     const weapon = this.getCurrentWeapon();
     if (this.isSwitching()) return null;
     if (!weapon.shoot(now)) {
       if (weapon.currentAmmo === 0 && !weapon.getIsReloading()) {
         this.startReload(now);
+        this.feedbackEvents.push({ type: 'empty', weaponId: weapon.id });
       }
       return null;
     }
@@ -106,11 +115,15 @@ export class WeaponManager {
     this.muzzleFlash.material.opacity = weapon.isMelee ? 0 : 0.95;
 
     const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const spread = weapon.spread * weapon.getSpreadMultiplier() * (this.aiming ? weapon.adsSpreadMultiplier : 1);
+    const recoilOffset = weapon.getRecoilOffset();
+    direction.x += recoilOffset.x;
+    direction.y += recoilOffset.y;
+    const spread = weapon.getEffectiveSpread(Boolean(options.isMoving), this.aiming);
     direction.x += (Math.random() - 0.5) * spread;
     direction.y += (Math.random() - 0.5) * spread;
     direction.z += (Math.random() - 0.5) * spread;
     direction.normalize();
+    this.feedbackEvents.push({ type: 'shoot', weaponId: weapon.id });
 
     return {
       origin: camera.position.clone(),
@@ -118,12 +131,25 @@ export class WeaponManager {
       damage: heavyMelee ? Math.round(weapon.damage * 1.65) : weapon.damage,
       pellets: weapon.pellets,
       isMelee: weapon.isMelee,
-      heavyMelee
+      heavyMelee,
+      spread,
+      recoilOffset
     };
   }
 
   startReload(now: number = performance.now()): void {
-    this.getCurrentWeapon().startReload(now);
+    const weapon = this.getCurrentWeapon();
+    const wasReloading = weapon.getIsReloading();
+    weapon.startReload(now);
+    if (!wasReloading && weapon.getIsReloading()) {
+      this.feedbackEvents.push({ type: 'reload', weaponId: weapon.id });
+    }
+  }
+
+  consumeFeedbackEvents(): WeaponFeedbackEvent[] {
+    const events = [...this.feedbackEvents];
+    this.feedbackEvents = [];
+    return events;
   }
 
   update(now: number = performance.now(), dt = 0.016, isMoving = false): void {

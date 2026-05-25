@@ -9,13 +9,13 @@ import { ProjectileSystem } from './game/ProjectileSystem.js';
 import { NetworkManager } from './network/NetworkManager.js';
 import { EnemyManager } from './game/EnemyManager.js';
 import { Enemy } from './game/Enemy.js';
-import { INDUSTRIAL_ARENA } from './game/MapData.js';
 import { RemotePlayers } from './game/RemotePlayers.js';
 import { SurvivalMode } from './game/SurvivalMode.js';
 import { GrenadeSystem } from './game/GrenadeSystem.js';
 import { DroppedWeapon, DroppedWeaponSystem } from './game/DroppedWeaponSystem.js';
 import { HitRegion, calculateDamage } from './game/Combat.js';
-import { MatchMode, MatchSnapshot, WeaponId } from './game/types.js';
+import { AudioFeedback } from './game/AudioFeedback.js';
+import type { BuyRequest, MapId, MatchMode, MatchSnapshot, WeaponId } from './game/types.js';
 import { InputMode, PointerLockState, canMove, canShoot } from './game/InputMode.js';
 import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
@@ -75,6 +75,7 @@ const droppedWeapons = new DroppedWeaponSystem(scene.getScene());
 const remotePlayers = new RemotePlayers(scene.getScene());
 const hud = new HUD();
 const mainMenu = new MainMenu();
+const audioFeedback = new AudioFeedback();
 
 let player: PlayerController | null = null;
 let gameRunning = false;
@@ -98,13 +99,22 @@ let equippedPistol = 'pistol';
 let nearbyDrop: DroppedWeapon | null = null;
 let lastHitRegion: HitRegion | null = null;
 const recordedKills = new Set<string>();
+let selectedMapId: MapId = 'dust2';
+let arenaColliderBodies: CANNON.Body[] = [];
+let wasGrounded = true;
 
-scene.getArenaColliders().forEach(collider => {
-  physics.addStaticBox(
-    new CANNON.Vec3(collider.position.x, collider.position.y, collider.position.z),
-    new CANNON.Vec3(collider.size.x / 2, collider.size.y / 2, collider.size.z / 2)
-  );
-});
+syncArenaPhysics();
+
+function syncArenaPhysics(): void {
+  arenaColliderBodies.forEach(body => physics.removeBody(body));
+  arenaColliderBodies = scene.getArenaColliders().map(collider => (
+    physics.addStaticBox(
+      new CANNON.Vec3(collider.position.x, collider.position.y, collider.position.z),
+      new CANNON.Vec3(collider.size.x / 2, collider.size.y / 2, collider.size.z / 2)
+    )
+  ));
+  enemyManager.setLineOfSightColliders(scene.getArenaColliders());
+}
 
 document.getElementById('app')?.appendChild(scene.getCanvas());
 document.getElementById('app')?.appendChild(hud.getElement());
@@ -130,11 +140,11 @@ mainMenu.on('defusal', () => {
   startMultiplayer('defusal');
 });
 
-hud.onBuy((weaponId) => {
+hud.onBuy((request) => {
   if (currentMode === 'solo') {
-    switchLocalWeaponFromBuy(weaponId);
+    applySoloBuy(request);
   } else {
-    network.send({ type: 'buyWeapon', request: { weaponId } });
+    network.send({ type: 'buyWeapon', request });
   }
   closeBuyMenu(true);
 });
@@ -155,6 +165,9 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   setInputMode('playing');
   debugPointerLockBypass = false;
   currentMode = mode;
+  selectedMapId = mainMenu.getMapId();
+  scene.setArena(selectedMapId);
+  syncArenaPhysics();
   usingGrenade = false;
   activeSlot = 'primary';
   equippedPrimary = 'rifle';
@@ -164,7 +177,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   nearbyDrop = null;
   lastHitRegion = null;
 
-  player = new PlayerController(scene, physics, input, INDUSTRIAL_ARENA.playerSpawn.clone());
+  player = new PlayerController(scene, physics, input, scene.getCurrentArena().playerSpawn.clone());
   player.healFull();
   weaponManager.setPlayerCamera(scene.getCamera());
   grenades.reset();
@@ -191,7 +204,8 @@ network.on('connected', () => {
   network.send({
     type: 'joinOrCreateRoom',
     mode: desiredMultiplayerMode,
-    playerName: `Player-${Math.floor(Math.random() * 1000)}`
+    playerName: `Player-${Math.floor(Math.random() * 1000)}`,
+    mapId: selectedMapId
   });
 });
 
@@ -207,6 +221,10 @@ network.on('roomJoined', (data) => {
   localPlayerId = data.playerId;
   currentSnapshot = data.snapshot ?? null;
   if (data.snapshot) {
+    scene.setArena(data.snapshot.config.mapId);
+    syncArenaPhysics();
+    const localSnapshot = data.snapshot.players.find(snapshotPlayer => snapshotPlayer.id === data.playerId);
+    if (player && localSnapshot) player.setPosition(new THREE.Vector3(localSnapshot.position.x, localSnapshot.position.y, localSnapshot.position.z));
     hud.updateRoomPlayers(data.snapshot.players.length, data.snapshot.config.maxPlayers);
   }
   network.send({ type: 'setReady', ready: true });
@@ -356,11 +374,22 @@ function gameLoop(now: number) {
 
   if (player && canMove(inputMode) && hasGameplayFocus()) {
     player.update(dt);
+    audioFeedback.playFootstep({
+      moving: player.isMoving(),
+      walking: input.isKeyPressed('ShiftLeft') || input.isKeyPressed('ShiftRight'),
+      crouched: player.isCrouched(),
+      grounded: player.isGrounded()
+    }, now);
+    if (!wasGrounded && player.isGrounded()) audioFeedback.playLand(player.getLastLandingSpeed());
+    wasGrounded = player.isGrounded();
   } else {
     input.getMouseDelta();
   }
   physics.step(dt);
   weaponManager.update(now, dt, player?.isMoving() ?? false);
+  weaponManager.consumeFeedbackEvents().forEach(event => {
+    audioFeedback.playWeapon(event.type, event.weaponId);
+  });
 
   const playerPos = player?.getPosition() || new THREE.Vector3(0, 0, 0);
   weaponManager.setAiming(canShoot(inputMode) && hasGameplayFocus() && !usingGrenade && input.isKeyPressed('MouseRight'));
@@ -410,7 +439,7 @@ function gameLoop(now: number) {
   const currentWeapon = weaponManager.getCurrentWeapon();
   hud.updateAmmo(currentWeapon.currentAmmo, currentWeapon.magazineSize, currentWeapon.currentReserveAmmo);
   hud.updateReloadProgress(currentWeapon.getReloadProgress());
-  hud.updateCrosshair(currentWeapon.spread * currentWeapon.getSpreadMultiplier() * (weaponManager.isAiming() ? currentWeapon.adsSpreadMultiplier : 1));
+  hud.updateCrosshair(currentWeapon.getEffectiveSpread(player?.isMoving() ?? false, weaponManager.isAiming()));
   hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[grenades.getSelected()]);
   syncWeaponHud();
 
@@ -447,7 +476,7 @@ function gameLoop(now: number) {
       }
       syncWeaponHud();
     } else {
-      const result = weaponManager.shoot(scene.getCamera(), now);
+      const result = weaponManager.shoot(scene.getCamera(), now, { isMoving: player.isMoving() });
     if (result) {
       if (currentMode === 'multiplayer') {
         network.send({
@@ -574,6 +603,11 @@ function applyLocalWeaponHit(result: ShootResult): void {
     target.enemy.takeDamage(damage, target.region);
     lastHitRegion = target.region;
     hud.showHitMarker();
+    if (target.enemy.isDead()) {
+      hud.showKillFeedEntry(`你 ${weapon.displayName}${target.region === 'head' ? ' 爆头' : ''} NPC`);
+      audioFeedback.playKill();
+    }
+    audioFeedback.playHit(target.region);
     hud.showNotification(result.heavyMelee ? `重击命中 ${regionLabel(target.region)}` : `挥刀命中 ${regionLabel(target.region)}`, 650);
     return;
   }
@@ -587,6 +621,11 @@ function applyLocalWeaponHit(result: ShootResult): void {
     target.enemy.takeDamage(damage, target.region);
     lastHitRegion = target.region;
     hud.showHitMarker();
+    if (target.enemy.isDead()) {
+      hud.showKillFeedEntry(`你 ${weapon.displayName}${target.region === 'head' ? ' 爆头' : ''} NPC`);
+      audioFeedback.playKill();
+    }
+    audioFeedback.playHit(target.region);
     if (target.region === 'head') hud.showNotification('爆头命中', 650);
   }
 }
@@ -683,7 +722,7 @@ window.__debugInputState = () => ({
   crouched: player?.isCrouched() ?? false,
   crouchJumping: player?.isCrouchJumping() ?? false,
   collisionHeight: player?.getCollisionHeight() ?? 0,
-  mapBounds: INDUSTRIAL_ARENA.bounds,
+  mapBounds: scene.getCurrentArena().bounds,
   weaponId: usingGrenade ? 'grenade' : weaponManager.getCurrentWeaponId(),
   assetSource: usingGrenade ? 'fallback' : weaponManager.getCurrentAssetSource(),
   enemyAssetSources: enemyManager.getAllEnemies().map(enemy => enemy.getAssetSource()),
@@ -727,6 +766,16 @@ function switchLocalWeaponFromBuy(weaponId: WeaponId): void {
   weaponManager.switchWeapon(localWeapon);
   hud.updateWeapon(weaponManager.getCurrentWeapon());
   syncWeaponHud();
+}
+
+function applySoloBuy(request: BuyRequest): void {
+  if (request.armor) {
+    player?.buyArmor();
+    if (player) hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
+    hud.showNotification('已购买防弹衣');
+    return;
+  }
+  if (request.weaponId) switchLocalWeaponFromBuy(request.weaponId);
 }
 
 function debugLog(...args: unknown[]): void {

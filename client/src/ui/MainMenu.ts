@@ -3,6 +3,7 @@ export class MainMenu {
   private eventHandlers: Map<string, (() => void)[]> = new Map();
   private buttons: Map<string, HTMLButtonElement> = new Map();
   private difficulty: 'easy' | 'normal' | 'hard' | 'expert' = 'normal';
+  private mapId: 'dust2' | 'warehouse' | 'italy' = 'dust2';
 
   constructor() {
     this.element = this.createElement();
@@ -36,6 +37,12 @@ export class MainMenu {
           <button class="difficulty-option active" data-difficulty="normal" type="button">普通</button>
           <button class="difficulty-option" data-difficulty="hard" type="button">困难</button>
           <button class="difficulty-option" data-difficulty="expert" type="button">专家</button>
+        </div>
+        <div class="map-panel" role="group" aria-label="地图选择">
+          <span>地图</span>
+          <button class="map-option active" data-map="dust2" type="button">Dust2</button>
+          <button class="map-option" data-map="warehouse" type="button">仓库</button>
+          <button class="map-option" data-map="italy" type="button">意大利</button>
         </div>
         <div class="game-info" role="note" aria-label="操作说明">
           <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> — 移动</p>
@@ -85,6 +92,14 @@ export class MainMenu {
         this.element.querySelectorAll('.difficulty-option').forEach(item => item.classList.toggle('active', item === button));
       });
     });
+    this.element.querySelectorAll<HTMLButtonElement>('.map-option').forEach(button => {
+      button.addEventListener('click', () => {
+        const selected = button.dataset.map as 'dust2' | 'warehouse' | 'italy' | undefined;
+        if (!selected) return;
+        this.mapId = selected;
+        this.element.querySelectorAll('.map-option').forEach(item => item.classList.toggle('active', item === button));
+      });
+    });
   }
 
   on(event: string, handler: () => void): void {
@@ -105,6 +120,10 @@ export class MainMenu {
 
   getDifficulty(): 'easy' | 'normal' | 'hard' | 'expert' {
     return this.difficulty;
+  }
+
+  getMapId(): 'dust2' | 'warehouse' | 'italy' {
+    return this.mapId;
   }
 
   show(): void {

@@ -10,6 +10,7 @@ export interface AssetDefinition {
   scale?: number;
   rotation?: [number, number, number];
   position?: [number, number, number];
+  normalizeHeight?: number;
   fallback: () => THREE.Object3D;
 }
 
@@ -32,6 +33,11 @@ function applyDefinitionTransform(model: THREE.Object3D, definition: AssetDefini
   const scale = definition.scale ?? 1;
   model.scale.setScalar(scale);
   if (definition.rotation) model.rotation.set(...definition.rotation);
+  if (definition.normalizeHeight) {
+    const bounds = new THREE.Box3().setFromObject(model);
+    const height = bounds.getSize(new THREE.Vector3()).y;
+    if (height > 0) model.scale.multiplyScalar(definition.normalizeHeight / height);
+  }
   if (definition.position) model.position.set(...definition.position);
   return model;
 }
@@ -333,6 +339,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     kind: 'enemy',
     path: '/assets/models/enemies/assault.glb',
     scale: 0.011,
+    normalizeHeight: 2.25,
     rotation: [-Math.PI / 2, 0, 0],
     position: [0, 0, 0],
     fallback: createFallbackEnemy

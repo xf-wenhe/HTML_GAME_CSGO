@@ -159,32 +159,169 @@ curl -I http://192.168.11.29:5173
 
 只要 Vite 输出了 `Network: http://<你的IP>:端口/`，且防火墙已放行，其他同网段设备就能访问。
 
-## 公网联机部署
+## 公网接入（非局域网）
 
-公网联机需要把前端和后端部署到可访问的服务器，或使用端口映射/隧道。关键环境变量：
+下面给两种常用方案：
 
-```bash
-PORT=3000
-CLIENT_ORIGIN=https://你的前端域名
-PUBLIC_SERVER_URL=https://你的后端域名
-VITE_PUBLIC_SERVER_URL=https://你的后端域名
-MAX_ROOMS=64
-ROOM_IDLE_TIMEOUT_MS=600000
-```
+- 方案 A：隧道（Cloudflare / ngrok），适合临时测试，最快。
+- 方案 B：路由器端口映射，适合长期自建公网入口。
 
-前端构建：
+### 方案 A：Cloudflare Tunnel（推荐临时联机）
+
+`NetworkManager` 默认会把后端地址拼成 `协议://域名:3000`。当你使用 `https://xxxx.trycloudflare.com` 这类公网域名时，必须显式设置 `VITE_PUBLIC_SERVER_URL`，否则前端会去连 `https://xxxx.trycloudflare.com:3000` 而失败。
+
+1) 先开隧道（终端 A）：
 
 ```bash
-npm run build
+cloudflared tunnel --url http://localhost:3000
 ```
 
-后端运行：
+记下输出的公网地址（示例）：
+
+```text
+https://abcd-1234.trycloudflare.com
+```
+
+2) 用同一个公网地址启动单端口服务（终端 B）：
 
 ```bash
-PORT=3000 npm run dev
+PUBLIC_URL=https://abcd-1234.trycloudflare.com
+PORT=3000 \
+CLIENT_ORIGIN=$PUBLIC_URL \
+PUBLIC_SERVER_URL=$PUBLIC_URL \
+VITE_PUBLIC_SERVER_URL=$PUBLIC_URL \
+npm run serve:public
 ```
 
-生产环境建议把 Vite 构建产物交给 Nginx、静态托管或 CDN，把 Socket.IO 后端部署为常驻 Node 服务，并确保 HTTPS、CORS 和 WebSocket 代理配置正确。
+3) 把 `PUBLIC_URL` 发给外网玩家：
+
+```text
+https://abcd-1234.trycloudflare.com
+```
+
+说明：
+
+- `npm run serve:public` 会先构建前端再启动 `server/public.ts`。
+- 页面和 Socket.IO 都走同一个公网域名，跨域问题最少。
+- 如果隧道地址变化，需要重新执行第 2 步再构建一次。
+
+### 方案 A-2：ngrok（临时联机备选）
+
+1) 启动 ngrok：
+
+```bash
+ngrok http 3000
+```
+
+2) 拿到 ngrok 的 `https://xxxx.ngrok-free.app` 后，同样设置：
+
+```bash
+PUBLIC_URL=https://xxxx.ngrok-free.app
+PORT=3000 \
+CLIENT_ORIGIN=$PUBLIC_URL \
+PUBLIC_SERVER_URL=$PUBLIC_URL \
+VITE_PUBLIC_SERVER_URL=$PUBLIC_URL \
+npm run serve:public
+```
+
+### 方案 B：路由器端口映射（长期可用）
+
+1) 本机启动：
+
+```bash
+PUBLIC_URL=http://你的公网IP或域名:3000
+PORT=3000 \
+CLIENT_ORIGIN=$PUBLIC_URL \
+PUBLIC_SERVER_URL=$PUBLIC_URL \
+VITE_PUBLIC_SERVER_URL=$PUBLIC_URL \
+npm run serve:public
+```
+
+2) 在路由器做端口转发（NAT）：
+
+- 外网 TCP `3000` -> 内网主机 `192.168.11.29:3000`
+
+3) 放行防火墙：
+
+- macOS 防火墙允许 Node 入站
+- 路由器安全策略允许该端口
+
+4) 外网测试：
+
+```bash
+curl -I http://你的公网IP:3000
+```
+
+能返回 HTTP 头即表示外网可达。
+
+### 安全建议（公网必须看）
+
+- 仅用于测试时，建议优先用隧道并在结束后立即关闭进程。
+- 不要提交任何 token、临时公网地址、账号凭据到仓库。
+- 若长期开放公网，建议至少增加：
+	- 访问鉴权（房间口令或登录）
+	- IP 级限流
+	- HTTPS 反向代理
+	- 服务端输入校验和日志审计
+
+### Windows 玩家 1 分钟接入卡片
+
+把下面这段直接发给外网玩家即可：
+
+1) 打开你发来的公网地址（示例）：
+
+```text
+https://abcd-1234.trycloudflare.com
+```
+
+2) 进入后点击“团队死斗/爆破”并等待房间分配。
+
+3) 如果显示“任务待命”或看不到其他玩家，按顺序检查：
+
+- 刷新页面后重进一次。
+- 确认地址栏是你发的公网域名，不是 `localhost` 或局域网 IP。
+- 用 Chrome/Edge 独立窗口打开，允许鼠标锁定。
+
+4) 仍无法联机时，回传这三条信息给房主排查：
+
+- 地址栏完整 URL
+- 大厅右上角网络状态文本
+- 错误提示截图（若有）
+
+### 房主 30 秒排障卡片
+
+玩家反馈连不上时，房主按这个顺序执行：
+
+1) 确认服务还在监听：
+
+```bash
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+```
+
+2) 本机接口自检：
+
+```bash
+curl -I http://127.0.0.1:3000
+```
+
+3) 如用隧道，确认公网地址还有效：
+
+```bash
+cloudflared tunnel --url http://localhost:3000
+```
+
+拿到新的公网 URL 后，必须重新启动：
+
+```bash
+PUBLIC_URL=https://你的新域名
+PORT=3000 \
+CLIENT_ORIGIN=$PUBLIC_URL \
+PUBLIC_SERVER_URL=$PUBLIC_URL \
+VITE_PUBLIC_SERVER_URL=$PUBLIC_URL \
+npm run serve:public
+```
+
+4) 让玩家强制刷新后重连（Ctrl+F5 或清缓存后打开新链接）。
 
 ## 资产说明
 

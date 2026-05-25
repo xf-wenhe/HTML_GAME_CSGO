@@ -22,6 +22,9 @@ export const CSGO_MOVEMENT: MovementParams = {
   airControl: 0.16
 };
 
+export const PLAYER_JUMP_FORCE = 6.4;
+export const PLAYER_CROUCH_JUMP_BONUS = 2.0;
+
 export function applyFriction(velocity: THREE.Vector3, dt: number, params: MovementParams): THREE.Vector3 {
   const horizontal = new THREE.Vector3(velocity.x, 0, velocity.z);
   const speed = horizontal.length();

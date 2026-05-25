@@ -3,6 +3,7 @@ import { Physics } from './Physics.js';
 import * as CANNON from 'cannon-es';
 import { ASSETS, loadAsset } from './assets.js';
 import { HitRegion, closestPointDistanceToRay } from './Combat.js';
+import type { BoxSpec } from './MapData.js';
 
 export type EnemyType = 'patrol' | 'shooter' | 'assault';
 export type EnemyState = 'idle' | 'patrol' | 'chase' | 'attack' | 'dead';
@@ -35,6 +36,7 @@ export class Enemy {
   private attackCooldown = 1000;
   private animationClock = 0;
   private assetSource: 'glb' | 'fallback' = 'fallback';
+  private hitStunRemaining = 0;
   public readonly damage = 10;
 
   constructor(config: EnemyConfig, scene: THREE.Scene, physics: Physics) {
@@ -111,21 +113,28 @@ export class Enemy {
     return group;
   }
 
-  update(dt: number, playerPosition: THREE.Vector3, now: number): number {
+  update(dt: number, playerPosition: THREE.Vector3, now: number, lineOfSightColliders: BoxSpec[] = []): number {
     if (this.state === 'dead') return 0;
 
     this.mesh.position.set(this.body.position.x, this.body.position.y - 1, this.body.position.z);
     this.healthBar.lookAt(playerPosition);
     this.healthBar.visible = this.mesh.position.distanceTo(playerPosition) < 22;
     this.animate(dt);
+    this.hitStunRemaining = Math.max(0, this.hitStunRemaining - dt);
+    if (this.hitStunRemaining > 0) {
+      this.body.velocity.x = 0;
+      this.body.velocity.z = 0;
+      return 0;
+    }
 
     const distanceToPlayer = this.mesh.position.distanceTo(playerPosition);
+    const seesPlayer = hasLineOfSight(this.mesh.position.clone().add(new THREE.Vector3(0, 1.4, 0)), playerPosition, lineOfSightColliders);
     let damage = 0;
 
     switch (this.state) {
       case 'idle':
       case 'patrol':
-        if (distanceToPlayer < this.detectionRange) {
+        if (distanceToPlayer < this.detectionRange && seesPlayer) {
           this.state = 'chase';
         } else if (this.state === 'patrol') {
           this.patrol(dt);
@@ -133,7 +142,7 @@ export class Enemy {
         break;
 
       case 'chase':
-        if (distanceToPlayer > this.detectionRange * 1.5) {
+        if (distanceToPlayer > this.detectionRange * 1.5 || !seesPlayer) {
           this.state = 'patrol';
         } else if (distanceToPlayer < this.attackRange) {
           this.state = 'attack';
@@ -143,7 +152,7 @@ export class Enemy {
         break;
 
       case 'attack':
-        if (distanceToPlayer > this.attackRange * 1.2) {
+        if (distanceToPlayer > this.attackRange * 1.2 || !seesPlayer) {
           this.state = 'chase';
         } else {
           damage = this.attack(now);
@@ -215,6 +224,7 @@ export class Enemy {
     this.healthFill.scale.x = healthRatio;
     this.healthFill.position.x = -(1 - healthRatio) * 0.43;
     this.flashHit(region);
+    this.hitStunRemaining = region === 'head' ? 0.18 : 0.1;
     if (this.health <= 0) {
       this.health = 0;
       this.die();
@@ -297,4 +307,34 @@ export class Enemy {
     this.assetSource = loaded.userData.assetSource === 'glb' ? 'glb' : 'fallback';
     this.mesh.add(loaded);
   }
+}
+
+export function hasLineOfSight(origin: THREE.Vector3, target: THREE.Vector3, colliders: BoxSpec[]): boolean {
+  const direction = target.clone().sub(origin);
+  const length = direction.length();
+  if (length <= 0.001) return true;
+  direction.normalize();
+  return !colliders.some(collider => segmentIntersectsBox(origin, direction, length, collider));
+}
+
+function segmentIntersectsBox(origin: THREE.Vector3, direction: THREE.Vector3, length: number, box: BoxSpec): boolean {
+  const min = box.position.clone().sub(box.size.clone().multiplyScalar(0.5));
+  const max = box.position.clone().add(box.size.clone().multiplyScalar(0.5));
+  let tMin = 0;
+  let tMax = length;
+  for (const axis of ['x', 'y', 'z'] as const) {
+    const axisDirection = direction[axis];
+    if (Math.abs(axisDirection) < 1e-6) {
+      if (origin[axis] < min[axis] || origin[axis] > max[axis]) return false;
+      continue;
+    }
+    const inv = 1 / axisDirection;
+    let t1 = (min[axis] - origin[axis]) * inv;
+    let t2 = (max[axis] - origin[axis]) * inv;
+    if (t1 > t2) [t1, t2] = [t2, t1];
+    tMin = Math.max(tMin, t1);
+    tMax = Math.min(tMax, t2);
+    if (tMin > tMax) return false;
+  }
+  return tMax >= 0 && tMin <= length;
 }

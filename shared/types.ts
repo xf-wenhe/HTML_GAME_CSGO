@@ -8,7 +8,10 @@ export type MatchMode = 'tdm' | 'defusal';
 export type Team = 'attackers' | 'defenders';
 export type MatchPhase = 'warmup' | 'buy' | 'live' | 'roundEnd' | 'matchEnd';
 export type WeaponId = 'sidearm' | 'heavy_pistol' | 'vandal' | 'sentinel' | 'operator' | 'specter' | 'bulldog' | 'knife';
-export type MapId = 'forgepoint';
+export type MapId = 'dust2' | 'warehouse' | 'italy';
+export type BuyCategory = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee';
+export type GrenadeId = 'he' | 'flashbang' | 'smoke' | 'incendiary' | 'decoy';
+export type HitRegion = 'head' | 'body';
 
 export interface RoomConfig {
   mode: MatchMode;
@@ -26,15 +29,20 @@ export interface WeaponBalance {
   name: string;
   price: number;
   teams: Team[] | 'both';
+  buyCategory: BuyCategory;
+  killReward: number;
   damage: number;
   fireRate: number;
   magazineSize: number;
+  maxReserveAmmo: number;
   reloadTime: number;
   spread: number;
   movementSpeedMultiplier: number;
   armorPenetration: number;
   headshotMultiplier: number;
   range: number;
+  recoilKick?: number;
+  moveInaccuracy?: number;
 }
 
 export interface PlayerSnapshot {
@@ -47,7 +55,14 @@ export interface PlayerSnapshot {
   armor: number;
   money: number;
   weaponId: WeaponId;
+  ownedWeapons?: WeaponId[];
   ammo: number;
+  reserveAmmo: number;
+  isReloading?: boolean;
+  reloadCompleteAt?: number;
+  nextFireAt?: number;
+  respawnAt?: number;
+  grenades?: Partial<Record<GrenadeId, number>>;
   kills: number;
   deaths: number;
   assists: number;
@@ -77,6 +92,18 @@ export interface MatchSnapshot {
   players: PlayerSnapshot[];
   bomb?: BombState;
   killFeed: string[];
+  lastHit?: HitResult;
+}
+
+export interface HitResult {
+  shooterId: string;
+  victimId?: string;
+  weaponId: WeaponId;
+  region?: HitRegion;
+  damage: number;
+  killed: boolean;
+  serverTime: number;
+  position?: Vector3;
 }
 
 export interface ShootRequest {
@@ -87,7 +114,9 @@ export interface ShootRequest {
 }
 
 export interface BuyRequest {
-  weaponId: WeaponId;
+  weaponId?: WeaponId;
+  armor?: boolean;
+  grenadeId?: GrenadeId;
 }
 
 export interface BombActionRequest {

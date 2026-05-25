@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { CSGO_MOVEMENT, accelerate, applyFriction, clampHorizontalSpeed } from '../Movement.js';
+import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, accelerate, applyFriction, clampHorizontalSpeed } from '../Movement.js';
 
 describe('CSGO-style movement helpers', () => {
   it('accelerates to run speed within one second without exceeding the cap', () => {
@@ -25,16 +25,16 @@ describe('CSGO-style movement helpers', () => {
 
   it('crouch speed is slower and crouch jump has a bounded boost', () => {
     expect(CSGO_MOVEMENT.crouchSpeed).toBeLessThan(CSGO_MOVEMENT.walkSpeed);
-    const normalJump = 6.4;
-    const crouchJump = normalJump + 0.75;
-    expect(crouchJump).toBeGreaterThan(normalJump);
-    expect((2 * crouchJump) / 18).toBeLessThan(0.85);
+    const crouchJump = PLAYER_JUMP_FORCE + PLAYER_CROUCH_JUMP_BONUS;
+    const crouchJumpHeight = (crouchJump * crouchJump) / (2 * 18);
+    expect(crouchJump).toBeGreaterThan(PLAYER_JUMP_FORCE);
+    expect(crouchJumpHeight).toBeGreaterThan(1.9);
+    expect(crouchJumpHeight).toBeLessThan(2.4);
   });
 
   it('jump parameters imply a quick grounded arc', () => {
     const gravity = 18;
-    const jumpForce = 6.4;
-    const airtime = (2 * jumpForce) / gravity;
+    const airtime = (2 * PLAYER_JUMP_FORCE) / gravity;
     expect(airtime).toBeGreaterThan(0.65);
     expect(airtime).toBeLessThan(0.85);
   });

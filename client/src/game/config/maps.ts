@@ -16,9 +16,9 @@ export interface MultiplayerMapConfig {
 }
 
 export const MULTIPLAYER_MAPS: Record<MapId, MultiplayerMapConfig> = {
-  forgepoint: {
-    id: 'forgepoint',
-    name: 'Forgepoint',
+  dust2: {
+    id: 'dust2',
+    name: 'Dust2',
     spawns: {
       attackers: [
         { x: -10, y: 1.7, z: 30 },
@@ -57,6 +57,88 @@ export const MULTIPLAYER_MAPS: Record<MapId, MultiplayerMapConfig> = {
       { name: 'CT Spawn', position: { x: 0, y: 1.7, z: -46 }, radius: 9 },
       { name: 'A Long', position: { x: -30, y: 1.7, z: -12 }, radius: 10 },
       { name: 'B Long', position: { x: 30, y: 1.7, z: -12 }, radius: 10 }
+    ]
+  },
+  warehouse: {
+    id: 'warehouse',
+    name: 'Warehouse',
+    spawns: {
+      attackers: [
+        { x: -30, y: 1.7, z: 28 },
+        { x: -25, y: 1.7, z: 28 },
+        { x: -20, y: 1.7, z: 28 },
+        { x: -15, y: 1.7, z: 28 },
+        { x: -10, y: 1.7, z: 28 }
+      ],
+      defenders: [
+        { x: 30, y: 1.7, z: -46 },
+        { x: 25, y: 1.7, z: -46 },
+        { x: 20, y: 1.7, z: -46 },
+        { x: 15, y: 1.7, z: -46 },
+        { x: 10, y: 1.7, z: -46 }
+      ]
+    },
+    tdmSpawns: [
+      { x: -30, y: 1.7, z: 28 },
+      { x: -25, y: 1.7, z: 28 },
+      { x: 30, y: 1.7, z: -46 },
+      { x: 25, y: 1.7, z: -46 },
+      { x: -28, y: 1.7, z: -8 },
+      { x: 28, y: 1.7, z: -8 },
+      { x: -8, y: 1.7, z: 8 },
+      { x: 8, y: 1.7, z: -22 }
+    ],
+    bombSites: [
+      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
+      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+    ],
+    callouts: [
+      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
+      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
+      { name: 'Mid', position: { x: 0, y: 1.7, z: -8 }, radius: 11 },
+      { name: 'Warehouse Spawn', position: { x: -20, y: 1.7, z: 28 }, radius: 9 },
+      { name: 'Loading Dock', position: { x: 20, y: 1.7, z: -46 }, radius: 9 }
+    ]
+  },
+  italy: {
+    id: 'italy',
+    name: 'Italy',
+    spawns: {
+      attackers: [
+        { x: 0, y: 1.7, z: 32 },
+        { x: -5, y: 1.7, z: 32 },
+        { x: 5, y: 1.7, z: 32 },
+        { x: -10, y: 1.7, z: 32 },
+        { x: 10, y: 1.7, z: 32 }
+      ],
+      defenders: [
+        { x: 0, y: 1.7, z: -48 },
+        { x: -5, y: 1.7, z: -48 },
+        { x: 5, y: 1.7, z: -48 },
+        { x: -10, y: 1.7, z: -48 },
+        { x: 10, y: 1.7, z: -48 }
+      ]
+    },
+    tdmSpawns: [
+      { x: 0, y: 1.7, z: 32 },
+      { x: -5, y: 1.7, z: 32 },
+      { x: 0, y: 1.7, z: -48 },
+      { x: 5, y: 1.7, z: -48 },
+      { x: -24, y: 1.7, z: -8 },
+      { x: 24, y: 1.7, z: -8 },
+      { x: -8, y: 1.7, z: 8 },
+      { x: 8, y: 1.7, z: -22 }
+    ],
+    bombSites: [
+      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
+      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+    ],
+    callouts: [
+      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
+      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
+      { name: 'Mid', position: { x: 0, y: 1.7, z: -8 }, radius: 11 },
+      { name: 'Market', position: { x: 0, y: 1.7, z: 32 }, radius: 9 },
+      { name: 'Courtyard', position: { x: 0, y: 1.7, z: -48 }, radius: 9 }
     ]
   }
 };
