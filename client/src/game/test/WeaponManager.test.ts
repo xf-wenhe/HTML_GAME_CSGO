@@ -9,7 +9,7 @@ describe('WeaponManager', () => {
 
     expect(manager.getCurrentWeaponId()).toBe('rifle');
     expect(manager.switchWeapon('shotgun')).toBe(true);
-    expect(manager.getCurrentWeapon().name).toBe('Shotgun');
+    expect(manager.getCurrentWeapon().name).toBe('Nova');
     expect(manager.switchWeapon('missing')).toBe(false);
     expect(manager.getCurrentWeaponId()).toBe('shotgun');
   });
@@ -18,7 +18,7 @@ describe('WeaponManager', () => {
     const manager = new WeaponManager();
 
     expect(manager.switchWeapon('sniper')).toBe(true);
-    expect(manager.getCurrentWeapon().displayName).toBe('狙击枪');
+    expect(manager.getCurrentWeapon().displayName).toBe('AWP');
     expect(manager.getCurrentWeapon().damage).toBeGreaterThan(100);
     expect(manager.switchWeapon('smg')).toBe(true);
     expect(manager.getCurrentWeapon().fireRate).toBeGreaterThan(12);

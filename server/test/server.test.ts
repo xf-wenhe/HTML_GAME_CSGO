@@ -89,7 +89,7 @@ describe('Server', () => {
     expect(shooter.reserveAmmo).toBe(10);
     expect(shooter.isReloading).toBe(true);
 
-    vi.advanceTimersByTime(1449);
+    vi.advanceTimersByTime(2199);
     rooms.tick();
     shooter = snapshotPlayer(rooms, room.id, 'p1');
     expect(shooter.ammo).toBe(5);
@@ -98,8 +98,8 @@ describe('Server', () => {
     vi.advanceTimersByTime(1);
     rooms.tick();
     shooter = snapshotPlayer(rooms, room.id, 'p1');
-    expect(shooter.ammo).toBe(12);
-    expect(shooter.reserveAmmo).toBe(3);
+    expect(shooter.ammo).toBe(15);
+    expect(shooter.reserveAmmo).toBe(0);
     expect(shooter.isReloading).toBe(false);
   });
 
@@ -167,7 +167,7 @@ describe('Server', () => {
 
     const scored = rooms.shoot('p1', headShot)!;
 
-    expect(scored.killFeed[0]).toBe('Alpha [Longbow AWP] HEADSHOT Bravo');
+    expect(scored.killFeed[0]).toBe('Alpha [AWP] HEADSHOT Bravo');
     expect(scored.killFeed[0]).not.toMatch(/[<>]/);
     expect(scored.lastHit).toMatchObject({
       shooterId: 'p1',

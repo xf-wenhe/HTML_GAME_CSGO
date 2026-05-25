@@ -3,7 +3,7 @@ import { ARENA_MAPS, BoxSpec, INDUSTRIAL_ARENA } from '../MapData.js';
 import { MULTIPLAYER_MAPS } from '../config/maps.js';
 import type { MapId, Vector3 } from '../types.js';
 
-const MAP_IDS: MapId[] = ['dust2', 'warehouse', 'italy'];
+const MAP_IDS: MapId[] = ['dust2', 'warehouse', 'italy', 'mirage', 'inferno', 'nuke', 'train', 'overpass'];
 
 const hasNamedElement = (boxes: BoxSpec[], pattern: RegExp) => boxes.some(box => pattern.test(box.name ?? ''));
 
@@ -63,9 +63,10 @@ describe('Forgepoint map scale and tactical layout', () => {
     expect(map.callouts.map(callout => callout.name)).toContain('Mid');
   });
 
-  it('offers Dust2, Warehouse, and Italy map choices with separated team spawns', () => {
-    expect(Object.keys(ARENA_MAPS).sort()).toEqual(['dust2', 'italy', 'warehouse']);
-    expect(Object.keys(MULTIPLAYER_MAPS).sort()).toEqual(['dust2', 'italy', 'warehouse']);
+  it('offers all map choices with separated team spawns', () => {
+    const allMapIds = ['dust2', 'inferno', 'italy', 'mirage', 'nuke', 'overpass', 'train', 'warehouse'];
+    expect(Object.keys(ARENA_MAPS).sort()).toEqual(allMapIds);
+    expect(Object.keys(MULTIPLAYER_MAPS).sort()).toEqual(allMapIds);
 
     for (const map of Object.values(MULTIPLAYER_MAPS)) {
       const attackerSpawn = map.spawns.attackers[0];

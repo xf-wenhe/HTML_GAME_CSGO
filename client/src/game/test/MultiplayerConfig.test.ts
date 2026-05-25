@@ -3,7 +3,7 @@ import { MULTIPLAYER_MAPS } from '../config/maps.js';
 import { MULTIPLAYER_WEAPONS } from '../config/weapons.js';
 import type { MapId } from '../types.js';
 
-const MAP_IDS: MapId[] = ['dust2', 'warehouse', 'italy'];
+const MAP_IDS: MapId[] = ['dust2', 'warehouse', 'italy', 'mirage', 'inferno', 'nuke', 'train', 'overpass'];
 
 describe('multiplayer config', () => {
   it('defines CSGO-style core weapons with buy prices and damage roles', () => {

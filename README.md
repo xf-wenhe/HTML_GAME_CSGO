@@ -370,3 +370,155 @@ npm run test:e2e:feel
 - 后端：Node.js、Express、Socket.IO
 - 物理：Cannon-es
 - 测试：Vitest、Playwright
+
+---
+
+## 外网多人联机
+
+默认情况下，服务器监听本地端口（`3000`），只有同一局域网或本机可以访问。  
+要让**外网玩家**加入，需要将端口暴露到公网。以下提供三种方案。
+
+---
+
+### 方案 A：Cloudflare Tunnel（免费推荐）
+
+Cloudflare Tunnel 无需公网 IP，也无需开放路由器端口，是最简单的外网方案。
+
+**1. 安装 cloudflared**
+
+```bash
+# macOS (Homebrew)
+brew install cloudflare/cloudflare/cloudflared
+
+# Linux (Debian/Ubuntu)
+wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared-linux-amd64.deb
+
+# Windows (管理员 PowerShell)
+winget install --id Cloudflare.cloudflared
+```
+
+**2. 启动游戏服务器**
+
+```bash
+npm run dev   # 确保后端服务跑在 http://localhost:3000
+```
+
+**3. 创建临时隧道（无需登录）**
+
+```bash
+cloudflared tunnel --url http://localhost:3000
+```
+
+终端会输出一个类似 `https://xxxx-xxxx.trycloudflare.com` 的公网地址，将此地址告知其他玩家即可。
+
+> **注意**：临时隧道每次运行会生成不同域名，适合临时组局。  
+> 如需固定域名，先 `cloudflared login` 注册 Cloudflare 账号，再创建命名隧道。
+
+---
+
+### 方案 B：ngrok
+
+ngrok 同样无需公网 IP，免费账号有每月流量和并发限制。
+
+**1. 注册并安装**
+
+前往 [https://ngrok.com](https://ngrok.com) 注册账号，下载并安装 ngrok。
+
+```bash
+# macOS
+brew install ngrok/ngrok/ngrok
+
+# Linux / Windows
+# 从官网下载对应压缩包解压，将 ngrok 可执行文件加入 PATH
+```
+
+**2. 绑定 Authtoken**
+
+```bash
+ngrok config add-authtoken <你的token>   # 从 ngrok dashboard 复制
+```
+
+**3. 启动游戏服务器后开启隧道**
+
+```bash
+npm run dev
+# 另开终端：
+ngrok http 3000
+```
+
+终端会显示 `Forwarding https://xxxx.ngrok-free.app -> http://localhost:3000`，将该地址分享给玩家。
+
+> **免费限制**：每月约 1 GB 流量，1 个在线隧道，随机域名。
+
+---
+
+### 方案 C：路由器端口映射（有公网 IP）
+
+如果你的宽带分配了公网 IPv4，可直接映射端口，延迟最低。
+
+**1. 查询本机局域网 IP**
+
+```bash
+# macOS / Linux
+ip route get 1 | awk '{print $7}' || ifconfig | grep "inet "
+
+# Windows
+ipconfig | findstr "IPv4"
+# 例：192.168.1.100
+```
+
+**2. 在路由器管理页面设置端口映射**
+
+登录路由器（通常为 `192.168.1.1` 或 `192.168.0.1`），找到 **"端口转发"** 或 **"虚拟服务器"**：
+
+| 外部端口 | 内部 IP         | 内部端口 | 协议 |
+|---------|----------------|---------|------|
+| 3000    | 192.168.1.100  | 3000    | TCP  |
+
+**3. 开放防火墙**
+
+```bash
+# macOS（通常无需操作，系统防火墙默认允许）
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /usr/bin/node
+
+# Linux (Ubuntu/Debian)
+sudo ufw allow 3000/tcp
+
+# Windows（管理员 PowerShell）
+netsh advfirewall firewall add rule name="FPS Game" protocol=TCP dir=in action=allow localport=3000
+```
+
+**4. 告知玩家公网 IP**
+
+```bash
+# 查询公网 IP
+curl -s https://api.ipify.org
+```
+
+玩家在游戏房间地址栏输入 `http://<你的公网IP>:3000` 即可加入。
+
+---
+
+### 常见问题
+
+**Q：延迟很高怎么办？**  
+- Cloudflare / ngrok：选择离玩家最近的地区节点（cloudflared 可用 `--region` 参数指定）。  
+- 端口映射：检查宽带运营商是否提供低延迟线路；游戏服务器的 tick rate 可在 `server/gameConfig.ts` 中调低。
+
+**Q：玩家连不上怎么排查？**
+
+```bash
+# 1. 确认服务器正在监听
+lsof -i :3000 | grep LISTEN   # macOS/Linux
+netstat -ano | findstr :3000  # Windows
+
+# 2. 本机测试连通性
+curl http://localhost:3000/health
+
+# 3. Cloudflare / ngrok：检查终端输出的隧道地址是否正确
+# 4. 端口映射：确认路由器防火墙和本机防火墙都已放行 3000 端口
+```
+
+**Q：服务器端口不是 3000 怎么办？**  
+查看 `server/index.ts` 顶部的 `PORT` 变量，或检查环境变量 `PORT`，将上述命令中的 `3000` 替换为实际端口即可。

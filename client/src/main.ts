@@ -840,15 +840,5 @@ function weaponDisplayName(localWeaponId: string): string {
 }
 
 function multiplayerWeaponToLocal(weaponId: WeaponId): string {
-  const map: Record<WeaponId, string> = {
-    sidearm: 'pistol',
-    heavy_pistol: 'heavy_pistol',
-    vandal: 'rifle',
-    sentinel: 'defender_rifle',
-    operator: 'sniper',
-    specter: 'smg',
-    bulldog: 'shotgun',
-    knife: 'knife'
-  };
-  return map[weaponId];
+  return weaponId;
 }

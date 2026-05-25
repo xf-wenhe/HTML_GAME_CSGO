@@ -3,10 +3,14 @@ import { BuyRequest, MatchSnapshot, WeaponId } from '../game/types.js';
 
 export type WeaponSlotId = 'primary' | 'pistol' | 'knife' | 'grenade';
 
+type WeaponSvgType = 'pistol' | 'pistol-heavy' | 'smg' | 'rifle' | 'sniper' | 'shotgun' | 'lmg' | 'knife';
+
 type BuyMenuItem = {
   label: string;
   price: number;
   hint: string;
+  damage?: number;
+  svgType?: WeaponSvgType;
   weaponId?: WeaponId;
   armor?: boolean;
   unavailable?: boolean;
@@ -21,23 +25,58 @@ const BUY_MENU_CATEGORIES: BuyMenuCategory[] = [
   {
     title: '手枪',
     items: [
-      { label: '制式手枪', price: 200, hint: '默认副武器', weaponId: 'sidearm' },
-      { label: '重型手枪', price: 700, hint: '高伤害慢射速', weaponId: 'heavy_pistol' }
+      { label: 'Glock-18',      price: 200,  hint: '默认T方手枪',    damage: 28,  svgType: 'pistol',       weaponId: 'pistol' },
+      { label: 'USP-S',         price: 200,  hint: '默认CT方手枪',   damage: 35,  svgType: 'pistol',       weaponId: 'usp_s' },
+      { label: 'P2000',         price: 200,  hint: '精准备用',        damage: 32,  svgType: 'pistol',       weaponId: 'p2000' },
+      { label: 'P250',          price: 300,  hint: '经济换代',        damage: 38,  svgType: 'pistol',       weaponId: 'p250' },
+      { label: 'Dual Berettas', price: 400,  hint: '双枪火力',        damage: 26,  svgType: 'pistol',       weaponId: 'dual_berettas' },
+      { label: 'CZ75-Auto',     price: 500,  hint: '全自动手枪',      damage: 31,  svgType: 'pistol',       weaponId: 'cz75' },
+      { label: 'Tec-9',         price: 500,  hint: 'T方进攻手枪',    damage: 33,  svgType: 'pistol',       weaponId: 'tec9' },
+      { label: 'Five-SeveN',    price: 500,  hint: '穿甲利器',        damage: 32,  svgType: 'pistol',       weaponId: 'five_seven' },
+      { label: 'R8 Revolver',   price: 600,  hint: '高伤转轮',        damage: 86,  svgType: 'pistol-heavy', weaponId: 'r8' },
+      { label: 'Desert Eagle',  price: 700,  hint: '强力单发',        damage: 55,  svgType: 'pistol-heavy', weaponId: 'deagle' },
+    ]
+  },
+  {
+    title: '微型冲锋枪',
+    items: [
+      { label: 'MAC-10',   price: 1050, hint: 'T方近距离',   damage: 29, svgType: 'smg', weaponId: 'mac10' },
+      { label: 'MP9',      price: 1250, hint: 'CT方SMG',     damage: 26, svgType: 'smg', weaponId: 'mp9' },
+      { label: 'UMP-45',   price: 1200, hint: '高穿甲伤害',  damage: 35, svgType: 'smg', weaponId: 'ump45' },
+      { label: 'PP-野牛',  price: 1400, hint: '超大弹匣',    damage: 27, svgType: 'smg', weaponId: 'pp_bizon' },
+      { label: 'MP7',      price: 1500, hint: '精准全能',    damage: 29, svgType: 'smg', weaponId: 'mp7' },
+      { label: 'P90',      price: 2350, hint: '50发弹匣',    damage: 26, svgType: 'smg', weaponId: 'p90' },
     ]
   },
   {
     title: '步枪',
     items: [
-      { label: '突击步枪', price: 2700, hint: '进攻方可用', weaponId: 'vandal' },
-      { label: '防守步枪', price: 2900, hint: '防守方可用', weaponId: 'sentinel' }
+      { label: 'Galil AR', price: 1800, hint: 'T方经济步枪',  damage: 30, svgType: 'rifle', weaponId: 'galil' },
+      { label: 'FAMAS',    price: 2050, hint: 'CT方经济步枪', damage: 30, svgType: 'rifle', weaponId: 'famas' },
+      { label: 'AK-47',    price: 2700, hint: 'T方主步枪',    damage: 36, svgType: 'rifle', weaponId: 'ak47' },
+      { label: 'M4A1-S',   price: 2900, hint: 'CT方消音步枪', damage: 38, svgType: 'rifle', weaponId: 'm4a1s' },
+      { label: 'M4A4',     price: 3100, hint: 'CT方主步枪',   damage: 33, svgType: 'rifle', weaponId: 'm4a4' },
+      { label: 'SG 553',   price: 3000, hint: 'T方精准步枪',  damage: 34, svgType: 'rifle', weaponId: 'sg553' },
+      { label: 'AUG',      price: 3300, hint: 'CT方精准步枪', damage: 32, svgType: 'rifle', weaponId: 'aug' },
     ]
   },
   {
-    title: '重型 / 狙击 / 近距',
+    title: '狙击枪',
     items: [
-      { label: '狙击枪', price: 4750, hint: '远距离一击威胁', weaponId: 'operator' },
-      { label: '冲锋枪', price: 1600, hint: '移动压制', weaponId: 'specter' },
-      { label: '散弹枪', price: 1200, hint: '近点爆发', weaponId: 'bulldog' }
+      { label: 'SSG 08',  price: 1700, hint: '经济狙击',     damage: 88,  svgType: 'sniper', weaponId: 'ssg08' },
+      { label: 'AWP',     price: 4750, hint: '一击致命',     damage: 115, svgType: 'sniper', weaponId: 'awp' },
+      { label: 'SCAR-20', price: 5000, hint: 'CT自动狙',     damage: 80,  svgType: 'sniper', weaponId: 'scar20' },
+      { label: 'G3SG1',   price: 5000, hint: 'T方自动狙',    damage: 80,  svgType: 'sniper', weaponId: 'g3sg1' },
+    ]
+  },
+  {
+    title: '重型 / 霰弹枪 / 机枪',
+    items: [
+      { label: 'Nova',    price: 1050, hint: '近距爆发',  damage: 20,  svgType: 'shotgun', weaponId: 'nova' },
+      { label: 'MAG-7',   price: 1300, hint: 'CT方霰弹',  damage: 30,  svgType: 'shotgun', weaponId: 'mag7' },
+      { label: 'XM1014',  price: 2000, hint: '半自动霰弹',damage: 19,  svgType: 'shotgun', weaponId: 'xm1014' },
+      { label: 'Negev',   price: 1700, hint: '压制机枪',  damage: 35,  svgType: 'lmg',     weaponId: 'negev' },
+      { label: 'M249',    price: 5200, hint: '100发弹链', damage: 32,  svgType: 'lmg',     weaponId: 'm249' },
     ]
   },
   {
@@ -62,9 +101,8 @@ export interface WeaponSlotState {
 
 export class HUD {
   private element: HTMLElement;
-  private healthFill: HTMLElement;
-  private healthText: HTMLElement;
-  private armorText: HTMLElement;
+  private healthValue: HTMLElement;
+  private armorValue: HTMLElement;
   private ammoCurrent: HTMLElement;
   private ammoSeparator: HTMLElement;
   private ammoReserve: HTMLElement;
@@ -75,6 +113,9 @@ export class HUD {
   private networkText: HTMLElement;
   private scoreText: HTMLElement;
   private timerText: HTMLElement;
+  private roundInfo: HTMLElement;
+  private scoreCt: HTMLElement;
+  private scoreT: HTMLElement;
   private damageOverlay: HTMLElement;
   private resultPanel: HTMLElement;
   private pausePanel: HTMLElement;
@@ -85,6 +126,8 @@ export class HUD {
   private notificationContainer: HTMLElement;
   private weaponSlots: HTMLElement;
   private liveKillFeed: HTMLElement;
+  private radarCanvas: HTMLCanvasElement;
+  private radarCtx: CanvasRenderingContext2D | null = null;
   private currentHealth = 100;
   private maxHealth = 100;
   private currentAmmo = 0;
@@ -95,9 +138,8 @@ export class HUD {
 
   constructor() {
     this.element = this.createElement();
-    this.healthFill = this.element.querySelector('.health-fill') as HTMLElement;
-    this.healthText = this.element.querySelector('.health-text') as HTMLElement;
-    this.armorText = this.element.querySelector('.armor-text') as HTMLElement;
+    this.healthValue = this.element.querySelector('.health-value') as HTMLElement;
+    this.armorValue = this.element.querySelector('.armor-value') as HTMLElement;
     this.ammoCurrent = this.element.querySelector('.ammo-current') as HTMLElement;
     this.ammoSeparator = this.element.querySelector('.ammo-separator') as HTMLElement;
     this.ammoReserve = this.element.querySelector('.ammo-reserve') as HTMLElement;
@@ -108,6 +150,9 @@ export class HUD {
     this.networkText = this.element.querySelector('.network-text') as HTMLElement;
     this.scoreText = this.element.querySelector('.score-text') as HTMLElement;
     this.timerText = this.element.querySelector('.timer-text') as HTMLElement;
+    this.roundInfo = this.element.querySelector('.round-info') as HTMLElement;
+    this.scoreCt = this.element.querySelector('.score-ct') as HTMLElement;
+    this.scoreT = this.element.querySelector('.score-t') as HTMLElement;
     this.damageOverlay = this.element.querySelector('.damage-overlay') as HTMLElement;
     this.resultPanel = this.element.querySelector('.result-panel') as HTMLElement;
     this.pausePanel = this.element.querySelector('.pause-panel') as HTMLElement;
@@ -118,6 +163,18 @@ export class HUD {
     this.notificationContainer = this.element.querySelector('.notifications') as HTMLElement;
     this.weaponSlots = this.element.querySelector('.weapon-slots') as HTMLElement;
     this.liveKillFeed = this.element.querySelector('.kill-feed-live') as HTMLElement;
+    this.radarCanvas = this.element.querySelector('.radar-canvas') as HTMLCanvasElement;
+    this.radarCtx = this.radarCanvas?.getContext('2d') ?? null;
+  }
+
+  private weaponIconSVG(category: WeaponSlotId): string {
+    const icons: Record<WeaponSlotId, string> = {
+      primary: `<svg viewBox="0 0 24 12" class="slot-svg" aria-hidden="true"><rect x="0" y="4" width="17" height="4" rx="1"/><rect x="17" y="3" width="5" height="5" rx="1"/><rect x="5" y="8" width="4" height="4" rx="1"/></svg>`,
+      pistol:  `<svg viewBox="0 0 18 12" class="slot-svg" aria-hidden="true"><rect x="0" y="3" width="11" height="4" rx="1"/><rect x="11" y="2" width="5" height="5" rx="1"/><rect x="2" y="7" width="3" height="5" rx="1"/></svg>`,
+      knife:   `<svg viewBox="0 0 20 8" class="slot-svg" aria-hidden="true"><polygon points="0,2 13,0 15,4 13,8 0,6"/><rect x="13" y="2" width="7" height="4" rx="1"/></svg>`,
+      grenade: `<svg viewBox="0 0 10 16" class="slot-svg" aria-hidden="true"><ellipse cx="5" cy="11" rx="4" ry="4"/><rect x="3" y="0" width="4" height="7" rx="1"/></svg>`
+    };
+    return icons[category];
   }
 
   private createElement(): HTMLElement {
@@ -127,44 +184,89 @@ export class HUD {
     hud.setAttribute('aria-live', 'polite');
     hud.innerHTML = `
       <div class="hud-top-left">
-        <div class="health-container">
-          <div class="health-bar" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Health">
-            <div class="health-fill" style="width: 100%"></div>
-          </div>
-          <div class="vitals-line"><span class="health-text" aria-label="生命值">100 生命</span><span class="armor-text" aria-label="护甲">100 护甲</span></div>
+        <div class="radar-container" aria-label="雷达小地图" aria-hidden="true">
+          <canvas class="radar-canvas" width="150" height="150"></canvas>
         </div>
       </div>
+
       <div class="hud-top-center">
         <div class="round-strip">
-          <span class="wave-text">任务待命</span>
-          <span class="enemies-text">0 名敌人</span>
+          <div class="team-score ct" aria-label="CT 队分数">
+            <span class="ct-label">CT</span>
+            <span class="score-ct">0</span>
+          </div>
+          <div class="round-center">
+            <span class="timer-text" aria-label="剩余时间">00:00</span>
+            <span class="round-info">准备中</span>
+          </div>
+          <div class="team-score t" aria-label="T 队分数">
+            <span class="score-t">0</span>
+            <span class="t-label">T</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:3px;display:flex;gap:10px;justify-content:center">
+          <span class="wave-text"></span>
+          <span class="enemies-text"></span>
           <span class="room-text">房间 --/--</span>
           <span class="network-text">离线</span>
-          <span class="timer-text">00:00</span>
         </div>
       </div>
+
       <div class="hud-top-right">
         <div class="ammo-container">
-          <span class="score-text">0</span>
+          <span class="score-text" aria-label="分数或金钱">0</span>
           <span class="weapon-name" aria-label="当前武器">制式手枪</span>
           <div class="ammo-display" aria-label="弹药">
-            <span class="ammo-current">12</span>
-            <span class="ammo-separator" aria-hidden="true">/</span>
+            <span class="ammo-current" aria-label="当前弹匣">12</span>
+            <span class="ammo-separator" aria-hidden="true">|</span>
             <span class="ammo-reserve" aria-hidden="true">∞</span>
           </div>
           <div class="weapon-slots" aria-label="武器槽位">
-            <div class="weapon-slot active" data-slot="primary"><span class="slot-key">1</span><span class="slot-icon">步</span><span class="slot-name">突击步枪</span></div>
-            <div class="weapon-slot" data-slot="pistol"><span class="slot-key">2</span><span class="slot-icon">手</span><span class="slot-name">制式手枪</span></div>
-            <div class="weapon-slot" data-slot="knife"><span class="slot-key">3</span><span class="slot-icon">刀</span><span class="slot-name">战术刀</span></div>
-            <div class="weapon-slot" data-slot="grenade"><span class="slot-key">4</span><span class="slot-icon">雷</span><span class="slot-name">高爆雷 x1</span></div>
+            <div class="weapon-slot active" data-slot="primary">
+              <span class="slot-key">1</span>
+              ${this.weaponIconSVG('primary')}
+              <span class="slot-name">突击步枪</span>
+            </div>
+            <div class="weapon-slot" data-slot="pistol">
+              <span class="slot-key">2</span>
+              ${this.weaponIconSVG('pistol')}
+              <span class="slot-name">制式手枪</span>
+            </div>
+            <div class="weapon-slot" data-slot="knife">
+              <span class="slot-key">3</span>
+              ${this.weaponIconSVG('knife')}
+              <span class="slot-name">战术刀</span>
+            </div>
+            <div class="weapon-slot" data-slot="grenade">
+              <span class="slot-key">4</span>
+              ${this.weaponIconSVG('grenade')}
+              <span class="slot-name">高爆雷 x1</span>
+            </div>
           </div>
           <div class="kill-feed-live" aria-label="击杀提示"></div>
         </div>
       </div>
-      <div class="hud-center">
-        <div class="crosshair" aria-hidden="true"></div>
+
+      <div class="hud-bottom-left">
+        <div class="vitals-display" aria-label="生命值与护甲">
+          <span class="health-value" aria-label="生命值">100</span>
+          <span class="vitals-icon" aria-hidden="true">♥</span>
+          <span class="armor-value" aria-label="护甲">100</span>
+          <span class="vitals-icon armor-icon" aria-hidden="true">⬡</span>
+        </div>
       </div>
+
+      <div class="hud-center">
+        <div class="crosshair" aria-hidden="true">
+          <div class="ch-top"></div>
+          <div class="ch-bottom"></div>
+          <div class="ch-left"></div>
+          <div class="ch-right"></div>
+        </div>
+      </div>
+
       <div class="damage-overlay" aria-hidden="true"></div>
+
       <div class="result-panel hidden" role="dialog" aria-label="任务结果"></div>
       <div class="pause-panel hidden" role="dialog" aria-label="已暂停">
         <h2>已暂停</h2>
@@ -182,6 +284,7 @@ export class HUD {
       <div class="buy-menu hidden" aria-label="购买菜单">
         ${this.renderBuyMenu()}
       </div>
+
       <div class="hud-bottom">
         <div class="notifications" aria-live="polite" aria-atomic="true"></div>
       </div>
@@ -199,10 +302,24 @@ export class HUD {
     return hud;
   }
 
+  private weaponSvg(type: WeaponSvgType): string {
+    const svgs: Record<WeaponSvgType, string> = {
+      'pistol': `<svg viewBox="0 0 48 24" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="8" width="28" height="7" rx="2" fill="currentColor"/><rect x="30" y="6" width="14" height="9" rx="2" fill="currentColor"/><rect x="8" y="15" width="7" height="8" rx="1" fill="currentColor" opacity="0.8"/><rect x="2" y="10" width="4" height="2" rx="1" fill="currentColor" opacity="0.5"/></svg>`,
+      'pistol-heavy': `<svg viewBox="0 0 48 24" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="24" height="9" rx="2" fill="currentColor"/><rect x="26" y="5" width="16" height="11" rx="2" fill="currentColor"/><rect x="7" y="16" width="9" height="7" rx="1" fill="currentColor" opacity="0.8"/><rect x="2" y="8" width="6" height="3" rx="1" fill="currentColor" opacity="0.4"/></svg>`,
+      'smg': `<svg viewBox="0 0 56 22" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="36" height="7" rx="2" fill="currentColor"/><rect x="38" y="5" width="14" height="9" rx="2" fill="currentColor"/><rect x="14" y="14" width="6" height="7" rx="1" fill="currentColor" opacity="0.8"/><rect x="22" y="14" width="4" height="4" rx="1" fill="currentColor" opacity="0.6"/></svg>`,
+      'rifle': `<svg viewBox="0 0 64 20" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="46" height="6" rx="2" fill="currentColor"/><rect x="48" y="5" width="13" height="8" rx="2" fill="currentColor"/><rect x="18" y="13" width="7" height="6" rx="1" fill="currentColor" opacity="0.8"/><rect x="30" y="13" width="5" height="4" rx="1" fill="currentColor" opacity="0.6"/><rect x="2" y="8" width="3" height="2" rx="1" fill="currentColor" opacity="0.4"/></svg>`,
+      'sniper': `<svg viewBox="0 0 72 18" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="56" height="5" rx="1.5" fill="currentColor"/><rect x="58" y="5" width="12" height="8" rx="2" fill="currentColor"/><rect x="20" y="12" width="8" height="5" rx="1" fill="currentColor" opacity="0.8"/><circle cx="44" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.9"/></svg>`,
+      'shotgun': `<svg viewBox="0 0 56 20" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="8" width="38" height="7" rx="2" fill="currentColor"/><rect x="40" y="6" width="12" height="8" rx="2" fill="currentColor"/><rect x="14" y="15" width="8" height="5" rx="1" fill="currentColor" opacity="0.8"/><rect x="2" y="8" width="10" height="4" rx="1" fill="currentColor" opacity="0.5"/></svg>`,
+      'lmg': `<svg viewBox="0 0 68 22" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="50" height="8" rx="2" fill="currentColor"/><rect x="52" y="5" width="14" height="9" rx="2" fill="currentColor"/><rect x="16" y="15" width="9" height="6" rx="1" fill="currentColor" opacity="0.8"/><rect x="30" y="15" width="12" height="5" rx="1" fill="currentColor" opacity="0.6"/><rect x="2" y="8" width="4" height="4" rx="1" fill="currentColor" opacity="0.4"/></svg>`,
+      'knife': `<svg viewBox="0 0 48 18" class="weapon-preview-svg" aria-hidden="true"><polygon points="2,8 36,4 38,9 36,14 2,10" fill="currentColor"/><rect x="36" y="5" width="10" height="8" rx="1" fill="currentColor" opacity="0.7"/></svg>`,
+    };
+    return svgs[type] ?? '';
+  }
+
   private renderBuyMenu(): string {
     return BUY_MENU_CATEGORIES.map(category => `
       <section class="buy-category" aria-label="${this.escapeHtml(category.title)}">
-        <h3>${this.escapeHtml(category.title)}</h3>
+        <h3 class="buy-category-title">${this.escapeHtml(category.title)}</h3>
         <div class="buy-grid">
           ${category.items.map(item => this.renderBuyItem(item)).join('')}
         </div>
@@ -217,11 +334,19 @@ export class HUD {
       item.unavailable ? 'data-unavailable="true"' : ''
     ].filter(Boolean).join(' ');
     const disabled = item.unavailable ? ' disabled' : '';
+    const svg = item.svgType ? this.weaponSvg(item.svgType) : '';
+    const damageBar = item.damage
+      ? `<div class="buy-item-damage-bar" aria-label="伤害 ${item.damage}"><div class="buy-item-damage-fill" style="width:${Math.min(100, Math.round(item.damage / 1.2))}%"></div></div>`
+      : '';
+    const damageLabel = item.damage ? `<span class="buy-item-damage">${item.damage}</span>` : '';
     return `
       <button class="buy-item" type="button" ${dataAttributes}${disabled} title="${this.escapeHtml(item.hint)}">
-        <span class="buy-item-name">${this.escapeHtml(item.label)}</span>
-        <span class="buy-item-price">$${item.price}</span>
-        <span class="buy-item-status">${this.escapeHtml(item.hint)}</span>
+        <div class="buy-item-preview">${svg}</div>
+        <div class="buy-item-info">
+          <span class="buy-item-name">${this.escapeHtml(item.label)}</span>
+          <span class="buy-item-price">$${item.price}</span>
+          ${damageBar}${damageLabel}
+        </div>
       </button>
     `;
   }
@@ -233,31 +358,14 @@ export class HUD {
   updateHealth(health: number, maxHealth: number = 100, armor?: number): void {
     this.currentHealth = Math.max(0, Math.min(maxHealth, health));
     this.maxHealth = maxHealth;
-    const percentage = (this.currentHealth / this.maxHealth) * 100;
+    const percentage = this.currentHealth / this.maxHealth;
 
-    this.healthFill.style.width = `${percentage}%`;
-    this.healthText.textContent = `${this.currentHealth} 生命`;
+    this.healthValue.textContent = this.currentHealth.toString();
+    this.healthValue.classList.toggle('low', percentage <= 0.25);
+    this.healthValue.classList.toggle('medium', percentage > 0.25 && percentage <= 0.5);
+
     if (armor !== undefined) {
-      this.armorText.textContent = `${Math.max(0, Math.round(armor))} 护甲`;
-    }
-
-    // Update aria for screen readers
-    const healthBar = this.element.querySelector('.health-bar') as HTMLElement;
-    if (healthBar) {
-      healthBar.setAttribute('aria-valuenow', this.currentHealth.toString());
-      healthBar.setAttribute('aria-valuemax', maxHealth.toString());
-    }
-
-    // Update color based on health level
-    if (this.currentHealth <= this.maxHealth * 0.25) {
-      this.healthFill.style.background = 'var(--health-low)';
-      this.healthFill.setAttribute('aria-label', `生命危急：${this.currentHealth}`);
-    } else if (this.currentHealth <= this.maxHealth * 0.5) {
-      this.healthFill.style.background = 'var(--health-medium)';
-      this.healthFill.setAttribute('aria-label', `生命偏低：${this.currentHealth}`);
-    } else {
-      this.healthFill.style.background = 'var(--health-full)';
-      this.healthFill.removeAttribute('aria-label');
+      this.armorValue.textContent = Math.max(0, Math.round(armor)).toString();
     }
   }
 
@@ -271,14 +379,12 @@ export class HUD {
       this.ammoCurrent.classList.remove('ammo-low');
       return;
     }
-    this.ammoSeparator.textContent = '/';
+    this.ammoSeparator.textContent = '|';
     this.ammoCurrent.textContent = current.toString();
     this.ammoReserve.textContent = reserve.toString();
 
-    // Low ammo warning
     if (current <= max * 0.2) {
       this.ammoCurrent.classList.add('ammo-low');
-      // Announce only once when low ammo starts
       if (!this.ammoCurrent.dataset.lowAnnounced) {
         this.announceForScreenReader('弹药不足');
         this.ammoCurrent.dataset.lowAnnounced = 'true';
@@ -302,16 +408,22 @@ export class HUD {
   }
 
   updateSurvival(stats: { wave: number; enemiesRemaining: number; score: number; timeSurvived: number; prepRemaining: number; phase: string; kills?: number; objective?: string }): void {
-    this.waveText.textContent = stats.prepRemaining > 0
+    const phaseLabel = stats.prepRemaining > 0
       ? `准备 ${Math.ceil(stats.prepRemaining)} 秒`
       : (stats.objective ?? `第 ${stats.wave} 阶段`);
-    this.enemiesText.textContent = `${stats.enemiesRemaining} 名敌人`;
+
+    this.waveText.textContent = phaseLabel;
+    this.enemiesText.textContent = `${stats.enemiesRemaining} 敌`;
+    this.roomText.textContent = '单机';
+    this.networkText.textContent = '';
     this.scoreText.textContent = stats.score.toString().padStart(5, '0');
-    this.roomText.textContent = '房间 1/1';
-    this.networkText.textContent = '单机';
+
     const minutes = Math.floor(stats.timeSurvived / 60).toString().padStart(2, '0');
     const seconds = Math.floor(stats.timeSurvived % 60).toString().padStart(2, '0');
     this.timerText.textContent = `${minutes}:${seconds}`;
+    this.roundInfo.textContent = `R${stats.wave}`;
+    this.scoreCt.textContent = stats.score > 0 ? stats.score.toString() : '—';
+    this.scoreT.textContent = (stats.kills ?? 0).toString();
   }
 
   updateSurvivalScoreboard(stats: { wave: number; kills: number; score: number; enemiesRemaining: number; timeSurvived: number }): void {
@@ -334,12 +446,17 @@ export class HUD {
 
   updateMatch(snapshot: MatchSnapshot, localPlayerId?: string): void {
     const localPlayer = snapshot.players.find(player => player.id === localPlayerId);
-    this.waveText.textContent = `${snapshot.config.mode === 'tdm' ? '团队死斗' : '爆破'} · ${this.phaseLabel(snapshot.phase)} · R${snapshot.round}`;
-    this.enemiesText.textContent = `${snapshot.score.attackers} - ${snapshot.score.defenders}`;
-    this.roomText.textContent = `房间 ${snapshot.players.length}/${snapshot.config.maxPlayers}`;
-    this.networkText.textContent = localPlayer ? `${localPlayer.ping} ms` : '联机';
+
     this.timerText.textContent = this.formatClock(snapshot.roundTimeRemaining);
+    this.roundInfo.textContent = `${snapshot.config.mode === 'tdm' ? 'TDM' : '爆破'} R${snapshot.round}`;
+    this.scoreCt.textContent = snapshot.score.defenders.toString();
+    this.scoreT.textContent = snapshot.score.attackers.toString();
+
+    this.waveText.textContent = this.phaseLabel(snapshot.phase);
+    this.roomText.textContent = `${snapshot.players.length}/${snapshot.config.maxPlayers}`;
+    this.networkText.textContent = localPlayer ? `${localPlayer.ping}ms` : '';
     this.scoreText.textContent = localPlayer ? `$${localPlayer.money}` : '就绪';
+
     if (localPlayer) {
       this.updateHealth(localPlayer.health, 100, localPlayer.armor);
       this.updateAmmo(localPlayer.ammo, Math.max(localPlayer.ammo, 1), localPlayer.reserveAmmo);
@@ -515,7 +632,7 @@ export class HUD {
   }
 
   updateRoomPlayers(current: number, max: number): void {
-    this.roomText.textContent = `房间 ${current}/${max}`;
+    this.roomText.textContent = `${current}/${max}`;
   }
 
   updateNetworkStatus(text: string): void {
@@ -608,12 +725,83 @@ export class HUD {
     }, duration);
   }
 
-  updateCrosshair(spread: number): void {
-    const baseSize = 24;
-    const maxSize = 48;
-    const size = Math.min(baseSize + spread * 30, maxSize);
-    this.crosshair.style.width = `${size}px`;
-    this.crosshair.style.height = `${size}px`;
+  updateRadar(
+    localPos: { x: number; z: number; rotY: number },
+    players: Array<{ x: number; z: number; team: string; isAlive: boolean; isLocal?: boolean }>,
+    mapBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
+    bomb?: { x: number; z: number }
+  ): void {
+    const ctx = this.radarCtx;
+    if (!ctx) return;
+    const size = 150;
+    const pad = 8;
+    const r = size / 2;
+    ctx.clearRect(0, 0, size, size);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(r, r, r - 1, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(10,14,20,0.82)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(100,140,200,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.clip();
+
+    const toRadar = (wx: number, wz: number): [number, number] => {
+      const nx = (wx - mapBounds.minX) / (mapBounds.maxX - mapBounds.minX);
+      const nz = (wz - mapBounds.minZ) / (mapBounds.maxZ - mapBounds.minZ);
+      return [pad + nx * (size - pad * 2), pad + nz * (size - pad * 2)];
+    };
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 0.5;
+    for (let i = 1; i < 4; i++) {
+      const g = pad + (i / 4) * (size - pad * 2);
+      ctx.beginPath(); ctx.moveTo(g, pad); ctx.lineTo(g, size - pad); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pad, g); ctx.lineTo(size - pad, g); ctx.stroke();
+    }
+
+    // Bomb
+    if (bomb) {
+      const [bx, bz] = toRadar(bomb.x, bomb.z);
+      const t = Date.now() / 400;
+      ctx.fillStyle = `rgba(255,${160 + Math.round(Math.sin(t) * 60)},0,0.95)`;
+      ctx.beginPath(); ctx.arc(bx, bz, 5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Other players
+    for (const p of players) {
+      if (!p.isAlive || p.isLocal) continue;
+      const [px, pz] = toRadar(p.x, p.z);
+      ctx.fillStyle = p.team === 'attackers' ? '#f59e0b' : '#3b82f6';
+      ctx.beginPath(); ctx.arc(px, pz, 4, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Local player arrow
+    const [lx, lz] = toRadar(localPos.x, localPos.z);
+    ctx.save();
+    ctx.translate(lx, lz);
+    ctx.rotate(localPos.rotY);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, -7); ctx.lineTo(4, 5); ctx.lineTo(0, 2); ctx.lineTo(-4, 5);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  updateCrosshair(spread: number): void {    const gap = Math.min(5 + spread * 22, 20);
+    const chTop = this.crosshair.querySelector('.ch-top') as HTMLElement;
+    const chBottom = this.crosshair.querySelector('.ch-bottom') as HTMLElement;
+    const chLeft = this.crosshair.querySelector('.ch-left') as HTMLElement;
+    const chRight = this.crosshair.querySelector('.ch-right') as HTMLElement;
+    if (chTop) chTop.style.bottom = `${gap}px`;
+    if (chBottom) chBottom.style.top = `${gap}px`;
+    if (chLeft) chLeft.style.right = `${gap}px`;
+    if (chRight) chRight.style.left = `${gap}px`;
   }
 
   showHitMarker(): void {
@@ -643,7 +831,6 @@ export class HUD {
     const announcement = document.createElement('div');
     announcement.setAttribute('role', 'status');
     announcement.setAttribute('aria-live', 'polite');
-    announcement.className = 'sr-only';
     announcement.style.cssText = 'position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;';
     announcement.textContent = message;
     this.element.appendChild(announcement);

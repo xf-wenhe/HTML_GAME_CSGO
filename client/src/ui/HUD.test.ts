@@ -12,7 +12,7 @@ describe('HUD notifications and weapon slots', () => {
     const buyMenu = hud.getElement().querySelector('.buy-menu') as HTMLElement;
     expect(buyMenu.textContent).toContain('手枪');
     expect(buyMenu.textContent).toContain('步枪');
-    expect(buyMenu.textContent).toContain('重型 / 狙击 / 近距');
+    expect(buyMenu.textContent).toContain('重型 / 霰弹枪 / 机枪');
     expect(buyMenu.textContent).toContain('投掷物 / 护甲');
     expect(buyMenu.textContent).toContain('防弹衣');
     expect(buyMenu.textContent).toContain('高爆雷');

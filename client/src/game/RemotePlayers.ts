@@ -1,5 +1,45 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MatchSnapshot, PlayerSnapshot, Team } from './types.js';
+
+const loader = new GLTFLoader();
+let assaultTemplate: THREE.Object3D | null = null;
+let loadPromise: Promise<void> | null = null;
+
+function loadAssaultModel(): Promise<void> {
+  if (loadPromise) return loadPromise;
+  loadPromise = new Promise(resolve => {
+    loader.load(
+      '/assets/models/enemies/assault.glb',
+      gltf => {
+        const model = gltf.scene;
+        model.traverse(child => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        assaultTemplate = model;
+        resolve();
+      },
+      undefined,
+      () => { resolve(); }
+    );
+  });
+  return loadPromise;
+}
+
+loadAssaultModel();
+
+const TEAM_COLOR: Record<Team, number> = {
+  attackers: 0xd97706,
+  defenders: 0x2563eb,
+};
+
+const TEAM_TINT: Record<Team, THREE.Color> = {
+  attackers: new THREE.Color(0xd97706),
+  defenders: new THREE.Color(0x2563eb),
+};
 
 export class RemotePlayers {
   private meshes = new Map<string, THREE.Group>();
@@ -40,7 +80,39 @@ export class RemotePlayers {
   private createPlayerMesh(player: PlayerSnapshot): THREE.Group {
     const group = new THREE.Group();
     group.name = `remote-player-${player.id}`;
-    const color = this.teamColor(player.team);
+    const color = TEAM_COLOR[player.team];
+
+    if (assaultTemplate) {
+      const model = assaultTemplate.clone(true);
+      const tint = TEAM_TINT[player.team];
+      model.traverse(child => {
+        if (child instanceof THREE.Mesh) {
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          child.material = mats.map(m => {
+            const clone = (m as THREE.MeshStandardMaterial).clone();
+            if (clone instanceof THREE.MeshStandardMaterial) {
+              clone.color.lerp(tint, 0.55);
+              clone.roughness = 0.55;
+              clone.metalness = 0.2;
+            }
+            return clone;
+          });
+        }
+      });
+      const bounds = new THREE.Box3().setFromObject(model);
+      const height = bounds.getSize(new THREE.Vector3()).y;
+      if (height > 0) model.scale.multiplyScalar(1.75 / height);
+      model.position.y = 0;
+      group.add(model);
+    } else {
+      this.addGeometryFallback(group, color);
+    }
+
+    this.addHealthBar(group, color);
+    return group;
+  }
+
+  private addGeometryFallback(group: THREE.Group, color: number): void {
     const armor = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.15 });
     const visor = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
 
@@ -65,7 +137,9 @@ export class RemotePlayers {
     weapon.position.set(0.38, 1.22, -0.35);
     weapon.rotation.set(0.25, -0.25, 0);
     group.add(weapon);
+  }
 
+  private addHealthBar(group: THREE.Group, color: number): void {
     const bar = new THREE.Group();
     bar.position.y = 2.45;
     const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.07), new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide }));
@@ -74,11 +148,5 @@ export class RemotePlayers {
     fill.position.z = 0.002;
     bar.add(bg, fill);
     group.add(bar);
-
-    return group;
-  }
-
-  private teamColor(team: Team): number {
-    return team === 'attackers' ? 0xd97706 : 0x2563eb;
   }
 }

@@ -376,5 +376,216 @@ export const ARENA_MAPS: Record<MapId, ArenaData> = {
       { position: new THREE.Vector3(10, 1.7, -2), type: 'patrol' },
       { position: new THREE.Vector3(0, 1.7, -42), type: 'assault' }
     ]
+  }),
+  mirage: variantArena(INDUSTRIAL_ARENA, {
+    name: 'Mirage',
+    playerSpawn: new THREE.Vector3(-2, 1.7, 28),
+    colliderTint: 0xc4a96b,
+    propTint: 0xd9bf8a,
+    removeProps: [/overhead-pipe/, /industrial-column/, /truss/],
+    extraColliders: [
+      box(-30, 2.05, 8, 1.1, 4.1, 20, 0x9f8252, 'mirage-a-ramp-wall'),
+      box(30, 2.05, 8, 1.1, 4.1, 20, 0x9f8252, 'mirage-b-ramp-wall'),
+      box(-14, 2.6, -2, 14, 0.5, 8, 0x8c7046, 'mirage-a-second-floor-platform'),
+      box(14, 2.6, -2, 14, 0.5, 8, 0x8c7046, 'mirage-b-second-floor-platform'),
+      box(-8, 2.05, -12, 1.1, 4.1, 16, 0x9a8060, 'mirage-mid-window-wall'),
+      box(8, 2.05, -12, 1.1, 4.1, 16, 0x9a8060, 'mirage-mid-window-right-wall'),
+      box(-24, 2.2, -22, 6, 4.4, 3, 0xa08258, 'mirage-a-closed-room-pillar'),
+      box(24, 2.2, -22, 6, 4.4, 3, 0xa08258, 'mirage-b-closed-room-pillar'),
+      box(-18, 2.05, -26, 18, 4.1, 1.1, 0x9c8568, 'mirage-a-closed-room-back'),
+      box(18, 2.05, -26, 18, 4.1, 1.1, 0x9c8568, 'mirage-b-closed-room-back'),
+      box(-25, 4.55, -26, 12, 0.5, 8, 0x808080, 'mirage-a-closed-room-roof'),
+      box(25, 4.55, -26, 12, 0.5, 8, 0x808080, 'mirage-b-closed-room-roof'),
+      box(0, 2.05, -5, 8, 4.1, 1.1, 0x8a7256, 'mirage-mid-top-wall'),
+      box(-6, 0.75, 10, 5, 1.5, 5, 0xb07030, 'mirage-t-crate-left'),
+      box(6, 0.75, 10, 5, 1.5, 5, 0xb07030, 'mirage-t-crate-right')
+    ],
+    extraProps: [
+      box(0, 0.04, -5, 12, 0.04, 40, 0xd4b96e, 'mirage-mid-sand-runner', 0.08, 0.72),
+      box(-24, 0.5, -24, 5, 1, 3, 0x7c5b2e, 'mirage-a-sandbag'),
+      box(24, 0.5, -24, 5, 1, 3, 0x7c5b2e, 'mirage-b-sandbag'),
+      box(-14, 3.35, -2, 14, 0.25, 8, 0x9b8060, 'mirage-a-catwalk-surface', 0.35, 0.45),
+      box(14, 3.35, -2, 14, 0.25, 8, 0x9b8060, 'mirage-b-catwalk-surface', 0.35, 0.45)
+    ],
+    materialZones: [
+      materialZone('mirage-sandy-spawn', 'sand', 0, 0, 20, 30, 0.1, 28),
+      materialZone('mirage-mid-stone', 'stone', 0, 0, -8, 22, 0.1, 36),
+      materialZone('mirage-a-catwalk-metal', 'metal', -14, 2.9, -2, 14, 0.1, 8),
+      materialZone('mirage-b-catwalk-metal', 'metal', 14, 2.9, -2, 14, 0.1, 8)
+    ],
+    enemySpawns: [
+      { position: new THREE.Vector3(-26, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(26, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(-14, 3.1, -2), type: 'patrol' },
+      { position: new THREE.Vector3(14, 3.1, -2), type: 'patrol' },
+      { position: new THREE.Vector3(0, 1.7, -42), type: 'assault' }
+    ]
+  }),
+  inferno: variantArena(INDUSTRIAL_ARENA, {
+    name: 'Inferno',
+    playerSpawn: new THREE.Vector3(-16, 1.7, 28),
+    colliderTint: 0xb08c58,
+    propTint: 0xc9a86e,
+    removeProps: [/warehouse-roof/, /overhead-pipe/, /industrial-column/],
+    removeColliders: [/left-gate-jamb/, /right-gate-jamb/],
+    extraColliders: [
+      box(-28, 2.05, 5, 1.1, 4.1, 30, 0x9a7c52, 'inferno-banana-wall'),
+      box(0, 2.05, 12, 28, 4.1, 1.1, 0x8c7046, 'inferno-t-arch-wall'),
+      box(-14, 2.7, -8, 12, 0.5, 16, 0x7a6040, 'inferno-apartment-second-floor'),
+      box(16, 2.05, -8, 1.1, 4.1, 18, 0x9a7c52, 'inferno-b-site-wall'),
+      box(-20, 2.05, -22, 1.1, 4.1, 12, 0x8a6a42, 'inferno-a-car-cover'),
+      box(-6, 2.05, -28, 14, 4.1, 1.1, 0x9c8568, 'inferno-a-closed-room-back'),
+      box(-13, 4.55, -28, 14, 0.5, 8, 0x606060, 'inferno-a-closed-room-roof'),
+      box(24, 2.05, -26, 6, 4.1, 1.1, 0x8c7450, 'inferno-b-closed-room-back'),
+      box(26, 4.55, -26, 6, 0.5, 6, 0x606060, 'inferno-b-closed-room-roof'),
+      box(-6, 0.7, 8, 6, 1.4, 6, 0xa06030, 'inferno-t-spawn-crate'),
+      box(8, 0.7, 8, 6, 1.4, 6, 0xa06030, 'inferno-t-spawn-crate-right')
+    ],
+    extraProps: [
+      box(0, 0.04, -6, 10, 0.04, 38, 0xc8a260, 'inferno-cobblestone-runner', 0.05, 0.8),
+      box(-24, 0.5, -24, 5, 1, 3, 0x8c6040, 'inferno-a-sandbag'),
+      box(24, 0.5, -24, 5, 1, 3, 0x8c6040, 'inferno-b-sandbag'),
+      box(-14, 3.35, -8, 12, 0.25, 16, 0x9a8060, 'inferno-apartment-catwalk', 0.35, 0.45)
+    ],
+    materialZones: [
+      materialZone('inferno-cobblestone-mid', 'cobblestone', 0, 0, -6, 24, 0.1, 42),
+      materialZone('inferno-apartment-tile', 'tile', -14, 3, -8, 12, 0.1, 16),
+      materialZone('inferno-apartment-catwalk', 'metal', -14, 3.05, -8, 12, 0.1, 16),
+      materialZone('inferno-banana-stone', 'stone', -28, 0, 5, 8, 0.1, 30),
+      materialZone('inferno-spawn-sand', 'sand', -10, 0, 24, 28, 0.1, 20)
+    ],
+    enemySpawns: [
+      { position: new THREE.Vector3(-24, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(24, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(-28, 1.7, 2), type: 'patrol' },
+      { position: new THREE.Vector3(16, 1.7, -10), type: 'assault' },
+      { position: new THREE.Vector3(0, 1.7, -44), type: 'shooter' }
+    ]
+  }),
+  nuke: variantArena(INDUSTRIAL_ARENA, {
+    name: 'Nuke',
+    playerSpawn: new THREE.Vector3(2, 1.7, 28),
+    colliderTint: 0x607080,
+    propTint: 0x7a8f9a,
+    extraColliders: [
+      box(0, 2.05, 8, 24, 4.1, 1.1, 0x4a5a6a, 'nuke-outside-wall'),
+      box(-20, 2.05, -4, 1.1, 4.1, 20, 0x526070, 'nuke-hut-wall-left'),
+      box(20, 2.05, -4, 1.1, 4.1, 20, 0x526070, 'nuke-hut-wall-right'),
+      box(0, 2.8, -4, 18, 0.5, 18, 0x3c4a58, 'nuke-upper-second-floor'),
+      box(-12, 5.9, -4, 1.1, 2.2, 18, 0x3c4a58, 'nuke-upper-second-floor-wall-left'),
+      box(12, 5.9, -4, 1.1, 2.2, 18, 0x3c4a58, 'nuke-upper-second-floor-wall-right'),
+      box(0, 5.9, -13, 28, 2.2, 1.1, 0x445260, 'nuke-upper-back-wall'),
+      box(-24, 2.05, -26, 6, 4.1, 1.1, 0x526070, 'nuke-a-closed-room-back'),
+      box(-27, 4.55, -26, 6, 0.5, 6, 0x404040, 'nuke-a-closed-room-roof'),
+      box(24, 2.05, -26, 6, 4.1, 1.1, 0x526070, 'nuke-b-closed-room-back'),
+      box(27, 4.55, -26, 6, 0.5, 6, 0x404040, 'nuke-b-closed-room-roof'),
+      box(-6, 0.65, -16, 5, 1.3, 5, 0x607060, 'nuke-reactor-core-cover'),
+      box(6, 0.65, -16, 5, 1.3, 5, 0x607060, 'nuke-reactor-control-cover')
+    ],
+    extraProps: [
+      box(0, 0.04, -6, 12, 0.04, 38, 0x8090a0, 'nuke-concrete-runner', 0.05, 0.7),
+      box(-24, 0.5, -24, 5, 1, 3, 0x505f6a, 'nuke-a-metal-barrier'),
+      box(24, 0.5, -24, 5, 1, 3, 0x505f6a, 'nuke-b-metal-barrier'),
+      box(0, 3.35, -4, 18, 0.25, 18, 0x526070, 'nuke-upper-catwalk', 0.35, 0.4),
+      box(-8, 5.4, -4, 0.3, 2.5, 0.3, 0xd6a84f, 'nuke-upper-ladder-left', 0.7, 0.3),
+      box(8, 5.4, -4, 0.3, 2.5, 0.3, 0xd6a84f, 'nuke-upper-ladder-right', 0.7, 0.3)
+    ],
+    materialZones: [
+      materialZone('nuke-concrete-floor', 'concrete', 0, 0, -8, 78, 0.1, 92),
+      materialZone('nuke-upper-metal-grating', 'metal', 0, 3.1, -4, 18, 0.1, 18),
+      materialZone('nuke-reactor-rubber', 'rubber', 0, 0, -16, 16, 0.1, 12),
+      materialZone('nuke-outside-stone', 'stone', 0, 0, 24, 24, 0.1, 14)
+    ],
+    enemySpawns: [
+      { position: new THREE.Vector3(-24, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(24, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(0, 6.7, -6), type: 'patrol' },
+      { position: new THREE.Vector3(-20, 1.7, -2), type: 'assault' },
+      { position: new THREE.Vector3(0, 1.7, -42), type: 'shooter' }
+    ]
+  }),
+  train: variantArena(INDUSTRIAL_ARENA, {
+    name: 'Train',
+    playerSpawn: new THREE.Vector3(10, 1.7, 28),
+    colliderTint: 0x6a6872,
+    propTint: 0x8a8892,
+    removeColliders: [/right-mid-entry/],
+    extraColliders: [
+      box(-20, 2.05, 8, 1.1, 4.1, 20, 0x5c5e68, 'train-t-entrance-wall-left'),
+      box(20, 2.05, 8, 1.1, 4.1, 20, 0x5c5e68, 'train-t-entrance-wall-right'),
+      box(-16, 1.3, -2, 14, 2.6, 1.1, 0x4a4c56, 'train-car-left-1'),
+      box(16, 1.3, -2, 14, 2.6, 1.1, 0x4a4c56, 'train-car-right-1'),
+      box(-16, 1.3, -14, 14, 2.6, 1.1, 0x4a4c56, 'train-car-left-2'),
+      box(16, 1.3, -14, 14, 2.6, 1.1, 0x4a4c56, 'train-car-right-2'),
+      box(0, 2.8, -8, 20, 0.5, 10, 0x404050, 'train-upper-second-floor'),
+      box(-24, 2.05, -26, 8, 4.1, 1.1, 0x5c6070, 'train-a-closed-room-back'),
+      box(-28, 4.55, -26, 8, 0.5, 8, 0x404050, 'train-a-closed-room-roof'),
+      box(24, 2.05, -26, 8, 4.1, 1.1, 0x5c6070, 'train-b-closed-room-back'),
+      box(28, 4.55, -26, 8, 0.5, 8, 0x404050, 'train-b-closed-room-roof'),
+      box(0, 0.65, -20, 6, 1.3, 4, 0x6a6060, 'train-mid-transformer-cover')
+    ],
+    extraProps: [
+      box(0, 0.04, -8, 10, 0.04, 40, 0x8a8898, 'train-concrete-runner', 0.1, 0.65),
+      box(-24, 0.5, -24, 5, 1, 3, 0x585868, 'train-a-metal-barrier'),
+      box(24, 0.5, -24, 5, 1, 3, 0x585868, 'train-b-metal-barrier'),
+      box(0, 3.35, -8, 20, 0.25, 10, 0x555560, 'train-catwalk', 0.4, 0.4),
+      box(-16, 2.6, -8, 0.3, 0.3, 10, 0xd6a84f, 'train-car-left-top-rail', 0.6, 0.4),
+      box(16, 2.6, -8, 0.3, 0.3, 10, 0xd6a84f, 'train-car-right-top-rail', 0.6, 0.4)
+    ],
+    materialZones: [
+      materialZone('train-concrete-floor', 'concrete', 0, 0, -8, 78, 0.1, 92),
+      materialZone('train-metal-cars', 'metal', 0, 1.5, -8, 34, 0.1, 16),
+      materialZone('train-upper-metal', 'metal', 0, 3.1, -8, 20, 0.1, 10),
+      materialZone('train-stone-spawn', 'stone', 10, 0, 22, 24, 0.1, 20)
+    ],
+    enemySpawns: [
+      { position: new THREE.Vector3(-26, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(26, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(-16, 3.3, -8), type: 'patrol' },
+      { position: new THREE.Vector3(16, 3.3, -8), type: 'patrol' },
+      { position: new THREE.Vector3(0, 1.7, -42), type: 'assault' }
+    ]
+  }),
+  overpass: variantArena(INDUSTRIAL_ARENA, {
+    name: 'Overpass',
+    playerSpawn: new THREE.Vector3(-5, 1.7, 28),
+    colliderTint: 0x6d8060,
+    propTint: 0x8a9e78,
+    removeProps: [/overhead-pipe/, /industrial-column/],
+    extraColliders: [
+      box(0, 3.2, 10, 36, 0.5, 14, 0x6070a0, 'overpass-bridge-second-floor'),
+      box(-18, 2.05, 8, 1.1, 4.1, 12, 0x5c7050, 'overpass-bridge-wall-left'),
+      box(18, 2.05, 8, 1.1, 4.1, 12, 0x5c7050, 'overpass-bridge-wall-right'),
+      box(0, 2.05, 3, 8, 4.1, 1.1, 0x587040, 'overpass-tunnel-entrance'),
+      box(0, 2.05, -8, 8, 4.1, 14, 0x608050, 'overpass-tunnel-wall-right'),
+      box(-8, 2.05, -8, 1.1, 4.1, 14, 0x608050, 'overpass-tunnel-wall-left'),
+      box(-24, 2.05, -24, 6, 4.1, 1.1, 0x5c6a48, 'overpass-a-closed-room-back'),
+      box(-27, 4.55, -24, 6, 0.5, 6, 0x404040, 'overpass-a-closed-room-roof'),
+      box(24, 2.05, -24, 6, 4.1, 1.1, 0x5c6a48, 'overpass-b-closed-room-back'),
+      box(27, 4.55, -24, 6, 0.5, 6, 0x404040, 'overpass-b-closed-room-roof'),
+      box(-6, 0.7, 14, 5, 1.4, 4, 0x6a7050, 'overpass-fountain-cover'),
+      box(6, 0.7, 14, 5, 1.4, 4, 0x6a7050, 'overpass-planter-cover')
+    ],
+    extraProps: [
+      box(0, 0.04, -4, 10, 0.04, 36, 0x8a9870, 'overpass-grass-runner', 0.04, 0.85),
+      box(-24, 0.5, -24, 5, 1, 3, 0x5a7048, 'overpass-a-barrier'),
+      box(24, 0.5, -24, 5, 1, 3, 0x5a7048, 'overpass-b-barrier'),
+      box(0, 3.85, 10, 36, 0.25, 14, 0x6070a0, 'overpass-bridge-catwalk', 0.35, 0.4),
+      box(-8, 2.6, -8, 0.35, 1.8, 14, 0x9ecdff, 'overpass-tunnel-glass-left', 0.03, 0.06, 0.28),
+      box(8, 2.6, -8, 0.35, 1.8, 14, 0x9ecdff, 'overpass-tunnel-glass-right', 0.03, 0.06, 0.28)
+    ],
+    materialZones: [
+      materialZone('overpass-grass-mid', 'rubber', 0, 0, -4, 24, 0.1, 40),
+      materialZone('overpass-bridge-metal', 'metal', 0, 3.5, 10, 36, 0.1, 14),
+      materialZone('overpass-tunnel-concrete', 'concrete', 0, 0, -8, 16, 0.1, 14),
+      materialZone('overpass-spawn-stone', 'stone', -5, 0, 22, 28, 0.1, 20)
+    ],
+    enemySpawns: [
+      { position: new THREE.Vector3(-24, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(24, 1.7, -28), type: 'shooter' },
+      { position: new THREE.Vector3(0, 3.7, 8), type: 'patrol' },
+      { position: new THREE.Vector3(-8, 1.7, -4), type: 'assault' },
+      { position: new THREE.Vector3(0, 1.7, -44), type: 'shooter' }
+    ]
   })
 };
