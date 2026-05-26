@@ -29,12 +29,12 @@ export const PLAYER_RUN_SPEED_HAMMER = 250;     // 跑步 ~250 units/秒 (~6.35m
 export const PLAYER_WALK_SPEED_HAMMER = 110;    // 步行 ~110 units/秒 (~2.79m/s)
 export const PLAYER_CROUCH_SPEED_HAMMER = 85;   // 蹲下 ~85 units/秒 (~2.16m/s)
 export const PLAYER_JUMP_HEIGHT_HAMMER = 57;    // 跳跃高度 57 units (~1.45m)
-export const PLAYER_JUMP_TIME = 0.8;            // 跳跃持续时间（秒）
+export const PLAYER_JUMP_TIME = 0.38;            // 跳跃到顶点时间 ~0.378s (v0/g = 3.02/8.0)
 
 // === 地图元素标准尺寸 ===
-export const WALL_HEIGHT_HAMMER = 128;          // 标准墙高 128 units (~3.25m)
+export const WALL_HEIGHT_HAMMER = 256;          // 标准墙高 256 units (~6.5m) — 阻挡视线
 export const WALL_THICKNESS_HAMMER = 16;        // 墙厚 16 units (~0.41m)
-export const BOUNDARY_WALL_HEIGHT_HAMMER = 256; // 边界墙高 256 units (~6.5m)
+export const BOUNDARY_WALL_HEIGHT_HAMMER = 576; // 边界墙高 576 units (~14.6m)
 export const DOOR_HEIGHT_HAMMER = 96;           // 门高 96 units (~2.44m)
 export const DOOR_WIDTH_HAMMER = 64;            // 门宽 64 units (~1.63m)
 

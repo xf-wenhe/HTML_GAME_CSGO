@@ -68,7 +68,7 @@ export class RemotePlayers {
       }
       const interpPos = this.interpolation.getInterpolatedPosition(player.id, renderTime);
       const pos = interpPos ?? player.position;
-      mesh.position.set(pos.x, pos.y - 1.05, pos.z);
+      mesh.position.set(pos.x, pos.y - 0.36, pos.z);
       mesh.rotation.y = player.rotation.y;
       mesh.visible = player.isAlive;
       const healthBar = mesh.getObjectByName('health-fill');
@@ -108,7 +108,7 @@ export class RemotePlayers {
       });
       const bounds = new THREE.Box3().setFromObject(model);
       const height = bounds.getSize(new THREE.Vector3()).y;
-      if (height > 0) model.scale.multiplyScalar(1.75 / height);
+      if (height > 0) model.scale.multiplyScalar(0.72 / height);
       model.position.y = 0;
       group.add(model);
     } else {
@@ -123,34 +123,34 @@ export class RemotePlayers {
     const armor = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.15 });
     const visor = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
 
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 1.15, 6, 12), armor);
-    body.position.y = 1.05;
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.40, 6, 12), armor);
+    body.position.y = 0.36;
     body.castShadow = true;
     group.add(body);
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.34, 0.4), armor);
-    head.position.y = 1.92;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.14), armor);
+    head.position.y = 0.68;
     head.castShadow = true;
     group.add(head);
 
-    const face = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.035), visor);
-    face.position.set(0, 1.94, -0.22);
+    const face = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.013), visor);
+    face.position.set(0, 0.70, -0.08);
     group.add(face);
 
     const weapon = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.12, 0.75),
+      new THREE.BoxGeometry(0.04, 0.04, 0.27),
       new THREE.MeshStandardMaterial({ color: 0x151719, roughness: 0.45, metalness: 0.7 })
     );
-    weapon.position.set(0.38, 1.22, -0.35);
+    weapon.position.set(0.14, 0.44, -0.13);
     weapon.rotation.set(0.25, -0.25, 0);
     group.add(weapon);
   }
 
   private addHealthBar(group: THREE.Group, color: number): void {
     const bar = new THREE.Group();
-    bar.position.y = 2.45;
-    const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.07), new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide }));
-    const fill = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.04), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
+    bar.position.y = 0.88;
+    const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.025), new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide }));
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.015), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
     fill.name = 'health-fill';
     fill.position.z = 0.002;
     bar.add(bg, fill);

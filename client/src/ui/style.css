@@ -718,7 +718,8 @@ body {
 }
 
 .resume-button,
-.lock-retry-button {
+.lock-retry-button,
+.leave-button {
   min-width: 140px;
   height: 44px;
   border: 1px solid rgba(75, 105, 255, 0.6);
@@ -736,6 +737,17 @@ body {
 .lock-retry-button:hover {
   background: rgba(75, 105, 255, 0.3);
   border-color: var(--ct-blue);
+}
+
+.leave-button {
+  border-color: rgba(255, 75, 75, 0.5);
+  background: rgba(255, 75, 75, 0.12);
+  margin-top: 8px;
+}
+
+.leave-button:hover {
+  background: rgba(255, 75, 75, 0.28);
+  border-color: rgba(255, 75, 75, 0.7);
 }
 
 .result-panel dl {

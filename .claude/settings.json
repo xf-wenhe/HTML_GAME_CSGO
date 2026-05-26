@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(git -C /Volumes/新/work/html log --oneline -20)",
+      "Bash(python3 skills/ui-ux-pro-max/scripts/search.py \"tactical FPS military game dark immersive\" --design-system -p \"锻点行动\")",
+      "Read(//Users/fengye/.claude/skills/ui-ux-pro-max/scripts/**)",
+      "Read(//Users/fengye/.claude/**)",
+      "Bash(python3 /Users/fengye/.claude/skills/ui-ux-pro-max/scripts/search.py \"tactical FPS military game dark immersive\" --design-system -p \"锻点行动\")",
+      "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
+      "WebSearch",
+      "Bash(node -e ' *)",
+      "Bash(cat)",
+      "Bash(node /tmp/debug_inferno2.mjs)",
+      "Bash(node /tmp/test_inferno3.mjs)",
+      "Bash(node /tmp/check_inferno_all.mjs)",
+      "Bash(git stash *)",
+      "Bash(git reset *)",
+      "Bash(git push *)",
+      "Bash(pkill -f vitest)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(pkill -f \"vite\")"
+    ]
+  }
+}

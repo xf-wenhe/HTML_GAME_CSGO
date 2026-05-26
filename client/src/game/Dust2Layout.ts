@@ -108,20 +108,19 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   crt(-384, 6080, 48, 48, 48, 0, 'dust2-t-spawn-box-a-corner'),
   crt(384, 6080, 48, 48, 48, 0, 'dust2-t-spawn-box-b-corner'),
 
-  // T Spawn → A Long 出口 (~320 HU宽)
-  wZ(-800, 4608, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-long-wall-left'),
-  wZ(-480, 4608, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-long-wall-right'),
+  // T Spawn → A Long 出口 (x=-384..-128, z=5760)
+  wZ(-384, 5760, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-long-wall-left'),
+  wZ(-128, 5760, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-long-wall-right'),
+  // T Spawn → Mid 出口 (x=-128..128, z=5760)
+  // 共用 -128 和 128 墙
+  // T Spawn → B Tunnels 出口 (x=128..384, z=5760)
+  wZ(128, 5760, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-tunnels-wall-left'),
+  wZ(384, 5760, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-tunnels-wall-right'),
 
-  // T Spawn → Mid 出口 (~256 HU宽)
-  wZ(-128, 4352, 192, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-mid-wall-left'),
-  wZ(128, 4352, 192, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-mid-wall-right'),
-
-  // T Spawn → B Tunnels 出口 (~320 HU宽)
-  wZ(480, 4608, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-tunnels-wall-left'),
-  wZ(800, 4608, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-t-to-tunnels-wall-right'),
-
-  // Suicide alley 墙
-  wX(512, 4480, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-suicide-wall'),
+  // Suicide Alley (东侧, x=384..640, z=3072, 深度256)
+  wZ(384, 3072, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-suicide-wall-left'),
+  wZ(640, 3072, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-suicide-wall-right'),
+  wX(512, 3200, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-suicide-wall-back'),
 
   // ── A Long (西侧走廊) ──
   // ✅ 外墙（地图西边界内侧，从北到南）
@@ -129,10 +128,10 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   // ✅ 内墙（分隔Mid，宽度~1024 HU）
   wZ(-2688, 1920, 6400, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-a-long-wall-inner'),
 
-  // ✅ A Long Doors (双扇门, Z=2048, 间隙192 HU)
-  wZ(-2688, 2240, 384, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-a-long-doors-left-post'),
-  wZ(-2688, 1920, 128, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-a-long-doors-right-post'),
-  // 门洞: 192 HU 宽 (从 z=2048-96=1952 到 z=2048+96=2144，在wZ墙壁中留空)
+  // ✅ A Long Doors (双扇门, Z=2048, 门洞192 HU)
+  wZ(-2688, 2336, 384, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-a-long-doors-left-post'),
+  wZ(-2688, 1888, 128, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-a-long-doors-right-post'),
+  // 门洞: 192 HU 宽 (从 z=1952 到 z=2144)
 
   // A Long 掩体
   crt(-3520, 4096, 64, 64, 48, 0, 'dust2-a-long-box-mid'),
@@ -155,10 +154,10 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   // Mid 右墙（分隔B Tunnels）
   wZ(768, 0, 3328, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-mid-wall-right'),
 
-  // ✅ Mid Doors (双扇门, Z=2048, 立柱全高128 HU, 间隙192 HU)
-  wZ(-96, 2048, 64, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-mid-doors-left-post'),
-  wZ(96, 2048, 64, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-mid-doors-right-post'),
-  // 门洞: 176 HU 宽 (x=-88到x=88), 全高可穿越
+  // ✅ Mid Doors (双扇门, Z=2048, 门洞192 HU)
+  wZ(-104, 2048, 64, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-mid-doors-left-post'),
+  wZ(104, 2048, 64, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-mid-doors-right-post'),
+  // 门洞: 192 HU 宽 (x=-96到x=96), 全高可穿越
 
   // Xbox (标志性低箱)
   crt(0, 1024, 96, 64, 48, 0, 'dust2-xbox'),
@@ -172,19 +171,19 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
 
   // ── CT Window (中门CT侧狙击位) ──
   plat(0, -1280, 128, 64, WALL_HEIGHT_HAMMER, 0, 'dust2-ct-window-platform'),
-  // ✅ 窗台高度从32→48 HU
-  wX(0, -1248, 128, 48, WALL_HEIGHT_HAMMER, 0, 'dust2-ct-window-low-wall'),
+  // ✅ 窗台高度32 HU (Hammer wallHeight: 32)
+  wX(0, -1248, 128, 32, WALL_HEIGHT_HAMMER, 0, 'dust2-ct-window-low-wall'),
 
   // ── Catwalk / A Short ──
-  // ✅ 均匀5级楼梯 (每级 128/5≈25.6 HU, 深32 HU)
-  plat(-1664, -640, 192, 64, 26, 0, 'dust2-catwalk-stair-1'),
-  plat(-1664, -672, 192, 64, 52, 0, 'dust2-catwalk-stair-2'),
-  plat(-1664, -704, 192, 64, 78, 0, 'dust2-catwalk-stair-3'),
-  plat(-1664, -736, 192, 64, 104, 0, 'dust2-catwalk-stair-4'),
-  plat(-1664, -768, 192, 64, WALL_HEIGHT_HAMMER, 0, 'dust2-catwalk-stair-5'),
+  // ✅ 5级楼梯 (每级深64 HU, 高递增: 32/64/96/112/128)
+  plat(-1664, -640, 192, 64, 32, 0, 'dust2-catwalk-stair-1'),
+  plat(-1664, -704, 192, 64, 64, 0, 'dust2-catwalk-stair-2'),
+  plat(-1664, -768, 192, 64, 96, 0, 'dust2-catwalk-stair-3'),
+  plat(-1664, -832, 192, 64, 112, 0, 'dust2-catwalk-stair-4'),
+  plat(-1664, -896, 192, 64, WALL_HEIGHT_HAMMER, 0, 'dust2-catwalk-stair-5'),
 
-  // Catwalk 水平走道
-  plat(-1536, -1280, 192, 640, WALL_HEIGHT_HAMMER, 0, 'dust2-catwalk-walkway'),
+  // Catwalk 水平走道 (深度1152, 中心z=-1216)
+  plat(-1536, -1216, 192, 1152, WALL_HEIGHT_HAMMER, 0, 'dust2-catwalk-walkway'),
 
   // Catwalk 栏杆
   wX(-1536, -640, 192, 48, WALL_HEIGHT_HAMMER, 0, 'dust2-catwalk-rail-south'),
@@ -240,48 +239,53 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   crt(384, -3136, 48, 48, 48, 0, 'dust2-ct-spawn-box-b-side'),
 
   // CT → Mid 走廊
-  wZ(-320, -2688, 768, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-mid-wall-left'),
-  wZ(320, -2688, 768, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-mid-wall-right'),
+  wZ(-320, -2944, 768, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-mid-wall-left'),
+  wZ(320, -2944, 768, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-mid-wall-right'),
 
   // CT → A Site 走廊
-  wZ(-960, -2688, 768, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-a-wall-left'),
-  wZ(-640, -2688, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-a-wall-right'),
+  wZ(-960, -2944, 768, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-a-wall-left'),
+  wZ(-640, -2944, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-a-wall-right'),
   crt(-768, -2432, 64, 48, 48, 0, 'dust2-ct-to-a-box'),
 
   // CT → B Site 走廊
-  wZ(640, -2688, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-b-wall-left'),
-  wZ(960, -2688, 768, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-b-wall-right'),
+  wZ(640, -2944, 256, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-b-wall-left'),
+  wZ(960, -2944, 768, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-ct-to-b-wall-right'),
 
   // ── B Tunnels (东侧, 宽度~320 HU) ──
-  // ✅ 内侧墙 (分隔Mid, x=2880)
-  wZ(2880, 1280, 4352, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-b-tunnels-wall-inner'),
-  // ✅ 新增外墙 (x=3200)
-  wZ(3200, 1280, 4352, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-b-tunnels-wall-outer'),
+  // ✅ 内侧墙 (分隔Mid, x=2880, 中心Z=2304)
+  wZ(2880, 2304, 4352, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-b-tunnels-wall-inner'),
+  // ✅ 外墙 (x=3200, 中心Z=2304)
+  wZ(3200, 2304, 4352, WALL_HEIGHT_HAMMER, 0, undefined, 'dust2-b-tunnels-wall-outer'),
 
   // Lower Tunnels 掩体
-  crt(3040, 4352, 64, 64, 48, 0, 'dust2-b-tunnels-lower-mid-box'),
-  crt(3104, 2816, 48, 64, 48, 0, 'dust2-b-tunnels-lower-near-stairs-box'),
-  crt(3040, 2432, 64, 48, 96, 0, 'dust2-b-tunnels-lower-corner-box'),
-  crt(3104, 5504, 64, 64, 96, 0, 'dust2-b-tunnels-entrance-box-large'),
-  crt(3040, 5120, 48, 48, 48, 0, 'dust2-b-tunnels-transfer-box'),
+  crt(3264, 4352, 64, 64, 48, 0, 'dust2-b-tunnels-lower-mid-box'),
+  crt(3328, 2816, 48, 64, 48, 0, 'dust2-b-tunnels-lower-near-stairs-box'),
+  crt(3200, 2432, 64, 48, 96, 0, 'dust2-b-tunnels-lower-corner-box'),
+  crt(3392, 5504, 64, 64, 96, 0, 'dust2-b-tunnels-entrance-box-large'),
+  crt(3264, 5120, 48, 48, 48, 0, 'dust2-b-tunnels-transfer-box'),
 
-  // ✅ B Tunnels 楼梯 (4级, 每级32 HU, 总高128 HU)
-  plat(3040, 1792, 224, 256, 32, 0, 'dust2-b-tunnels-stair-1'),
-  plat(3040, 1536, 224, 256, 64, 0, 'dust2-b-tunnels-stair-2'),
-  plat(3040, 1280, 224, 256, 96, 0, 'dust2-b-tunnels-stair-3'),
-  plat(3040, 1024, 224, 256, WALL_HEIGHT_HAMMER, 0, 'dust2-b-tunnels-stair-4-platform'),
+  // ✅ B Tunnels 楼梯 (4级, 每级深384 HU, 总高128 HU, 从z=2048→512)
+  plat(3040, 2048, 224, 256, WALL_HEIGHT_HAMMER, 0, 'dust2-b-tunnels-stair-4-platform'),
+  plat(3040, 1664, 224, 256, 96, 0, 'dust2-b-tunnels-stair-3'),
+  plat(3040, 1280, 224, 256, 64, 0, 'dust2-b-tunnels-stair-2'),
+  plat(3040, 896, 224, 256, 32, 0, 'dust2-b-tunnels-stair-1'),
 
-  // 楼梯侧墙
-  wZ(2880, 1408, 768, 192, 0, undefined, 'dust2-b-tunnels-stair-wall'),
+  // 楼梯侧墙 (覆盖z=512→2176)
+  wZ(2880, 1408, 896, 192, 0, undefined, 'dust2-b-tunnels-stair-wall'),
 
   // ✅ Upper Tunnels (升高128 HU)
   wZ(2880, 256, 1280, WALL_HEIGHT_HAMMER, 128, undefined, 'dust2-b-tunnels-upper-wall-inner'),
-  // ✅ 新增 Upper 外墙
+  // ✅ Upper 外墙
   wZ(3200, 256, 1280, WALL_HEIGHT_HAMMER, 128, undefined, 'dust2-b-tunnels-upper-wall-outer'),
 
+  // Upper Dark 房间 (B Tunnels上层, z=0, 宽度256, 深度384, 高度128, yOff=128)
+  wZ(3200, 0, 384, WALL_HEIGHT_HAMMER, 128, undefined, 'dust2-upper-dark-wall-left'),
+  wZ(3456, 0, 384, WALL_HEIGHT_HAMMER, 128, undefined, 'dust2-upper-dark-wall-right'),
+  wX(3328, -192, 256, WALL_HEIGHT_HAMMER, 128, undefined, 'dust2-upper-dark-wall-back'),
+
   // Upper Dark 掩体
-  crt(3104, 0, 80, 80, 96, 128, 'dust2-b-tunnels-upper-dark-box'),
-  crt(3040, -896, 64, 48, 48, 128, 'dust2-b-tunnels-upper-exit-box'),
+  crt(3328, 0, 80, 80, 96, 128, 'dust2-b-tunnels-upper-dark-box'),
+  crt(3264, -896, 64, 48, 48, 128, 'dust2-b-tunnels-upper-exit-box'),
 
   // Upper → B Site 出口斜墙 (旋转25°≈0.436 rad)
   wZ(2880, -1024, 768, WALL_HEIGHT_HAMMER, 128, 0.436, 'dust2-b-tunnels-upper-ramp-wall'),
@@ -321,15 +325,15 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
 
   // B Window (CT侧狙击位)
   plat(1920, -1248, 96, 64, WALL_HEIGHT_HAMMER, 0, 'dust2-b-window-platform'),
-  wX(1920, -1216, 96, 48, WALL_HEIGHT_HAMMER, 0, 'dust2-b-window-low-wall'),
+  wX(1920, -1216, 96, 32, WALL_HEIGHT_HAMMER, 0, 'dust2-b-window-low-wall'),
 
-  // ✅ B Doors (CT → B Site通道, 立柱高度64 HU)
-  wZ(1792, -1536, 128, 64, 0, undefined, 'dust2-b-doors-left-post'),
-  wZ(1888, -1536, 128, 64, 0, undefined, 'dust2-b-doors-right-post'),
+  // ✅ B Doors (CT → B Site通道, 门洞128 HU)
+  wZ(1768, -1536, 128, 64, 0, undefined, 'dust2-b-doors-left-post'),
+  wZ(1912, -1536, 128, 64, 0, undefined, 'dust2-b-doors-right-post'),
   crt(1840, -1536, 16, WALL_THICKNESS_HAMMER, 64, 0, 'dust2-b-doors-center-post'),
 
   // ── 额外细节 ──
-  crt(-256, -1024, 64, 64, 48, 0, 'dust2-mid-scatter-box-near-window'),
+  crt(-256, -2048, 48, 48, 48, 0, 'dust2-mid-scatter-box-near-window'),
   crt(256, -3584, 64, 64, 48, 0, 'dust2-mid-scatter-box-near-b-entrance'),
   crt(-3200, 3584, 48, 48, 48, 0, 'dust2-a-long-extra-box-1'),
   crt(-3328, 3840, 48, 48, 48, 0, 'dust2-a-long-extra-box-2'),

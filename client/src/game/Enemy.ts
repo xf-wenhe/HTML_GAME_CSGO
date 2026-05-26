@@ -67,7 +67,7 @@ export class Enemy {
     scene.add(this.mesh);
     void this.loadModel();
 
-    const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5));
+    const shape = new CANNON.Box(new CANNON.Vec3(0.16, 0.36, 0.16));
     this.body = new CANNON.Body({
       mass: 50,
       shape: shape,
@@ -89,7 +89,7 @@ export class Enemy {
     group.add(fallback);
 
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.58, 0.025, 8, 32),
+      new THREE.TorusGeometry(0.21, 0.025, 8, 32),
       new THREE.MeshBasicMaterial({ color: 0xff4040, transparent: true, opacity: 0.72 })
     );
     ring.rotation.x = Math.PI / 2;
@@ -97,13 +97,13 @@ export class Enemy {
     group.add(ring);
 
     this.healthBar = new THREE.Group();
-    this.healthBar.position.y = 2.35;
+    this.healthBar.position.y = 0.85;
     const bg = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.9, 0.08),
+      new THREE.PlaneGeometry(0.32, 0.03),
       new THREE.MeshBasicMaterial({ color: 0x130f0f, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
     );
     this.healthFill = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.86, 0.045),
+      new THREE.PlaneGeometry(0.31, 0.016),
       new THREE.MeshBasicMaterial({ color: 0xff3b30, side: THREE.DoubleSide })
     );
     this.healthFill.position.z = 0.002;
@@ -222,7 +222,7 @@ export class Enemy {
     this.health -= amount;
     const healthRatio = Math.max(0, this.health / this.maxHealth);
     this.healthFill.scale.x = healthRatio;
-    this.healthFill.position.x = -(1 - healthRatio) * 0.43;
+    this.healthFill.position.x = -(1 - healthRatio) * 0.15;
     this.flashHit(region);
     this.hitStunRemaining = region === 'head' ? 0.18 : 0.1;
     if (this.health <= 0) {
@@ -236,13 +236,13 @@ export class Enemy {
 
     const base = this.mesh.position;
     const zones: Array<{ region: HitRegion; center: THREE.Vector3; radius: number }> = [
-      { region: 'head', center: base.clone().add(new THREE.Vector3(0, 2.12, 0)), radius: 0.32 },
-      { region: 'chest', center: base.clone().add(new THREE.Vector3(0, 1.48, 0)), radius: 0.48 },
-      { region: 'stomach', center: base.clone().add(new THREE.Vector3(0, 1.02, 0)), radius: 0.44 },
-      { region: 'arm', center: base.clone().add(new THREE.Vector3(-0.52, 1.25, 0)), radius: 0.2 },
-      { region: 'arm', center: base.clone().add(new THREE.Vector3(0.52, 1.25, 0)), radius: 0.2 },
-      { region: 'leg', center: base.clone().add(new THREE.Vector3(-0.2, 0.45, 0)), radius: 0.24 },
-      { region: 'leg', center: base.clone().add(new THREE.Vector3(0.2, 0.45, 0)), radius: 0.24 }
+      { region: 'head', center: base.clone().add(new THREE.Vector3(0, 0.76, 0)), radius: 0.12 },
+      { region: 'chest', center: base.clone().add(new THREE.Vector3(0, 0.53, 0)), radius: 0.17 },
+      { region: 'stomach', center: base.clone().add(new THREE.Vector3(0, 0.37, 0)), radius: 0.16 },
+      { region: 'arm', center: base.clone().add(new THREE.Vector3(-0.19, 0.45, 0)), radius: 0.07 },
+      { region: 'arm', center: base.clone().add(new THREE.Vector3(0.19, 0.45, 0)), radius: 0.07 },
+      { region: 'leg', center: base.clone().add(new THREE.Vector3(-0.07, 0.16, 0)), radius: 0.09 },
+      { region: 'leg', center: base.clone().add(new THREE.Vector3(0.07, 0.16, 0)), radius: 0.09 }
     ];
 
     let best: { distance: number; region: HitRegion; point: THREE.Vector3 } | null = null;

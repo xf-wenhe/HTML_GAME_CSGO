@@ -218,6 +218,10 @@ hud.onResume(() => {
   resumeGame();
 });
 
+hud.onLeaveRequest(() => {
+  hud.showLeaveConfirm(() => endGame());
+});
+
 function startMultiplayer(mode: MatchMode): void {
   desiredMultiplayerMode = mode;
   pendingRoomId = null;

@@ -140,6 +140,7 @@ export class HUD {
   private mapLoadingName: HTMLElement;
   private confirmDialog: HTMLElement;
   private confirmLeaveHandler: (() => void) | null = null;
+  private leaveRequestHandler: (() => void) | null = null;
   private currentHealth = 100;
   private maxHealth = 100;
   private currentAmmo = 0;
@@ -322,6 +323,7 @@ export class HUD {
         <h2>已暂停</h2>
         <p>点击继续后重新进入游戏焦点。</p>
         <button class="resume-button" type="button">继续游戏</button>
+        <button class="leave-button" type="button">退出游戏</button>
         <p class="result-hint">再次按 ESC 返回主菜单</p>
       </div>
       <div class="lock-panel hidden" role="dialog" aria-label="鼠标锁定提示">
@@ -365,6 +367,7 @@ export class HUD {
       });
     });
     hud.querySelector<HTMLButtonElement>('.resume-button')?.addEventListener('click', () => this.resumeHandler?.());
+    hud.querySelector<HTMLButtonElement>('.leave-button')?.addEventListener('click', () => this.leaveRequestHandler?.());
     hud.querySelector<HTMLButtonElement>('.lock-retry-button')?.addEventListener('click', () => this.resumeHandler?.());
     return hud;
   }
@@ -707,6 +710,10 @@ export class HUD {
 
   onResume(handler: () => void): void {
     this.resumeHandler = handler;
+  }
+
+  onLeaveRequest(handler: () => void): void {
+    this.leaveRequestHandler = handler;
   }
 
   setCrosshairStyle(style: string, color: string): void {

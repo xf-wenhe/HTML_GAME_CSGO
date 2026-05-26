@@ -21,30 +21,29 @@ export class PlayerController {
   private armor = 100;
   private maxArmor = 100;
   private moving = false;
-  private eyeHeight = 0.7;
-  private readonly standingEyeHeight = 0.7;
-  private readonly crouchEyeHeight = 0.32;
+  private eyeHeight = 0.28;
+  private readonly standingEyeHeight = 0.28;
+  private readonly crouchEyeHeight = 0.14;
   private grounded = false;
   private airborneTime = 0;
   private crouched = false;
   private crouchJumpActive = false;
   private lastLandingSpeed = 0;
-  private readonly bodyHalfHeight = 0.88;
-  private readonly maxStepHeight = 0.2;
+  private readonly bodyHalfHeight = 0.36;
+  private readonly maxStepHeight = 0.18;
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = scene.getCamera();
     this.input = input;
     this.physics = physics;
 
-    const shape = new CANNON.Box(new CANNON.Vec3(0.5, this.bodyHalfHeight, 0.5));
+    const shape = new CANNON.Box(new CANNON.Vec3(0.16, this.bodyHalfHeight, 0.16));
     const bodyY = this.resolveBodyYFromEyeY(position.y);
     this.body = new CANNON.Body({
       mass: 70,
       shape: shape,
       position: new CANNON.Vec3(position.x, bodyY, position.z),
-      fixedRotation: true,
-      linearDamping: 0.02
+      fixedRotation: true
     });
     this.physics.addBody(this.body);
 
@@ -129,7 +128,7 @@ export class PlayerController {
       }
       velocity.x = horizontalVelocity.x;
       velocity.z = horizontalVelocity.z;
-      clampHorizontalSpeed(velocity, targetSpeed);
+      clampHorizontalSpeed(velocity, this.movementParams.runSpeed);
     }
 
     this.body.velocity.x = velocity.x;
@@ -175,7 +174,7 @@ export class PlayerController {
       this.crouched = false;
     }
     const targetEyeHeight = this.crouched ? this.crouchEyeHeight : this.standingEyeHeight;
-    this.eyeHeight = THREE.MathUtils.lerp(this.eyeHeight, targetEyeHeight, Math.min(1, dt * 14));
+    this.eyeHeight = THREE.MathUtils.lerp(this.eyeHeight, targetEyeHeight, 1 - Math.exp(-8 * dt));
     if (this.grounded) this.crouchJumpActive = false;
   }
 
@@ -201,7 +200,7 @@ export class PlayerController {
 
   private resolveBodyYFromEyeY(eyeY: number): number {
     const defaultStandingEyeY = this.bodyHalfHeight + this.standingEyeHeight;
-    const normalizedEyeY = eyeY <= 1.75 ? defaultStandingEyeY : eyeY;
+    const normalizedEyeY = eyeY <= 1.0 ? defaultStandingEyeY : eyeY;
     return Math.max(normalizedEyeY - this.eyeHeight, this.bodyHalfHeight);
   }
 
@@ -238,7 +237,7 @@ export class PlayerController {
   }
 
   getCollisionHeight(): number {
-    return this.crouched ? 1.35 : this.bodyHalfHeight * 2;
+    return this.crouched ? this.bodyHalfHeight : this.bodyHalfHeight * 2;
   }
 
   takeDamage(amount: number, region: HitRegion = 'chest', armorPenetration = 0.35): void {

@@ -10,6 +10,7 @@ export class Scene {
   private animationId: number | null = null;
   private colliders: BoxSpec[] = [];
   private arenaObjects: THREE.Object3D[] = [];
+  private skyDome: THREE.Mesh | null = null;
   private currentMapId: MapId = 'dust2';
 
   // 性能优化：视锥剔除
@@ -25,8 +26,8 @@ export class Scene {
 
   constructor() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x202733);
-    this.scene.fog = new THREE.Fog(0x202733, 42, 108);
+    this.scene.background = new THREE.Color(0x5b8cbf);
+    this.scene.fog = new THREE.Fog(0x5b8cbf, 60, 160);
 
     this.camera = new THREE.PerspectiveCamera(
       82,
@@ -88,8 +89,26 @@ export class Scene {
 
   private buildArena(arena: ArenaData): void {
     this.colliders = arena.colliders;
-    this.scene.background = new THREE.Color(arena.name === 'Dust2' ? 0x2b3135 : arena.name === 'Italy' ? 0x243035 : 0x202733);
-    this.scene.fog = new THREE.Fog(this.scene.background as THREE.Color, 42, 108);
+
+    // Map-specific sky colors
+    const skyColors: Record<string, { bg: number; fog: number; fogNear: number; fogFar: number; skyTop: number; skyHorizon: number }> = {
+      Dust2:     { bg: 0x5b8cbf, fog: 0x7bacc8, fogNear: 55, fogFar: 145, skyTop: 0x3a6b9e, skyHorizon: 0xbdd8e8 },
+      Mirage:    { bg: 0x6a8faa, fog: 0x7a9fb5, fogNear: 50, fogFar: 130, skyTop: 0x4a7090, skyHorizon: 0xc0d8e8 },
+      Inferno:   { bg: 0x6d7b6a, fog: 0x758568, fogNear: 45, fogFar: 120, skyTop: 0x4a5a48, skyHorizon: 0xbcc8b8 },
+      Train:     { bg: 0x5a6a78, fog: 0x6a7885, fogNear: 45, fogFar: 120, skyTop: 0x3a4a58, skyHorizon: 0xb0c0d0 },
+      Overpass:  { bg: 0x5a7a6a, fog: 0x6a8a78, fogNear: 48, fogFar: 125, skyTop: 0x3a5a4a, skyHorizon: 0xb0d0c0 },
+      Nuke:      { bg: 0x4a5a6a, fog: 0x5a6a78, fogNear: 45, fogFar: 120, skyTop: 0x2a3a4a, skyHorizon: 0xa0b8d0 },
+      Italy:     { bg: 0x6a8aaa, fog: 0x7a9ab8, fogNear: 50, fogFar: 130, skyTop: 0x4a6a90, skyHorizon: 0xc0d8f0 },
+      Warehouse: { bg: 0x4a5a6a, fog: 0x5a6878, fogNear: 40, fogFar: 110, skyTop: 0x2a3a4a, skyHorizon: 0xa0b0c0 },
+    };
+
+    const sky = skyColors[arena.name] ?? skyColors.Dust2;
+    const bgColor = new THREE.Color(sky.bg);
+    this.scene.background = bgColor;
+    this.scene.fog = new THREE.Fog(new THREE.Color(sky.fog), sky.fogNear, sky.fogFar);
+
+    // Sky dome
+    this.createSkyDome(sky.skyTop, sky.skyHorizon);
 
     const groundGeometry = new THREE.PlaneGeometry(arena.bounds.width, arena.bounds.depth, 18, 24);
     const groundMaterial = new THREE.MeshStandardMaterial({
@@ -230,11 +249,52 @@ export class Scene {
     this.addArenaObject(sprite);
   }
 
+  private createSkyDome(skyTopColor: number, skyHorizonColor: number): void {
+    // Remove old dome
+    if (this.skyDome) {
+      this.scene.remove(this.skyDome);
+      this.skyDome.geometry.dispose();
+      (this.skyDome.material as THREE.Material).dispose();
+    }
+
+    const radius = 95;
+    const geometry = new THREE.SphereGeometry(radius, 48, 16, 0, Math.PI * 2, 0, Math.PI * 0.48);
+    const topColor = new THREE.Color(skyTopColor);
+    const horizonColor = new THREE.Color(skyHorizonColor);
+
+    const colors: number[] = [];
+    const positions = geometry.attributes.position;
+    for (let i = 0; i < positions.count; i++) {
+      const y = positions.getY(i);
+      const t = Math.max(0, Math.min(1, y / (radius * 0.7)));
+      const c = topColor.clone().lerp(horizonColor, 1 - t);
+      colors.push(c.r, c.g, c.b);
+    }
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const material = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.BackSide,
+      fog: false,
+      depthWrite: false,
+    });
+
+    this.skyDome = new THREE.Mesh(geometry, material);
+    this.skyDome.renderOrder = -1;
+    this.scene.add(this.skyDome);
+  }
+
   private clearArenaObjects(): void {
     this.arenaObjects.forEach(object => this.scene.remove(object));
     this.arenaObjects = [];
     this.frustumCullableObjects = [];
     this.lodObjects.clear();
+    if (this.skyDome) {
+      this.scene.remove(this.skyDome);
+      this.skyDome.geometry.dispose();
+      (this.skyDome.material as THREE.Material).dispose();
+      this.skyDome = null;
+    }
   }
 
   getCurrentArena(): ArenaData {
@@ -330,6 +390,12 @@ export class Scene {
   dispose(): void {
     this.stopRenderLoop();
     window.removeEventListener('resize', this.handleResize.bind(this));
+    if (this.skyDome) {
+      this.scene.remove(this.skyDome);
+      this.skyDome.geometry.dispose();
+      (this.skyDome.material as THREE.Material).dispose();
+      this.skyDome = null;
+    }
     this.renderer?.dispose();
   }
 

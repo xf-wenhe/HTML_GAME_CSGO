@@ -4,7 +4,6 @@ import {
   PLAYER_WALK_SPEED,
   PLAYER_CROUCH_SPEED,
   PLAYER_JUMP_HEIGHT,
-  PLAYER_JUMP_TIME,
   hammerToGame
 } from './constants/MapUnits.js';
 
@@ -19,18 +18,27 @@ export interface MovementParams {
   airControl: number;
 }
 
+// CS:GO Source engine movement constants
+// sv_accelerate = 5.5, sv_airaccelerate = 12, sv_friction = 5.2, sv_stopspeed = 100
+// These are unitless multipliers in the Source engine formula (not Hammer units)
+const GAME_SV_ACCELERATE = 5.5;
+const GAME_SV_AIRACCELERATE = 12;
+const GAME_SV_FRICTION = 5.2;
+const GAME_SV_STOPSPEED = hammerToGame(100); // 1.0 game units
+
 export const CSGO_MOVEMENT: MovementParams = {
-  runSpeed: PLAYER_RUN_SPEED,      // 2.5 游戏单位/秒 (250 Hammer units/秒)
-  walkSpeed: PLAYER_WALK_SPEED,    // 1.1 游戏单位/秒 (110 Hammer units/秒)
-  crouchSpeed: PLAYER_CROUCH_SPEED, // 0.85 游戏单位/秒 (85 Hammer units/秒)
-  groundAcceleration: hammerToGame(1000),  // 加速度
-  airAcceleration: hammerToGame(150),     // 空中加速度
-  friction: 12,
-  stopSpeed: 6,
+  runSpeed: PLAYER_RUN_SPEED,       // 2.5 game units/s (250 HU/s)
+  walkSpeed: PLAYER_WALK_SPEED,     // 1.1 game units/s (110 HU/s)
+  crouchSpeed: PLAYER_CROUCH_SPEED, // 0.85 game units/s (85 HU/s)
+  groundAcceleration: GAME_SV_ACCELERATE,
+  airAcceleration: GAME_SV_AIRACCELERATE,
+  friction: GAME_SV_FRICTION,
+  stopSpeed: GAME_SV_STOPSPEED,
   airControl: 0.16
 };
 
-export const PLAYER_JUMP_FORCE = (PLAYER_JUMP_HEIGHT / (PLAYER_JUMP_TIME * PLAYER_JUMP_TIME * 0.5)); // ~1.44
+export const CSGO_GRAVITY = 8.0;
+export const PLAYER_JUMP_FORCE = Math.sqrt(2 * CSGO_GRAVITY * PLAYER_JUMP_HEIGHT); // sqrt(2*8.0*0.57) ≈ 3.02 (sv_jump_impulse=301.993 HU/s)
 export const PLAYER_CROUCH_JUMP_BONUS = hammerToGame(8); // 0.08
 
 export interface StepUpCheck {
