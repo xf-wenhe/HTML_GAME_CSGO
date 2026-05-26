@@ -7,7 +7,7 @@ describe('WeaponManager', () => {
   it('switches weapons and rejects unknown ids', () => {
     const manager = new WeaponManager();
 
-    expect(manager.getCurrentWeaponId()).toBe('rifle');
+    expect(manager.getCurrentWeaponId()).toBe('pistol');
     expect(manager.switchWeapon('shotgun')).toBe(true);
     expect(manager.getCurrentWeapon().name).toBe('Nova');
     expect(manager.switchWeapon('missing')).toBe(false);
@@ -48,7 +48,7 @@ describe('WeaponManager', () => {
     expect(weapon.getReloadProgress(1200)).toBeLessThan(1);
   });
 
-  it('tracks reserve ammo and right-click aim spread', () => {
+  it('only enters scoped aim for sniper weapons', () => {
     const manager = new WeaponManager();
     const weapon = manager.getCurrentWeapon();
 
@@ -61,7 +61,15 @@ describe('WeaponManager', () => {
     expect(weapon.currentReserveAmmo).toBeLessThan(weapon.reserveAmmo);
 
     manager.setAiming(true);
+    expect(manager.isAiming()).toBe(false);
+    expect(manager.isScoped()).toBe(false);
+
+    manager.switchWeapon('awp');
+    manager.setAiming(true);
     expect(manager.isAiming()).toBe(true);
+    expect(manager.isScoped()).toBe(true);
+    manager.switchWeapon('pistol');
+    expect(manager.isScoped()).toBe(false);
     expect(weapon.adsSpreadMultiplier).toBeLessThan(1);
   });
 

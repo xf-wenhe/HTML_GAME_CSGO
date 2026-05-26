@@ -1,19 +1,19 @@
-import type { MapId } from '../game/types.js';
+import type { MapId, RoomListItem } from '../game/types.js';
 
-const MAP_OPTIONS: Array<{ id: MapId; label: string; desc: string }> = [
-  { id: 'dust2',     label: 'Dust2',    desc: '中东沙漠 · 经典三路' },
-  { id: 'mirage',    label: 'Mirage',   desc: '中东市集 · 中路对决' },
-  { id: 'inferno',   label: 'Inferno',  desc: '欧洲小镇 · 香蕉走廊' },
-  { id: 'nuke',      label: 'Nuke',     desc: '核电设施 · 双层结构' },
-  { id: 'train',     label: 'Train',    desc: '铁路货场 · 火车掩体' },
-  { id: 'overpass',  label: 'Overpass', desc: '公园隧道 · 立交桥' },
-  { id: 'warehouse', label: 'Warehouse',desc: '工业仓库 · 近身混战' },
-  { id: 'italy',     label: 'Italy',    desc: '意大利小镇 · 多层建筑' },
+const MAP_OPTIONS: Array<{ id: MapId; label: string; desc: string; accent: string; sites: string }> = [
+  { id: 'dust2',     label: 'Dust2',    desc: '中东沙漠 · 经典三路',       accent: '#d4a45a', sites: 'A·B' },
+  { id: 'mirage',    label: 'Mirage',   desc: '中东市集 · 中路对决',       accent: '#c4a96b', sites: 'A·B' },
+  { id: 'inferno',   label: 'Inferno',  desc: '欧洲小镇 · 香蕉走廊',       accent: '#b08c58', sites: 'A·B' },
+  { id: 'nuke',      label: 'Nuke',     desc: '核电设施 · 双层结构',       accent: '#5c8aa8', sites: 'A·B' },
+  { id: 'train',     label: 'Train',    desc: '铁路货场 · 火车掩体',       accent: '#6a6872', sites: 'A·B' },
+  { id: 'overpass',  label: 'Overpass', desc: '公园隧道 · 立交桥',         accent: '#6d8060', sites: 'A·B' },
+  { id: 'warehouse', label: 'Warehouse',desc: '工业仓库 · 近身混战',       accent: '#8a7a60', sites: 'A·B' },
+  { id: 'italy',     label: 'Italy',    desc: '意大利小镇 · 多层建筑',     accent: '#c8926a', sites: 'A·B' },
 ];
 
 export class MainMenu {
   private element: HTMLElement;
-  private eventHandlers: Map<string, (() => void)[]> = new Map();
+  private eventHandlers: Map<string, Array<(payload?: unknown) => void>> = new Map();
   private buttons: Map<string, HTMLButtonElement> = new Map();
   private difficulty: 'easy' | 'normal' | 'hard' | 'expert' = 'normal';
   private mapId: MapId = 'dust2';
@@ -75,15 +75,27 @@ export class MainMenu {
     const menu = document.createElement('main');
     menu.className = 'main-menu';
     menu.setAttribute('role', 'dialog');
-    menu.setAttribute('aria-labelledby', 'game-title');
+    menu.setAttribute('aria-label', '锻点行动 - 主菜单');
     menu.setAttribute('aria-modal', 'true');
     const mapButtons = MAP_OPTIONS.map(m =>
-      `<button class="map-option${m.id === 'dust2' ? ' active' : ''}" data-map="${m.id}" type="button" title="${m.desc}">${m.label}<span class="map-desc">${m.desc}</span></button>`
+      `<button class="map-option${m.id === 'dust2' ? ' active' : ''}" data-map="${m.id}" type="button" title="${m.desc}">
+        <span class="map-accent-bar" style="background:${m.accent}"></span>
+        <span class="map-card-body">
+          <span class="map-card-name">${m.label}</span>
+          <span class="map-card-desc">${m.desc}</span>
+          <span class="map-card-sites">炸点 ${m.sites}</span>
+        </span>
+      </button>`
     ).join('');
     menu.innerHTML = `
       ${this.createBackgroundSVG()}
+      <button class="menu-settings-btn" data-action="settings" type="button">设置</button>
       <div class="menu-content">
-        ${this.createLogoSVG()}
+        <h1 class="menu-logo">锻点行动</h1>
+        <div class="profile-panel" role="group" aria-label="玩家身份">
+          <label for="profile-name">玩家名</label>
+          <input id="profile-name" class="profile-name-input" type="text" maxlength="18" value="${this.escapeHtml(this.loadProfileName())}" autocomplete="nickname">
+        </div>
         <nav class="menu-buttons" role="navigation" aria-label="游戏模式">
           <button class="menu-button" data-action="solo" type="button">
             单人任务闯关
@@ -105,6 +117,13 @@ export class MainMenu {
         <div class="map-panel" role="group" aria-label="地图选择">
           <span>地图</span>
           <div class="map-grid">${mapButtons}</div>
+        </div>
+        <div class="room-browser" role="group" aria-label="线上房间">
+          <div class="room-browser-header">
+            <span>线上房间</span>
+            <button class="room-refresh" data-action="refreshRooms" type="button">刷新</button>
+          </div>
+          <div class="room-list empty">暂无房间，点击团队死斗或爆破创建。</div>
         </div>
         <div class="game-info" role="note" aria-label="操作说明">
           <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 &nbsp; <kbd>Shift</kbd> 静步 &nbsp; <kbd>Ctrl</kbd> 蹲下</p>
@@ -152,9 +171,12 @@ export class MainMenu {
         this.element.querySelectorAll('.map-option').forEach(item => item.classList.toggle('active', item === button));
       });
     });
+    this.element.querySelector<HTMLButtonElement>('.menu-settings-btn')?.addEventListener('click', () => this.emit('settings'));
+    this.element.querySelector<HTMLButtonElement>('.room-refresh')?.addEventListener('click', () => this.emit('refreshRooms'));
+    this.element.querySelector<HTMLInputElement>('.profile-name-input')?.addEventListener('input', () => this.saveProfileName());
   }
 
-  on(event: string, handler: () => void): void {
+  on(event: string, handler: (payload?: unknown) => void): void {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, []);
     }
@@ -164,6 +186,11 @@ export class MainMenu {
   private emit(event: string): void {
     const handlers = this.eventHandlers.get(event) || [];
     handlers.forEach(handler => handler());
+  }
+
+  private emitWithPayload(event: string, payload: unknown): void {
+    const handlers = this.eventHandlers.get(event) || [];
+    handlers.forEach(handler => handler(payload));
   }
 
   getElement(): HTMLElement {
@@ -178,14 +205,47 @@ export class MainMenu {
     return this.mapId;
   }
 
+  getPlayerName(): string {
+    const input = this.element.querySelector<HTMLInputElement>('.profile-name-input');
+    const name = input?.value.trim() || this.loadProfileName();
+    return name || `Player-${Math.floor(Math.random() * 1000)}`;
+  }
+
+  updateRooms(rooms: RoomListItem[]): void {
+    const list = this.element.querySelector('.room-list');
+    if (!list) return;
+    if (rooms.length === 0) {
+      list.className = 'room-list empty';
+      list.textContent = '暂无房间，点击团队死斗或爆破创建。';
+      return;
+    }
+    list.className = 'room-list';
+    list.innerHTML = rooms.map(room => `
+      <div class="room-row" data-room="${room.id}">
+        <div>
+          <strong>${this.roomModeLabel(room.mode)} · ${this.escapeHtml(room.mapId)}</strong>
+          <span>${this.escapeHtml(room.phase)} · ${room.playerCount}/${room.maxPlayers} · 观战 ${room.spectatorCount ?? 0}</span>
+        </div>
+        <button class="room-join" type="button" data-room="${room.id}">加入</button>
+        <button class="room-spectate" type="button" data-room="${room.id}">观战</button>
+      </div>
+    `).join('');
+    list.querySelectorAll<HTMLButtonElement>('.room-join').forEach(button => {
+      button.addEventListener('click', () => this.emitWithPayload('joinRoom', button.dataset.room));
+    });
+    list.querySelectorAll<HTMLButtonElement>('.room-spectate').forEach(button => {
+      button.addEventListener('click', () => this.emitWithPayload('spectateRoom', button.dataset.room));
+    });
+  }
+
   show(): void {
-    this.element.style.display = 'flex';
+    this.element.classList.remove('hidden');
     const firstButton = this.buttons.values().next().value;
     firstButton?.focus();
   }
 
   hide(): void {
-    this.element.style.display = 'none';
+    this.element.classList.add('hidden');
   }
 
   dispose(): void {
@@ -196,5 +256,29 @@ export class MainMenu {
 
   getButton(action: string): HTMLButtonElement | undefined {
     return this.buttons.get(action);
+  }
+
+  private loadProfileName(): string {
+    try {
+      return localStorage.getItem('fps-game-profile-name') || `Player-${Math.floor(Math.random() * 1000)}`;
+    } catch {
+      return `Player-${Math.floor(Math.random() * 1000)}`;
+    }
+  }
+
+  private saveProfileName(): void {
+    try {
+      localStorage.setItem('fps-game-profile-name', this.getPlayerName());
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private roomModeLabel(mode: string): string {
+    return mode === 'defusal' ? '爆破' : '团队死斗';
+  }
+
+  private escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
   }
 }

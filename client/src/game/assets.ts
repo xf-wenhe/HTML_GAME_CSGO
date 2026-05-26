@@ -11,6 +11,7 @@ export interface AssetDefinition {
   rotation?: [number, number, number];
   position?: [number, number, number];
   normalizeHeight?: number;
+  preferFallback?: boolean;
   fallback: () => THREE.Object3D;
 }
 
@@ -65,7 +66,7 @@ function tuneMaterials(object: THREE.Object3D, definition: AssetDefinition): THR
 }
 
 export async function loadAsset(definition: AssetDefinition): Promise<THREE.Object3D> {
-  if (typeof process !== 'undefined' && process.env.VITEST) {
+  if (definition.preferFallback || (typeof process !== 'undefined' && process.env.VITEST)) {
     return markRenderable(tuneMaterials(applyDefinitionTransform(definition.fallback(), definition), definition), 'fallback');
   }
 
@@ -269,6 +270,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.42,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.18, -0.06, 0.18],
+    preferFallback: true,
     fallback: () => createFallbackWeapon(0x3f4650, 0.55, 'pistol')
   },
   heavy_pistol: {
@@ -278,6 +280,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.42,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.22, -0.08, 0.18],
+    preferFallback: true,
     fallback: () => createFallbackWeapon(0x4b5563, 0.62, 'pistol')
   },
   rifle: {
@@ -287,6 +290,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.18,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.18, -0.08, 0.24],
+    preferFallback: true,
     fallback: () => createFallbackWeapon(0x3d4651, 0.95, 'rifle')
   },
   defender_rifle: {
@@ -296,6 +300,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.18,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.08, -0.12, 0.2],
+    preferFallback: true,
     fallback: () => createFallbackWeapon(0x45515c, 0.9, 'rifle')
   },
   sniper: {
@@ -305,6 +310,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.145,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.25, -0.12, 0.28],
+    preferFallback: true,
     fallback: () => createFallbackWeapon(0x303842, 1.12, 'sniper')
   },
   smg: {
@@ -314,6 +320,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.24,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.12, -0.1, 0.2],
+    preferFallback: true,
     fallback: () => createFallbackWeapon(0x35404a, 0.72, 'smg')
   },
   shotgun: {
@@ -323,6 +330,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.17,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.18, -0.11, 0.24],
+    preferFallback: true,
     fallback: () => createFallbackWeapon(0x47311f, 0.8, 'shotgun')
   },
   knife: {
@@ -332,6 +340,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.62,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.08, -0.08, 0.12],
+    preferFallback: true,
     fallback: () => createFallbackWeapon(0xa8b0ba, 0.6, 'knife')
   },
   enemy_assault: {

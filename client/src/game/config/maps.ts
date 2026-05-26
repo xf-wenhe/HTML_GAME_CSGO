@@ -1,4 +1,52 @@
 import { MapId, Team, Vector3 } from '../../../../shared/types.js';
+import {
+  DUST2_SPAWNS,
+  DUST2_TDM_SPAWNS,
+  DUST2_BOMB_SITES,
+  DUST2_CALLOUTS
+} from '../Dust2Layout.js';
+import {
+  MIRAGE_SPAWNS,
+  MIRAGE_TDM_SPAWNS,
+  MIRAGE_BOMB_SITES,
+  MIRAGE_CALLOUTS
+} from '../MirageLayout.js';
+import {
+  INFERNO_SPAWNS,
+  INFERNO_TDM_SPAWNS,
+  INFERNO_BOMB_SITES,
+  INFERNO_CALLOUTS
+} from '../InfernoLayout.js';
+import {
+  TRAIN_SPAWNS,
+  TRAIN_TDM_SPAWNS,
+  TRAIN_BOMB_SITES,
+  TRAIN_CALLOUTS
+} from '../TrainLayout.js';
+import {
+  OVERPASS_SPAWNS,
+  OVERPASS_TDM_SPAWNS,
+  OVERPASS_BOMB_SITES,
+  OVERPASS_CALLOUTS
+} from '../OverpassLayout.js';
+import {
+  NUKE_SPAWNS,
+  NUKE_TDM_SPAWNS,
+  NUKE_BOMB_SITES,
+  NUKE_CALLOUTS
+} from '../NukeLayout.js';
+import {
+  ITALY_SPAWNS,
+  ITALY_TDM_SPAWNS,
+  ITALY_BOMB_SITES,
+  ITALY_CALLOUTS
+} from '../ItalyLayout.js';
+import {
+  WAREHOUSE_SPAWNS,
+  WAREHOUSE_TDM_SPAWNS,
+  WAREHOUSE_BOMB_SITES,
+  WAREHOUSE_CALLOUTS
+} from '../WarehouseLayout.js';
 
 
 export interface BombSiteConfig {
@@ -21,290 +69,112 @@ export const MULTIPLAYER_MAPS: Record<MapId, MultiplayerMapConfig> = {
     id: 'dust2',
     name: 'Dust2',
     spawns: {
-      attackers: [
-        { x: -10, y: 1.7, z: 30 },
-        { x: -5, y: 1.7, z: 30 },
-        { x: 0, y: 1.7, z: 30 },
-        { x: 5, y: 1.7, z: 30 },
-        { x: 10, y: 1.7, z: 30 }
-      ],
-      defenders: [
-        { x: -10, y: 1.7, z: -46 },
-        { x: -5, y: 1.7, z: -46 },
-        { x: 0, y: 1.7, z: -46 },
-        { x: 5, y: 1.7, z: -46 },
-        { x: 10, y: 1.7, z: -46 }
-      ]
+      attackers: DUST2_SPAWNS.attackers,
+      defenders: DUST2_SPAWNS.defenders
     },
-    tdmSpawns: [
-      { x: -30, y: 1.7, z: 25 },
-      { x: 30, y: 1.7, z: 25 },
-      { x: -30, y: 1.7, z: -40 },
-      { x: 30, y: 1.7, z: -40 },
-      { x: -8, y: 1.7, z: 8 },
-      { x: 8, y: 1.7, z: -22 },
-      { x: -24, y: 1.7, z: -8 },
-      { x: 24, y: 1.7, z: -8 }
-    ],
+    tdmSpawns: DUST2_TDM_SPAWNS,
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+      { id: 'A', position: DUST2_BOMB_SITES.A.position, radius: DUST2_BOMB_SITES.A.radius },
+      { id: 'B', position: DUST2_BOMB_SITES.B.position, radius: DUST2_BOMB_SITES.B.radius }
     ],
-    callouts: [
-      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'Mid', position: { x: 0, y: 1.7, z: -8 }, radius: 11 },
-      { name: 'T Spawn', position: { x: 0, y: 1.7, z: 30 }, radius: 9 },
-      { name: 'CT Spawn', position: { x: 0, y: 1.7, z: -46 }, radius: 9 },
-      { name: 'A Long', position: { x: -30, y: 1.7, z: -12 }, radius: 10 },
-      { name: 'B Long', position: { x: 30, y: 1.7, z: -12 }, radius: 10 }
-    ]
+    callouts: DUST2_CALLOUTS
   },
   warehouse: {
     id: 'warehouse',
     name: 'Warehouse',
     spawns: {
-      attackers: [
-        { x: -30, y: 1.7, z: 28 },
-        { x: -25, y: 1.7, z: 28 },
-        { x: -20, y: 1.7, z: 28 },
-        { x: -15, y: 1.7, z: 28 },
-        { x: -10, y: 1.7, z: 28 }
-      ],
-      defenders: [
-        { x: 30, y: 1.7, z: -46 },
-        { x: 25, y: 1.7, z: -46 },
-        { x: 20, y: 1.7, z: -46 },
-        { x: 15, y: 1.7, z: -46 },
-        { x: 10, y: 1.7, z: -46 }
-      ]
+      attackers: WAREHOUSE_SPAWNS.attackers,
+      defenders: WAREHOUSE_SPAWNS.defenders
     },
-    tdmSpawns: [
-      { x: -30, y: 1.7, z: 28 },
-      { x: -25, y: 1.7, z: 28 },
-      { x: 30, y: 1.7, z: -46 },
-      { x: 25, y: 1.7, z: -46 },
-      { x: -28, y: 1.7, z: -8 },
-      { x: 28, y: 1.7, z: -8 },
-      { x: -8, y: 1.7, z: 8 },
-      { x: 8, y: 1.7, z: -22 }
-    ],
+    tdmSpawns: WAREHOUSE_TDM_SPAWNS,
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+      { id: 'A', position: WAREHOUSE_BOMB_SITES.A.position, radius: WAREHOUSE_BOMB_SITES.A.radius },
+      { id: 'B', position: WAREHOUSE_BOMB_SITES.B.position, radius: WAREHOUSE_BOMB_SITES.B.radius }
     ],
-    callouts: [
-      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'Mid', position: { x: 0, y: 1.7, z: -8 }, radius: 11 },
-      { name: 'Warehouse Spawn', position: { x: -20, y: 1.7, z: 28 }, radius: 9 },
-      { name: 'Loading Dock', position: { x: 20, y: 1.7, z: -46 }, radius: 9 }
-    ]
+    callouts: WAREHOUSE_CALLOUTS
   },
   italy: {
     id: 'italy',
     name: 'Italy',
     spawns: {
-      attackers: [
-        { x: 0, y: 1.7, z: 32 },
-        { x: -5, y: 1.7, z: 32 },
-        { x: 5, y: 1.7, z: 32 },
-        { x: -10, y: 1.7, z: 32 },
-        { x: 10, y: 1.7, z: 32 }
-      ],
-      defenders: [
-        { x: 0, y: 1.7, z: -48 },
-        { x: -5, y: 1.7, z: -48 },
-        { x: 5, y: 1.7, z: -48 },
-        { x: -10, y: 1.7, z: -48 },
-        { x: 10, y: 1.7, z: -48 }
-      ]
+      attackers: ITALY_SPAWNS.attackers,
+      defenders: ITALY_SPAWNS.defenders
     },
-    tdmSpawns: [
-      { x: 0, y: 1.7, z: 32 },
-      { x: -5, y: 1.7, z: 32 },
-      { x: 0, y: 1.7, z: -48 },
-      { x: 5, y: 1.7, z: -48 },
-      { x: -24, y: 1.7, z: -8 },
-      { x: 24, y: 1.7, z: -8 },
-      { x: -8, y: 1.7, z: 8 },
-      { x: 8, y: 1.7, z: -22 }
-    ],
+    tdmSpawns: ITALY_TDM_SPAWNS,
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+      { id: 'A', position: ITALY_BOMB_SITES.A.position, radius: ITALY_BOMB_SITES.A.radius },
+      { id: 'B', position: ITALY_BOMB_SITES.B.position, radius: ITALY_BOMB_SITES.B.radius }
     ],
-    callouts: [
-      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'Mid', position: { x: 0, y: 1.7, z: -8 }, radius: 11 },
-      { name: 'Market', position: { x: 0, y: 1.7, z: 32 }, radius: 9 },
-      { name: 'Courtyard', position: { x: 0, y: 1.7, z: -48 }, radius: 9 }
-    ]
+    callouts: ITALY_CALLOUTS
   },
   mirage: {
     id: 'mirage',
     name: 'Mirage',
     spawns: {
-      attackers: [
-        { x: -10, y: 1.7, z: 32 }, { x: -5, y: 1.7, z: 32 },
-        { x: 0, y: 1.7, z: 32 }, { x: 5, y: 1.7, z: 32 }, { x: 10, y: 1.7, z: 32 }
-      ],
-      defenders: [
-        { x: -10, y: 1.7, z: -46 }, { x: -5, y: 1.7, z: -46 },
-        { x: 0, y: 1.7, z: -46 }, { x: 5, y: 1.7, z: -46 }, { x: 10, y: 1.7, z: -46 }
-      ]
+      attackers: MIRAGE_SPAWNS.attackers,
+      defenders: MIRAGE_SPAWNS.defenders
     },
-    tdmSpawns: [
-      { x: -30, y: 1.7, z: 26 }, { x: 30, y: 1.7, z: 26 },
-      { x: -30, y: 1.7, z: -40 }, { x: 30, y: 1.7, z: -40 },
-      { x: -14, y: 3.1, z: -2 }, { x: 14, y: 3.1, z: -2 },
-      { x: -8, y: 1.7, z: 8 }, { x: 8, y: 1.7, z: -20 }
-    ],
+    tdmSpawns: MIRAGE_TDM_SPAWNS,
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+      { id: 'A', position: MIRAGE_BOMB_SITES.A.position, radius: MIRAGE_BOMB_SITES.A.radius },
+      { id: 'B', position: MIRAGE_BOMB_SITES.B.position, radius: MIRAGE_BOMB_SITES.B.radius }
     ],
-    callouts: [
-      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'Mid', position: { x: 0, y: 1.7, z: -8 }, radius: 11 },
-      { name: 'T Spawn', position: { x: 0, y: 1.7, z: 30 }, radius: 9 },
-      { name: 'CT Spawn', position: { x: 0, y: 1.7, z: -46 }, radius: 9 },
-      { name: 'A Ramp', position: { x: -24, y: 1.7, z: 5 }, radius: 8 },
-      { name: 'B Apartments', position: { x: 24, y: 1.7, z: 5 }, radius: 8 }
-    ]
+    callouts: MIRAGE_CALLOUTS
   },
   inferno: {
     id: 'inferno',
     name: 'Inferno',
     spawns: {
-      attackers: [
-        { x: -10, y: 1.7, z: 28 }, { x: -5, y: 1.7, z: 28 },
-        { x: 0, y: 1.7, z: 28 }, { x: 5, y: 1.7, z: 28 }, { x: 10, y: 1.7, z: 28 }
-      ],
-      defenders: [
-        { x: -10, y: 1.7, z: -46 }, { x: -5, y: 1.7, z: -46 },
-        { x: 0, y: 1.7, z: -46 }, { x: 5, y: 1.7, z: -46 }, { x: 10, y: 1.7, z: -46 }
-      ]
+      attackers: INFERNO_SPAWNS.attackers,
+      defenders: INFERNO_SPAWNS.defenders
     },
-    tdmSpawns: [
-      { x: -10, y: 1.7, z: 28 }, { x: -5, y: 1.7, z: 28 },
-      { x: 0, y: 1.7, z: -46 }, { x: 5, y: 1.7, z: -46 },
-      { x: -28, y: 1.7, z: 2 }, { x: -14, y: 3.1, z: -8 },
-      { x: 16, y: 1.7, z: -6 }, { x: 0, y: 1.7, z: -22 }
-    ],
+    tdmSpawns: INFERNO_TDM_SPAWNS,
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+      { id: 'A', position: INFERNO_BOMB_SITES.A.position, radius: INFERNO_BOMB_SITES.A.radius },
+      { id: 'B', position: INFERNO_BOMB_SITES.B.position, radius: INFERNO_BOMB_SITES.B.radius }
     ],
-    callouts: [
-      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'Mid', position: { x: 0, y: 1.7, z: -6 }, radius: 10 },
-      { name: 'Banana', position: { x: -28, y: 1.7, z: 2 }, radius: 10 },
-      { name: 'Apartments', position: { x: -14, y: 1.7, z: -8 }, radius: 9 },
-      { name: 'T Spawn', position: { x: -2, y: 1.7, z: 28 }, radius: 9 },
-      { name: 'CT Spawn', position: { x: 0, y: 1.7, z: -46 }, radius: 9 }
-    ]
+    callouts: INFERNO_CALLOUTS
   },
   nuke: {
     id: 'nuke',
     name: 'Nuke',
     spawns: {
-      attackers: [
-        { x: -10, y: 1.7, z: 29 }, { x: -5, y: 1.7, z: 29 },
-        { x: 0, y: 1.7, z: 29 }, { x: 5, y: 1.7, z: 29 }, { x: 10, y: 1.7, z: 29 }
-      ],
-      defenders: [
-        { x: -10, y: 1.7, z: -46 }, { x: -5, y: 1.7, z: -46 },
-        { x: 0, y: 1.7, z: -46 }, { x: 5, y: 1.7, z: -46 }, { x: 10, y: 1.7, z: -46 }
-      ]
+      attackers: NUKE_SPAWNS.attackers,
+      defenders: NUKE_SPAWNS.defenders
     },
-    tdmSpawns: [
-      { x: -30, y: 1.7, z: 25 }, { x: 30, y: 1.7, z: 25 },
-      { x: 0, y: 6.7, z: -4 }, { x: -12, y: 1.7, z: -8 },
-      { x: -30, y: 1.7, z: -40 }, { x: 30, y: 1.7, z: -40 },
-      { x: 0, y: 1.7, z: -20 }, { x: 0, y: 1.7, z: 8 }
-    ],
+    tdmSpawns: NUKE_TDM_SPAWNS,
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+      { id: 'A', position: NUKE_BOMB_SITES.A.position, radius: NUKE_BOMB_SITES.A.radius },
+      { id: 'B', position: NUKE_BOMB_SITES.B.position, radius: NUKE_BOMB_SITES.B.radius }
     ],
-    callouts: [
-      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'Mid', position: { x: 0, y: 1.7, z: -8 }, radius: 11 },
-      { name: 'Upper', position: { x: 0, y: 6.7, z: -4 }, radius: 10 },
-      { name: 'Outside', position: { x: 0, y: 1.7, z: 16 }, radius: 10 },
-      { name: 'T Spawn', position: { x: 0, y: 1.7, z: 30 }, radius: 9 },
-      { name: 'CT Spawn', position: { x: 0, y: 1.7, z: -46 }, radius: 9 }
-    ]
+    callouts: NUKE_CALLOUTS
   },
   train: {
     id: 'train',
     name: 'Train',
     spawns: {
-      attackers: [
-        { x: 10, y: 1.7, z: 30 }, { x: 5, y: 1.7, z: 30 },
-        { x: 0, y: 1.7, z: 30 }, { x: 15, y: 1.7, z: 30 }, { x: 20, y: 1.7, z: 30 }
-      ],
-      defenders: [
-        { x: -10, y: 1.7, z: -46 }, { x: -5, y: 1.7, z: -46 },
-        { x: 0, y: 1.7, z: -46 }, { x: 5, y: 1.7, z: -46 }, { x: 10, y: 1.7, z: -46 }
-      ]
+      attackers: TRAIN_SPAWNS.attackers,
+      defenders: TRAIN_SPAWNS.defenders
     },
-    tdmSpawns: [
-      { x: 10, y: 1.7, z: 28 }, { x: -10, y: 1.7, z: -44 },
-      { x: -16, y: 3.3, z: -8 }, { x: 16, y: 3.3, z: -8 },
-      { x: -28, y: 1.7, z: -22 }, { x: 28, y: 1.7, z: -22 },
-      { x: 0, y: 1.7, z: -20 }, { x: 0, y: 1.7, z: 8 }
-    ],
+    tdmSpawns: TRAIN_TDM_SPAWNS,
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+      { id: 'A', position: TRAIN_BOMB_SITES.A.position, radius: TRAIN_BOMB_SITES.A.radius },
+      { id: 'B', position: TRAIN_BOMB_SITES.B.position, radius: TRAIN_BOMB_SITES.B.radius }
     ],
-    callouts: [
-      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'Mid', position: { x: 0, y: 1.7, z: -8 }, radius: 11 },
-      { name: 'Upper Train', position: { x: 0, y: 3.3, z: -8 }, radius: 12 },
-      { name: 'T Spawn', position: { x: 10, y: 1.7, z: 30 }, radius: 9 },
-      { name: 'CT Spawn', position: { x: 0, y: 1.7, z: -46 }, radius: 9 },
-      { name: 'Ladder Room', position: { x: -20, y: 1.7, z: 5 }, radius: 8 }
-    ]
+    callouts: TRAIN_CALLOUTS
   },
   overpass: {
     id: 'overpass',
     name: 'Overpass',
     spawns: {
-      attackers: [
-        { x: -10, y: 1.7, z: 31 }, { x: -5, y: 1.7, z: 31 },
-        { x: 0, y: 1.7, z: 31 }, { x: 5, y: 1.7, z: 31 }, { x: 10, y: 1.7, z: 31 }
-      ],
-      defenders: [
-        { x: -10, y: 1.7, z: -46 }, { x: -5, y: 1.7, z: -46 },
-        { x: 0, y: 1.7, z: -46 }, { x: 5, y: 1.7, z: -46 }, { x: 10, y: 1.7, z: -46 }
-      ]
+      attackers: OVERPASS_SPAWNS.attackers,
+      defenders: OVERPASS_SPAWNS.defenders
     },
-    tdmSpawns: [
-      { x: -5, y: 1.7, z: 28 }, { x: 5, y: 1.7, z: 28 },
-      { x: -30, y: 1.7, z: -40 }, { x: 30, y: 1.7, z: -40 },
-      { x: 0, y: 3.85, z: 10 }, { x: -8, y: 1.7, z: -4 },
-      { x: 0, y: 1.7, z: -20 }, { x: 0, y: 1.7, z: 14 }
-    ],
+    tdmSpawns: OVERPASS_TDM_SPAWNS,
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -27 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -27 }, radius: 6 }
+      { id: 'A', position: OVERPASS_BOMB_SITES.A.position, radius: OVERPASS_BOMB_SITES.A.radius },
+      { id: 'B', position: OVERPASS_BOMB_SITES.B.position, radius: OVERPASS_BOMB_SITES.B.radius }
     ],
-    callouts: [
-      { name: 'A Site', position: { x: -24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'B Site', position: { x: 24, y: 1.7, z: -27 }, radius: 9 },
-      { name: 'Mid', position: { x: 0, y: 1.7, z: -6 }, radius: 10 },
-      { name: 'Bridge', position: { x: 0, y: 3.85, z: 10 }, radius: 10 },
-      { name: 'Tunnel', position: { x: 0, y: 1.7, z: -8 }, radius: 9 },
-      { name: 'T Spawn', position: { x: 0, y: 1.7, z: 30 }, radius: 9 },
-      { name: 'CT Spawn', position: { x: 0, y: 1.7, z: -46 }, radius: 9 }
-    ]
+    callouts: OVERPASS_CALLOUTS
   }
 };

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MatchSnapshot, PlayerSnapshot, Team } from './types.js';
+import { Interpolation } from '../network/Interpolation.js';
 
 const loader = new GLTFLoader();
 let assaultTemplate: THREE.Object3D | null = null;
@@ -43,10 +44,13 @@ const TEAM_TINT: Record<Team, THREE.Color> = {
 
 export class RemotePlayers {
   private meshes = new Map<string, THREE.Group>();
+  private interpolation = new Interpolation();
 
   constructor(private scene: THREE.Scene) {}
 
   update(snapshot: MatchSnapshot, localPlayerId?: string): void {
+    this.interpolation.push(snapshot);
+    const renderTime = performance.now();
     const activeIds = new Set(snapshot.players.map(player => player.id));
     for (const [id, mesh] of this.meshes) {
       if (!activeIds.has(id)) {
@@ -62,7 +66,9 @@ export class RemotePlayers {
         this.meshes.set(player.id, mesh);
         this.scene.add(mesh);
       }
-      mesh.position.set(player.position.x, player.position.y - 1.05, player.position.z);
+      const interpPos = this.interpolation.getInterpolatedPosition(player.id, renderTime);
+      const pos = interpPos ?? player.position;
+      mesh.position.set(pos.x, pos.y - 1.05, pos.z);
       mesh.rotation.y = player.rotation.y;
       mesh.visible = player.isAlive;
       const healthBar = mesh.getObjectByName('health-fill');
@@ -75,6 +81,7 @@ export class RemotePlayers {
   clear(): void {
     this.meshes.forEach(mesh => this.scene.remove(mesh));
     this.meshes.clear();
+    this.interpolation.clear();
   }
 
   private createPlayerMesh(player: PlayerSnapshot): THREE.Group {

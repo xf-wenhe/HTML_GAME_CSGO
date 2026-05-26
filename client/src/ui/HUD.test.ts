@@ -22,7 +22,7 @@ describe('HUD notifications and weapon slots', () => {
     hud.dispose();
   });
 
-  it('replaces notifications instead of stacking them', () => {
+  it('stacks notifications up to 3 items', () => {
     vi.useFakeTimers();
     const hud = new HUD();
     document.body.appendChild(hud.getElement());
@@ -31,9 +31,9 @@ describe('HUD notifications and weapon slots', () => {
     hud.showNotification('已选择烟雾弹');
     hud.showNotification('投掷烟雾弹');
 
-    const notifications = hud.getElement().querySelectorAll('.notification');
-    expect(notifications).toHaveLength(1);
-    expect(notifications[0].textContent).toBe('投掷烟雾弹');
+    const notifications = hud.getElement().querySelectorAll('.notification-item');
+    expect(notifications).toHaveLength(3);
+    expect(notifications[2].textContent).toBe('投掷烟雾弹');
 
     hud.dispose();
     vi.useRealTimers();
@@ -96,9 +96,83 @@ describe('HUD notifications and weapon slots', () => {
 
     hud.dispose();
   });
+
+  it('clamps multiplayer latency and renders mouse input status', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+
+    hud.updateMatch(createSnapshot(1200), 'local', { latencyMs: 1200, inputStatus: 'Raw' });
+
+    expect(hud.getElement().querySelector('.network-text')?.textContent).toContain('999ms');
+    expect(hud.getElement().querySelector('.network-text')?.textContent).toContain('Raw');
+    expect(hud.getElement().querySelector('.scoreboard')?.textContent).toContain('999');
+
+    hud.dispose();
+  });
+
+  it('shows sub-millisecond connected latency as at least 1ms', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+
+    hud.updateMatch(createSnapshot(0), 'local', { latencyMs: 0.2, inputStatus: 'Locked' });
+
+    expect(hud.getElement().querySelector('.network-text')?.textContent).toContain('1ms');
+
+    hud.dispose();
+  });
+
+  it('shows sniper scope overlay and hides the crosshair while scoped', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+
+    hud.setScoped(true);
+
+    expect(hud.getElement().querySelector('.scope-overlay')?.classList.contains('hidden')).toBe(false);
+    expect(hud.getElement().querySelector('.crosshair')?.classList.contains('hidden')).toBe(true);
+
+    hud.setScoped(false);
+
+    expect(hud.getElement().querySelector('.scope-overlay')?.classList.contains('hidden')).toBe(true);
+    expect(hud.getElement().querySelector('.crosshair')?.classList.contains('hidden')).toBe(false);
+
+    hud.dispose();
+  });
+
+  it('renders mobile touch controls without showing them by default', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+
+    expect(hud.getTouchControlsElement().querySelector('.touch-stick-base')).toBeTruthy();
+    expect(hud.getTouchControlsElement().querySelector('[data-touch-key="MouseLeft"]')).toBeTruthy();
+    expect(hud.getTouchControlsElement().classList.contains('hidden')).toBe(true);
+
+    hud.dispose();
+  });
+
+  it('renders match summary when a multiplayer match ends', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+    const snapshot = createSnapshot();
+    snapshot.phase = 'matchEnd';
+    snapshot.summary = {
+      winner: 'attackers',
+      topPlayer: { id: 'local', name: '<b>MVP</b>', kills: 3, deaths: 1 },
+      finalScore: { attackers: 16, defenders: 14 },
+      durationSeconds: 820
+    };
+
+    hud.showMatchSummary(snapshot, 'local');
+
+    expect(hud.getElement().querySelector('.result-panel')?.classList.contains('hidden')).toBe(false);
+    expect(hud.getElement().querySelector('.result-panel')?.textContent).toContain('T 胜利');
+    expect(hud.getElement().querySelector('.result-panel')?.textContent).toContain('<b>MVP</b>');
+    expect(hud.getElement().querySelector('.result-panel b')).toBeNull();
+
+    hud.dispose();
+  });
 });
 
-function createSnapshot(): MatchSnapshot {
+function createSnapshot(ping = 20): MatchSnapshot {
   return {
     roomId: 'room',
     config: {
@@ -109,6 +183,7 @@ function createSnapshot(): MatchSnapshot {
       isPrivate: false,
       roundLimit: 20,
       warmupSeconds: 5,
+      startingMoney: 800,
       friendlyFire: false
     },
     phase: 'live',
@@ -132,7 +207,7 @@ function createSnapshot(): MatchSnapshot {
         kills: 1,
         deaths: 0,
         assists: 0,
-        ping: 20,
+        ping,
         isAlive: true,
         isReady: true
       }

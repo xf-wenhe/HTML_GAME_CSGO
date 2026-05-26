@@ -1,7 +1,7 @@
 import { existsSync, statSync } from 'node:fs';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { ASSETS, loadAsset } from '../assets.js';
+import { ASSETS, createFallbackWeapon, loadAsset } from '../assets.js';
 
 describe('GLB asset registry', () => {
   it('ships local GLB files for all primary weapon and enemy assets', () => {
@@ -26,5 +26,16 @@ describe('GLB asset registry', () => {
 
     expect(size.y).toBeGreaterThan(1.6);
     expect(size.y).toBeLessThan(2.8);
+  });
+
+  it('makes fallback weapon silhouettes visibly distinct by weapon class', () => {
+    const pistol = new THREE.Box3().setFromObject(createFallbackWeapon(0x333333, 0.55, 'pistol')).getSize(new THREE.Vector3());
+    const rifle = new THREE.Box3().setFromObject(createFallbackWeapon(0x333333, 0.95, 'rifle')).getSize(new THREE.Vector3());
+    const sniper = new THREE.Box3().setFromObject(createFallbackWeapon(0x333333, 1.18, 'sniper')).getSize(new THREE.Vector3());
+    const shotgun = new THREE.Box3().setFromObject(createFallbackWeapon(0x333333, 0.8, 'shotgun')).getSize(new THREE.Vector3());
+
+    expect(rifle.z).toBeGreaterThan(pistol.z * 1.35);
+    expect(sniper.z).toBeGreaterThan(rifle.z * 1.15);
+    expect(shotgun.x).toBeGreaterThan(rifle.x);
   });
 });

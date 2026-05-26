@@ -7,7 +7,7 @@ import { RoomManager } from '../rooms.js';
 const bodyShot = {
   origin: { x: 0, y: 1.12, z: 0 },
   direction: { x: 0, y: 0, z: -1 },
-  weaponId: 'sidearm' as const,
+  weaponId: 'pistol' as const,
   clientTime: Date.now()
 };
 
@@ -59,6 +59,17 @@ describe('Server', () => {
 
     const snapshot = rooms.getSnapshot(room.id)!;
     expect(snapshot.players.map(player => player.team).sort()).toEqual(['attackers', 'defenders']);
+    expect(snapshot.players.find(player => player.team === 'attackers')?.weaponId).toBe('pistol');
+    expect(snapshot.players.find(player => player.team === 'defenders')?.weaponId).toBe('usp_s');
+  });
+
+  it('uses configurable starting money for new rooms', () => {
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 2, startingMoney: 1600 });
+
+    rooms.addPlayerToRoom(room.id, 'p1', 'Alpha');
+
+    expect(snapshotPlayer(rooms, room.id, 'p1').money).toBe(1600);
   });
 
   it('blocks fire-rate spam on the server', () => {
@@ -116,7 +127,7 @@ describe('Server', () => {
 
     expect(rooms.buyWeapon('attacker', { weaponId: 'vandal' })).toBeUndefined();
     attacker = snapshotPlayer(rooms, room.id, 'attacker');
-    expect(attacker.weaponId).toBe('sidearm');
+    expect(attacker.weaponId).toBe('pistol');
     expect(attacker.money).toBe(150);
 
     const internalRoom = rooms.getRoom(room.id)!;
@@ -124,7 +135,7 @@ describe('Server', () => {
     internalRoom.players.get('defender')!.money = 5000;
 
     expect(rooms.switchWeapon('attacker', 'vandal')).toBeUndefined();
-    expect(snapshotPlayer(rooms, room.id, 'attacker').weaponId).toBe('sidearm');
+    expect(snapshotPlayer(rooms, room.id, 'attacker').weaponId).toBe('pistol');
 
     expect(rooms.buyWeapon('attacker', { weaponId: 'sentinel' })).toBeUndefined();
     const boughtSentinel = rooms.buyWeapon('defender', { weaponId: 'sentinel' })!;
@@ -208,6 +219,78 @@ describe('Server', () => {
     expect(defused.phase).toBe('roundEnd');
     expect(defused.score.defenders).toBe(1);
   });
+
+  it('preserves player state when a disconnected session reconnects', () => {
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'tdm', maxPlayers: 2 });
+    rooms.addPlayerToRoom(room.id, 'socket-old', 'Alpha');
+    const sessionId = rooms.getPlayerSessionId('socket-old')!;
+    rooms.buyWeapon('socket-old', { weaponId: 'p250' });
+    rooms.applyInput('socket-old', { position: { x: 4, y: 1.7, z: 6 }, rotation: { x: 0, y: 0.5, z: 0 }, seq: 7 });
+
+    const disconnected = rooms.markPlayerDisconnected('socket-old')!;
+    expect(disconnected.players.find(player => player.id === 'socket-old')?.disconnected).toBe(true);
+
+    const resumed = rooms.reconnectPlayer(room.id, 'socket-old', sessionId, 'socket-new')!;
+    const player = resumed.players.find(candidate => candidate.id === 'socket-new')!;
+
+    expect(resumed.players.some(candidate => candidate.id === 'socket-old')).toBe(false);
+    expect(player.name).toBe('Alpha');
+    expect(player.weaponId).toBe('p250');
+    expect(player.position).toEqual({ x: 4, y: 1.7, z: 6 });
+    expect(player.disconnected).toBe(false);
+    expect(rooms.getPlayerSessionId('socket-new')).toBe(sessionId);
+  });
+
+  it('tracks spectators separately from active players', () => {
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'tdm', maxPlayers: 2 });
+    rooms.addPlayerToRoom(room.id, 'p1', 'Alpha');
+
+    const spectating = rooms.addSpectatorToRoom(room.id, 'viewer')!;
+
+    expect(spectating.players).toHaveLength(1);
+    expect(spectating.spectatorCount).toBe(1);
+    expect(rooms.getRoomList()[0]).toMatchObject({ playerCount: 1, spectatorCount: 1 });
+
+    const afterLeave = rooms.removeSpectator('viewer')!;
+    expect(afterLeave.spectatorCount).toBe(0);
+  });
+
+  it('records security events for malformed client state', () => {
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'tdm', maxPlayers: 2 });
+    rooms.addPlayerToRoom(room.id, 'p1', 'Alpha');
+
+    const snapshot = rooms.applyInput('p1', {
+      position: { x: Number.NaN, y: 1.7, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      seq: 1
+    })!;
+
+    expect(snapshot.securityEvents?.[0]).toContain('Rejected non-finite input');
+    expect(snapshot.events?.[0].type).toBe('security');
+  });
+
+  it('adds match summaries when a TDM match ends', () => {
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'tdm', maxPlayers: 2, roundLimit: 1 });
+    rooms.addPlayerToRoom(room.id, 'p1', 'Alpha');
+    rooms.addPlayerToRoom(room.id, 'p2', 'Bravo');
+    rooms.setReady('p1', true);
+    rooms.setReady('p2', true);
+    rooms.applyInput('p1', { position: { x: 0, y: 1.7, z: 0 }, rotation: { x: 0, y: 0, z: 0 } });
+    rooms.applyInput('p2', { position: { x: 0, y: 1.7, z: -8 }, rotation: { x: 0, y: 0, z: 0 } });
+    rooms.switchWeapon('p1', 'operator');
+
+    rooms.shoot('p1', headShot);
+    const ended = rooms.tick()[0];
+
+    expect(ended.phase).toBe('matchEnd');
+    expect(ended.summary?.winner).toBe('attackers');
+    expect(ended.summary?.topPlayer?.name).toBe('Alpha');
+    expect(ended.events?.some(event => event.type === 'kill')).toBe(true);
+  });
 });
 
 describe('Socket.IO multiplayer flow', () => {
@@ -266,5 +349,69 @@ describe('Socket.IO multiplayer flow', () => {
     ]);
 
     expect(joined).toHaveLength(2);
+  });
+
+  it('resumes a disconnected socket into its previous player slot', async () => {
+    if (!networkAvailable) {
+      expect(networkAvailable).toBe(false);
+      return;
+    }
+    const first = ioClient(url, { transports: ['websocket'] });
+    sockets.push(first);
+    await new Promise<void>(resolve => first.on('connect', () => resolve()));
+
+    const joined = await new Promise<{ roomId: string; playerId: string; sessionId: string }>(resolve => {
+      first.on('roomJoined', resolve);
+      first.emit('joinOrCreateRoom', { mode: 'tdm', playerName: 'ResumeMe', mapId: 'dust2' });
+    });
+
+    first.close();
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    const second = ioClient(url, { transports: ['websocket'] });
+    sockets.push(second);
+    await new Promise<void>(resolve => second.on('connect', () => resolve()));
+
+    const resumed = await new Promise<{ playerId: string; resumed: boolean; snapshot: any }>(resolve => {
+      second.on('roomJoined', resolve);
+      second.emit('resumeSession', { roomId: joined.roomId, playerId: joined.playerId, sessionId: joined.sessionId });
+    });
+
+    expect(resumed.resumed).toBe(true);
+    expect(resumed.playerId).toBe(second.id);
+    expect(resumed.snapshot.players.find((player: any) => player.id === second.id)?.name).toBe('ResumeMe');
+    expect(resumed.snapshot.players.some((player: any) => player.id === joined.playerId)).toBe(false);
+  });
+
+  it('lets a socket spectate without consuming a player slot', async () => {
+    if (!networkAvailable) {
+      expect(networkAvailable).toBe(false);
+      return;
+    }
+    const host = ioClient(url, { transports: ['websocket'] });
+    const viewer = ioClient(url, { transports: ['websocket'] });
+    sockets.push(host, viewer);
+    await Promise.all([
+      new Promise<void>(resolve => host.on('connect', () => resolve())),
+      new Promise<void>(resolve => viewer.on('connect', () => resolve()))
+    ]);
+
+    const created = await new Promise<{ roomId: string }>(resolve => {
+      host.on('roomCreated', resolve);
+      host.emit('createRoom', { mode: 'tdm', maxPlayers: 10, mapId: 'dust2' });
+    });
+    const joined = await new Promise<{ roomId: string }>(resolve => {
+      host.on('roomJoined', resolve);
+      host.emit('joinRoom', { roomId: created.roomId, playerName: 'Host' });
+    });
+
+    const spectating = await new Promise<{ spectator: boolean; snapshot: any }>(resolve => {
+      viewer.on('roomJoined', resolve);
+      viewer.emit('spectateRoom', { roomId: joined.roomId });
+    });
+
+    expect(spectating.spectator).toBe(true);
+    expect(spectating.snapshot.players).toHaveLength(1);
+    expect(spectating.snapshot.spectatorCount).toBe(1);
   });
 });

@@ -21,7 +21,7 @@ export type WeaponFeedbackEvent =
 
 export class WeaponManager {
   private weapons = new Map<string, Weapon>();
-  private currentWeaponId = 'rifle';
+  private currentWeaponId = 'pistol';
   private camera: THREE.Camera | null = null;
   private weaponRoot = new THREE.Group();
   private currentModel: THREE.Object3D | null = null;
@@ -33,6 +33,7 @@ export class WeaponManager {
   private switchProgress = 0;
   private switchDuration = 0;
   private aiming = false;
+  private scoped = false;
   private meleeSwing = 0;
   private feedbackEvents: WeaponFeedbackEvent[] = [];
 
@@ -73,6 +74,8 @@ export class WeaponManager {
     this.switchDuration = weapon.switchTime;
     this.switchProgress = weapon.switchTime;
     this.recoil = 0;
+    this.aiming = false;
+    this.scoped = false;
     void this.applyWeaponModel();
     return true;
   }
@@ -90,12 +93,16 @@ export class WeaponManager {
   }
 
   setAiming(aiming: boolean): void {
-    const weapon = this.getCurrentWeapon();
-    this.aiming = aiming && !weapon.isMelee;
+    this.scoped = aiming && this.isSniperWeapon(this.currentWeaponId);
+    this.aiming = this.scoped;
   }
 
   isAiming(): boolean {
     return this.aiming;
+  }
+
+  isScoped(): boolean {
+    return this.scoped;
   }
 
   shoot(camera: THREE.Camera, now: number = performance.now(), options: { heavyMelee?: boolean; isMoving?: boolean } = {}): ShootResult | null {
@@ -142,6 +149,8 @@ export class WeaponManager {
     const wasReloading = weapon.getIsReloading();
     weapon.startReload(now);
     if (!wasReloading && weapon.getIsReloading()) {
+      this.aiming = false;
+      this.scoped = false;
       this.feedbackEvents.push({ type: 'reload', weaponId: weapon.id });
     }
   }
@@ -199,13 +208,29 @@ export class WeaponManager {
       this.currentModel = null;
     }
 
-    const definition = ASSETS[this.currentWeaponId];
+    const definition = ASSETS[this.currentWeaponId] ?? ASSETS[this.resolveWeaponAssetId(this.currentWeaponId)];
     const model = definition ? await loadAsset(definition) : undefined;
-    if (!model || this.currentWeaponId !== definition?.id) return;
+    if (!model) return;
 
     this.currentAssetSource = model.userData.assetSource === 'glb' ? 'glb' : 'fallback';
     this.currentModel = model;
     this.weaponRoot.add(model);
     this.weaponRoot.add(this.muzzleFlash);
+  }
+
+  private resolveWeaponAssetId(weaponId: string): string {
+    if (['usp_s', 'p250', 'five_seven', 'dual_berettas', 'r8', 'cz75', 'tec9', 'p2000', 'sidearm'].includes(weaponId)) return 'pistol';
+    if (['deagle', 'heavy_pistol'].includes(weaponId)) return 'heavy_pistol';
+    if (['m4a1s', 'm4a4', 'sentinel'].includes(weaponId)) return 'defender_rifle';
+    if (['ak47', 'galil', 'sg553', 'aug', 'famas', 'vandal'].includes(weaponId)) return 'rifle';
+    if (['awp', 'ssg08', 'scar20', 'g3sg1', 'operator'].includes(weaponId)) return 'sniper';
+    if (['mp9', 'mac10', 'pp_bizon', 'mp7', 'ump45', 'p90', 'specter'].includes(weaponId)) return 'smg';
+    if (['nova', 'mag7', 'xm1014', 'bulldog'].includes(weaponId)) return 'shotgun';
+    return weaponId;
+  }
+
+  private isSniperWeapon(weaponId: string): boolean {
+    const assetId = this.resolveWeaponAssetId(weaponId);
+    return assetId === 'sniper' || weaponId === 'sniper';
   }
 }

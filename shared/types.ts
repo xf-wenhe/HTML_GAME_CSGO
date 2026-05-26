@@ -26,6 +26,7 @@ export interface RoomConfig {
   mapId: MapId;
   maxPlayers: number;
   tickRate: number;
+  startingMoney: number;
   isPrivate: boolean;
   friendlyFire: boolean;
   roundLimit: number;
@@ -77,6 +78,9 @@ export interface PlayerSnapshot {
   ping: number;
   isAlive: boolean;
   isReady: boolean;
+  disconnected?: boolean;
+  lastProcessedSeq?: number;
+  flashIntensity?: number;
 }
 
 export interface BombState {
@@ -98,9 +102,28 @@ export interface MatchSnapshot {
   roundTimeRemaining: number;
   score: Record<Team, number>;
   players: PlayerSnapshot[];
+  spectatorCount?: number;
   bomb?: BombState;
   killFeed: string[];
   lastHit?: HitResult;
+  lastProcessedSeq?: number;
+  events?: MatchEvent[];
+  securityEvents?: string[];
+  summary?: MatchSummary;
+}
+
+export interface MatchEvent {
+  time: number;
+  type: 'join' | 'leave' | 'kill' | 'objective' | 'security' | 'system';
+  message: string;
+  playerId?: string;
+}
+
+export interface MatchSummary {
+  winner?: Team;
+  topPlayer?: { id: string; name: string; kills: number; deaths: number };
+  finalScore: Record<Team, number>;
+  durationSeconds: number;
 }
 
 export interface HitResult {
@@ -134,6 +157,10 @@ export interface BombActionRequest {
 export interface PlayerInputRequest {
   position: Vector3;
   rotation: Vector3;
+  seq?: number;
+  timestamp?: number;
+  wishdir?: { x: number; z: number };
+  buttons?: number;
 }
 
 export interface RoomListItem {
@@ -141,6 +168,21 @@ export interface RoomListItem {
   mode: MatchMode;
   mapId: MapId;
   playerCount: number;
+  spectatorCount?: number;
   maxPlayers: number;
   phase: MatchPhase;
+}
+
+export interface GrenadeThrowRequest {
+  type: GrenadeId;
+  origin: Vector3;
+  velocity: Vector3;
+  clientTime: number;
+}
+
+export interface GrenadeDetonateEvent {
+  id: string;
+  type: GrenadeId;
+  position: Vector3;
+  affectedPlayers: Array<{ playerId: string; damage: number; flashIntensity?: number }>;
 }

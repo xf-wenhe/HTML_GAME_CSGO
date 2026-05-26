@@ -3,12 +3,15 @@ import {
   BombState,
   BuyRequest,
   GrenadeId,
+  GrenadeThrowRequest,
   HitRegion,
   HitResult,
+  MatchEvent,
   MatchMode,
   MatchPhase,
   MatchSnapshot,
   MapId,
+  MatchSummary,
   PlayerInputRequest,
   PlayerSnapshot,
   RoomConfig,
@@ -19,12 +22,15 @@ import {
   WeaponBalance,
   WeaponId
 } from './types.js';
+import { randomUUID } from 'node:crypto';
 import { DEFAULT_ROOM_CONFIGS } from './config.js';
 import { MAP_CONFIGS, WEAPON_BALANCE } from './gameConfig.js';
 
 const ARMOR_PRICE = 650;
 const ARMOR_VALUE = 100;
 const TDM_RESPAWN_DELAY_MS = 2500;
+const MAX_BACKTRACK_MS = 200;
+const RECONNECT_GRACE_MS = 30_000;
 
 const GRENADE_BALANCE: Record<GrenadeId, { price: number; max: number }> = {
   he: { price: 300, max: 1 },
@@ -33,6 +39,37 @@ const GRENADE_BALANCE: Record<GrenadeId, { price: number; max: number }> = {
   incendiary: { price: 600, max: 1 },
   decoy: { price: 50, max: 1 }
 };
+
+const GRENADE_TIMERS: Record<GrenadeId, number> = {
+  he: 1.8,
+  flashbang: 1.3,
+  smoke: 1.6,
+  incendiary: 1.8,
+  decoy: 1.8
+};
+
+const GRENADE_DAMAGE: Record<GrenadeId, { base: number; radius: number; falloff: number }> = {
+  he: { base: 65, radius: 7, falloff: 0.6 },
+  flashbang: { base: 0, radius: 18, falloff: 0 },
+  smoke: { base: 0, radius: 6, falloff: 0 },
+  incendiary: { base: 8, radius: 5, falloff: 0.3 },
+  decoy: { base: 0, radius: 0, falloff: 0 }
+};
+
+interface PositionRecord {
+  time: number;
+  position: Vector3;
+}
+
+interface ActiveGrenade {
+  id: string;
+  type: GrenadeId;
+  throwerId: string;
+  origin: Vector3;
+  velocity: Vector3;
+  thrownAt: number;
+  exploded: boolean;
+}
 
 interface MatchRoom {
   id: string;
@@ -43,11 +80,21 @@ interface MatchRoom {
   roundEndsAt: number;
   score: Record<Team, number>;
   players: Map<string, PlayerSnapshot>;
+  spectators: Set<string>;
   killFeed: string[];
+  events: MatchEvent[];
+  securityEvents: string[];
+  createdAt: number;
+  winner?: Team;
   lastHit?: HitResult;
   bomb?: BombState;
   lastActivityAt: number;
   spawnCursor: Record<Team, number>;
+  positionHistory: Map<string, PositionRecord[]>;
+  activeGrenades: ActiveGrenade[];
+  lastInputSeq: Map<string, number>;
+  sessionByPlayerId: Map<string, string>;
+  disconnectedAt: Map<string, number>;
 }
 
 const now = () => Date.now();
@@ -61,6 +108,7 @@ const normalize = (a: Vector3): Vector3 => {
 };
 const reserveFor = (weaponId: WeaponId): number => WEAPON_BALANCE[weaponId].maxReserveAmmo;
 const defaultOwnedWeapons = (weaponId: WeaponId): WeaponId[] => Array.from(new Set<WeaponId>([weaponId, 'knife']));
+const defaultWeaponForTeam = (team: Team): WeaponId => team === 'defenders' ? 'usp_s' : 'pistol';
 const sanitizeFeedPart = (value: string): string => value.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 
 export class RoomManager {
@@ -78,10 +126,19 @@ export class RoomManager {
       roundEndsAt: now() + (config.mode === 'defusal' ? 35_000 : config.warmupSeconds * 1000),
       score: { attackers: 0, defenders: 0 },
       players: new Map(),
+      spectators: new Set(),
       killFeed: [],
+      events: [],
+      securityEvents: [],
+      createdAt: now(),
       bomb: config.mode === 'defusal' ? {} : undefined,
       lastActivityAt: now(),
-      spawnCursor: { attackers: 0, defenders: 0 }
+      spawnCursor: { attackers: 0, defenders: 0 },
+      positionHistory: new Map(),
+      activeGrenades: [],
+      lastInputSeq: new Map(),
+      sessionByPlayerId: new Map(),
+      disconnectedAt: new Map()
     };
     this.rooms.set(id, room);
     return room;
@@ -110,7 +167,7 @@ export class RoomManager {
     const team = this.pickTeam(room);
     const spawn = this.nextSpawn(room, team);
     const name = typeof nameOrState === 'string' ? nameOrState : nameOrState.name ?? 'Player';
-    const weaponId: WeaponId = typeof nameOrState === 'string' ? 'sidearm' : nameOrState.weaponId ?? 'sidearm';
+    const weaponId: WeaponId = typeof nameOrState === 'string' ? defaultWeaponForTeam(team) : nameOrState.weaponId ?? defaultWeaponForTeam(team);
     const reserveAmmo = reserveFor(weaponId);
     const player: PlayerSnapshot = {
       id: playerId,
@@ -120,7 +177,7 @@ export class RoomManager {
       rotation: { x: 0, y: 0, z: 0 },
       health: 100,
       armor: 0,
-      money: room.config.mode === 'defusal' ? 800 : 3200,
+      money: room.config.startingMoney,
       weaponId,
       ownedWeapons: defaultOwnedWeapons(weaponId),
       ammo: WEAPON_BALANCE[weaponId].magazineSize,
@@ -135,6 +192,10 @@ export class RoomManager {
       isReady: false
     };
     room.players.set(playerId, player);
+    room.spectators.delete(playerId);
+    room.sessionByPlayerId.set(playerId, randomUUID());
+    room.disconnectedAt.delete(playerId);
+    this.recordEvent(room, 'join', `${name} joined`, playerId);
     if (room.config.mode === 'defusal' && !room.bomb?.carrierId && team === 'attackers') {
       room.bomb = { ...room.bomb, carrierId: playerId };
     }
@@ -145,18 +206,95 @@ export class RoomManager {
   removePlayer(playerId: string): void {
     for (const room of this.rooms.values()) {
       if (room.players.delete(playerId)) {
+        room.sessionByPlayerId.delete(playerId);
+        room.disconnectedAt.delete(playerId);
+        room.positionHistory.delete(playerId);
+        room.lastInputSeq.delete(playerId);
         if (room.bomb?.carrierId === playerId) room.bomb = { ...room.bomb, carrierId: undefined };
-        if (room.players.size === 0) this.rooms.delete(room.id);
+        this.recordEvent(room, 'leave', `${playerId} left`, playerId);
+        if (room.players.size === 0 && room.spectators.size === 0) this.rooms.delete(room.id);
+        return;
+      }
+      if (room.spectators.delete(playerId)) {
+        if (room.players.size === 0 && room.spectators.size === 0) this.rooms.delete(room.id);
         return;
       }
     }
+  }
+
+  addSpectatorToRoom(roomId: string, spectatorId: string): MatchSnapshot | undefined {
+    const room = this.rooms.get(roomId);
+    if (!room) return undefined;
+    room.players.delete(spectatorId);
+    room.spectators.add(spectatorId);
+    room.lastActivityAt = now();
+    return this.getSnapshot(room.id);
+  }
+
+  removeSpectator(spectatorId: string): MatchSnapshot | undefined {
+    const room = this.findRoomBySpectator(spectatorId);
+    if (!room) return undefined;
+    room.spectators.delete(spectatorId);
+    if (room.players.size === 0 && room.spectators.size === 0) {
+      this.rooms.delete(room.id);
+      return undefined;
+    }
+    return this.getSnapshot(room.id);
+  }
+
+  markPlayerDisconnected(playerId: string): MatchSnapshot | undefined {
+    const room = this.findRoomByPlayer(playerId);
+    const player = room?.players.get(playerId);
+    if (!room || !player) return undefined;
+    player.disconnected = true;
+    room.disconnectedAt.set(playerId, now());
+    room.lastActivityAt = now();
+    return this.getSnapshot(room.id);
+  }
+
+  reconnectPlayer(roomId: string, oldPlayerId: string, sessionId: string, newPlayerId: string): MatchSnapshot | undefined {
+    const room = this.rooms.get(roomId);
+    const player = room?.players.get(oldPlayerId);
+    if (!room || !player || room.sessionByPlayerId.get(oldPlayerId) !== sessionId) return undefined;
+    if (oldPlayerId !== newPlayerId && room.players.has(newPlayerId)) return undefined;
+
+    room.players.delete(oldPlayerId);
+    player.id = newPlayerId;
+    player.disconnected = false;
+    room.players.set(newPlayerId, player);
+
+    this.moveKey(room.sessionByPlayerId, oldPlayerId, newPlayerId);
+    room.disconnectedAt.delete(oldPlayerId);
+    room.disconnectedAt.delete(newPlayerId);
+    this.moveKey(room.positionHistory, oldPlayerId, newPlayerId);
+    this.moveKey(room.lastInputSeq, oldPlayerId, newPlayerId);
+    if (room.bomb?.carrierId === oldPlayerId) room.bomb = { ...room.bomb, carrierId: newPlayerId };
+    if (room.bomb?.plantedBy === oldPlayerId) room.bomb = { ...room.bomb, plantedBy: newPlayerId };
+    if (room.bomb?.defusingPlayerId === oldPlayerId) room.bomb = { ...room.bomb, defusingPlayerId: newPlayerId };
+    room.activeGrenades.forEach(grenade => {
+      if (grenade.throwerId === oldPlayerId) grenade.throwerId = newPlayerId;
+    });
+    if (room.lastHit?.shooterId === oldPlayerId) room.lastHit.shooterId = newPlayerId;
+    if (room.lastHit?.victimId === oldPlayerId) room.lastHit.victimId = newPlayerId;
+    room.lastActivityAt = now();
+    return this.getSnapshot(room.id);
+  }
+
+  getPlayerSessionId(playerId: string): string | undefined {
+    const room = this.findRoomByPlayer(playerId);
+    return room?.sessionByPlayerId.get(playerId);
   }
 
   removePlayerFromRoom(roomId: string, playerId: string): void {
     const room = this.rooms.get(roomId);
     if (!room) return;
     room.players.delete(playerId);
-    if (room.players.size === 0) this.rooms.delete(roomId);
+    room.spectators.delete(playerId);
+    room.sessionByPlayerId.delete(playerId);
+    room.disconnectedAt.delete(playerId);
+    room.positionHistory.delete(playerId);
+    room.lastInputSeq.delete(playerId);
+    if (room.players.size === 0 && room.spectators.size === 0) this.rooms.delete(roomId);
   }
 
   setReady(playerId: string, ready: boolean): MatchSnapshot | undefined {
@@ -174,8 +312,20 @@ export class RoomManager {
     const room = this.findRoomByPlayer(playerId);
     const player = room?.players.get(playerId);
     if (!room || !player || !player.isAlive) return undefined;
+    if (!this.isFiniteVector(input.position) || !this.isFiniteVector(input.rotation)) {
+      this.recordSecurityEvent(room, `Rejected non-finite input from ${player.name}`);
+      return this.getSnapshot(room.id);
+    }
+    const previousSeq = room.lastInputSeq.get(playerId);
+    if (input.seq !== undefined && previousSeq !== undefined && input.seq <= previousSeq) {
+      this.recordSecurityEvent(room, `Rejected stale input from ${player.name}`);
+      return this.getSnapshot(room.id);
+    }
     player.position = cloneVector(input.position);
     player.rotation = cloneVector(input.rotation);
+    const seq = input.seq ?? (room.lastInputSeq.get(playerId) ?? 0) + 1;
+    room.lastInputSeq.set(playerId, seq);
+    this.recordPosition(room, playerId, input.position);
     room.lastActivityAt = now();
     return this.getSnapshot(room.id);
   }
@@ -262,12 +412,20 @@ export class RoomManager {
     if (!room || !shooter) return undefined;
     const currentTime = now();
     this.processRoomTimers(room, currentTime);
+    this.processGrenades(room, currentTime);
+    if (!this.isFiniteVector(request.origin) || !this.isFiniteVector(request.direction)) {
+      this.recordSecurityEvent(room, `Rejected malformed shot from ${shooter.name}`);
+      return this.getSnapshot(room.id);
+    }
+    if (request.weaponId !== shooter.weaponId) {
+      this.recordSecurityEvent(room, `Rejected weapon mismatch from ${shooter.name}`);
+      return this.getSnapshot(room.id);
+    }
     if (
       !shooter.isAlive ||
       room.phase !== 'live' ||
       shooter.ammo <= 0 ||
       shooter.isReloading ||
-      request.weaponId !== shooter.weaponId ||
       (shooter.nextFireAt !== undefined && currentTime < shooter.nextFireAt)
     ) {
       return undefined;
@@ -277,12 +435,19 @@ export class RoomManager {
     shooter.ammo--;
     shooter.nextFireAt = currentTime + Math.round(1000 / weapon.fireRate);
     const direction = normalize(request.direction);
+
+    // Lag compensation: calculate shooter latency from client timestamp
+    const shooterLatency = Math.min(request.clientTime > 0 ? currentTime - request.clientTime : 0, MAX_BACKTRACK_MS);
+    const backtrackTime = currentTime - shooterLatency;
+
     let bestTarget: { player: PlayerSnapshot; region: HitRegion; distance: number } | undefined;
 
     for (const target of room.players.values()) {
       if (target.id === shooter.id || !target.isAlive) continue;
       if (!room.config.friendlyFire && target.team === shooter.team) continue;
-      const hit = this.getPlayerRayHit(request.origin, direction, target, weapon.range);
+      // Use backtracked position for the target
+      const targetPos = this.getBacktrackedPosition(room, target.id, backtrackTime) ?? target.position;
+      const hit = this.getPlayerRayHit(request.origin, direction, targetPos, weapon.range);
       if (!hit) continue;
       if (!bestTarget || hit.distance < bestTarget.distance) bestTarget = { player: target, ...hit };
     }
@@ -327,7 +492,14 @@ export class RoomManager {
     const updates: MatchSnapshot[] = [];
     for (const room of this.rooms.values()) {
       const time = now();
+      // Record position history for lag compensation
+      room.players.forEach(player => {
+        if (player.isAlive) this.recordPosition(room, player.id, player.position);
+      });
       this.processRoomTimers(room, time);
+      this.removeExpiredDisconnectedPlayers(room, time);
+      if (!this.rooms.has(room.id)) continue;
+      this.processGrenades(room, time);
       if (room.phase === 'warmup' && time >= room.roundEndsAt) this.startLivePhase(room);
       if (room.phase === 'buy' && time >= room.roundEndsAt) this.startLivePhase(room);
       if (room.phase === 'roundEnd' && time >= room.roundEndsAt) this.startNextRound(room);
@@ -353,6 +525,7 @@ export class RoomManager {
       mode: room.config.mode,
       mapId: room.config.mapId,
       playerCount: room.players.size,
+      spectatorCount: room.spectators.size,
       maxPlayers: room.config.maxPlayers,
       phase: room.phase
     }));
@@ -363,7 +536,8 @@ export class RoomManager {
     return {
       ...DEFAULT_ROOM_CONFIGS[mode],
       ...(typeof modeOrConfig === 'string' ? {} : modeOrConfig),
-      maxPlayers: maxPlayers ?? (typeof modeOrConfig === 'string' ? DEFAULT_ROOM_CONFIGS[mode].maxPlayers : modeOrConfig.maxPlayers ?? DEFAULT_ROOM_CONFIGS[mode].maxPlayers)
+      maxPlayers: maxPlayers ?? (typeof modeOrConfig === 'string' ? DEFAULT_ROOM_CONFIGS[mode].maxPlayers : modeOrConfig.maxPlayers ?? DEFAULT_ROOM_CONFIGS[mode].maxPlayers),
+      startingMoney: typeof modeOrConfig === 'string' ? DEFAULT_ROOM_CONFIGS[mode].startingMoney : modeOrConfig.startingMoney ?? DEFAULT_ROOM_CONFIGS[mode].startingMoney
     };
   }
 
@@ -382,6 +556,10 @@ export class RoomManager {
 
   private findRoomByPlayer(playerId: string): MatchRoom | undefined {
     return Array.from(this.rooms.values()).find(room => room.players.has(playerId));
+  }
+
+  private findRoomBySpectator(spectatorId: string): MatchRoom | undefined {
+    return Array.from(this.rooms.values()).find(room => room.spectators.has(spectatorId));
   }
 
   private startLivePhase(room: MatchRoom): void {
@@ -411,6 +589,7 @@ export class RoomManager {
       player.reloadCompleteAt = undefined;
       player.respawnAt = undefined;
       player.nextFireAt = undefined;
+      player.disconnected = false;
       if (room.config.mode === 'defusal' && !room.bomb?.carrierId && player.team === 'attackers') room.bomb = { carrierId: player.id };
     });
   }
@@ -422,6 +601,7 @@ export class RoomManager {
     });
     if (room.config.mode === 'tdm') {
       if (room.score.attackers >= room.config.roundLimit || room.score.defenders >= room.config.roundLimit) {
+        room.winner = room.score.attackers >= room.config.roundLimit ? 'attackers' : 'defenders';
         room.phase = 'matchEnd';
       }
       return;
@@ -432,11 +612,11 @@ export class RoomManager {
     else if (now() >= room.roundEndsAt && !room.bomb?.plantedAt) this.endRound(room, 'defenders', 'Time expired');
   }
 
-  private getPlayerRayHit(origin: Vector3, direction: Vector3, target: PlayerSnapshot, range: number): { region: HitRegion; distance: number } | undefined {
+  private getPlayerRayHit(origin: Vector3, direction: Vector3, targetPos: Vector3, range: number): { region: HitRegion; distance: number } | undefined {
     const zones: Array<{ region: HitRegion; center: Vector3; radius: number }> = [
-      { region: 'head', center: target.position, radius: 0.34 },
-      { region: 'body', center: { x: target.position.x, y: target.position.y - 0.58, z: target.position.z }, radius: 0.5 },
-      { region: 'body', center: { x: target.position.x, y: target.position.y - 1.05, z: target.position.z }, radius: 0.46 }
+      { region: 'head', center: targetPos, radius: 0.34 },
+      { region: 'body', center: { x: targetPos.x, y: targetPos.y - 0.58, z: targetPos.z }, radius: 0.5 },
+      { region: 'body', center: { x: targetPos.x, y: targetPos.y - 1.05, z: targetPos.z }, radius: 0.46 }
     ];
     let best: { region: 'head' | 'body'; distance: number } | undefined;
     for (const zone of zones) {
@@ -480,6 +660,7 @@ export class RoomManager {
     const marker = region === 'head' ? ' HEADSHOT' : '';
     room.killFeed.unshift(`${sanitizeFeedPart(shooter.name)} [${sanitizeFeedPart(weapon.name)}]${marker} ${sanitizeFeedPart(target.name)}`);
     room.killFeed = room.killFeed.slice(0, 5);
+    this.recordEvent(room, 'kill', room.killFeed[0], shooter.id);
     return {
       shooterId: shooter.id,
       victimId: target.id,
@@ -518,9 +699,11 @@ export class RoomManager {
 
   private endRound(room: MatchRoom, winner: Team, reason: string): void {
     room.score[winner]++;
+    room.winner = winner;
     room.phase = 'roundEnd';
     room.roundEndsAt = now() + 5000;
     room.killFeed.unshift(reason);
+    this.recordEvent(room, 'objective', reason);
   }
 
   private canUseWeapon(team: Team, weaponId: WeaponId): boolean {
@@ -541,11 +724,168 @@ export class RoomManager {
         ...player,
         ownedWeapons: player.ownedWeapons ? [...player.ownedWeapons] : undefined,
         position: { ...player.position },
-        rotation: { ...player.rotation }
+        rotation: { ...player.rotation },
+        lastProcessedSeq: room.lastInputSeq.get(player.id)
       })),
+      spectatorCount: room.spectators.size,
       bomb: room.bomb ? { ...room.bomb, position: room.bomb.position ? { ...room.bomb.position } : undefined } : undefined,
       killFeed: [...room.killFeed],
-      lastHit: room.lastHit ? { ...room.lastHit, position: room.lastHit.position ? { ...room.lastHit.position } : undefined } : undefined
+      lastHit: room.lastHit ? { ...room.lastHit, position: room.lastHit.position ? { ...room.lastHit.position } : undefined } : undefined,
+      events: [...room.events],
+      securityEvents: [...room.securityEvents],
+      summary: room.phase === 'matchEnd' ? this.buildSummary(room) : undefined
     };
+  }
+
+  private recordEvent(room: MatchRoom, type: MatchEvent['type'], message: string, playerId?: string): void {
+    room.events.unshift({ time: now(), type, message, playerId });
+    room.events = room.events.slice(0, 20);
+  }
+
+  private recordSecurityEvent(room: MatchRoom, message: string): void {
+    room.securityEvents.unshift(message);
+    room.securityEvents = room.securityEvents.slice(0, 10);
+    this.recordEvent(room, 'security', message);
+  }
+
+  private isFiniteVector(value: Vector3): boolean {
+    return Number.isFinite(value.x) && Number.isFinite(value.y) && Number.isFinite(value.z);
+  }
+
+  private buildSummary(room: MatchRoom): MatchSummary {
+    const topPlayer = Array.from(room.players.values()).sort((a, b) => b.kills - a.kills || a.deaths - b.deaths)[0];
+    return {
+      winner: room.winner,
+      topPlayer: topPlayer ? { id: topPlayer.id, name: topPlayer.name, kills: topPlayer.kills, deaths: topPlayer.deaths } : undefined,
+      finalScore: { ...room.score },
+      durationSeconds: Math.max(0, Math.round((now() - room.createdAt) / 1000))
+    };
+  }
+
+  private recordPosition(room: MatchRoom, playerId: string, position: Vector3): void {
+    const history = room.positionHistory.get(playerId) ?? [];
+    history.push({ time: now(), position: cloneVector(position) });
+    // Keep only last MAX_BACKTRACK_MS + 50ms of history (~16 records at 64Hz)
+    const cutoff = now() - MAX_BACKTRACK_MS - 50;
+    while (history.length > 0 && history[0].time < cutoff) history.shift();
+    if (history.length > 64) history.splice(0, history.length - 64);
+    room.positionHistory.set(playerId, history);
+  }
+
+  private removeExpiredDisconnectedPlayers(room: MatchRoom, time: number): void {
+    let removedExpiredPlayer = false;
+    for (const [playerId, disconnectedAt] of room.disconnectedAt.entries()) {
+      if (time - disconnectedAt < RECONNECT_GRACE_MS) continue;
+      room.players.delete(playerId);
+      room.sessionByPlayerId.delete(playerId);
+      room.disconnectedAt.delete(playerId);
+      room.positionHistory.delete(playerId);
+      room.lastInputSeq.delete(playerId);
+      if (room.bomb?.carrierId === playerId) room.bomb = { ...room.bomb, carrierId: undefined };
+      removedExpiredPlayer = true;
+    }
+    if (removedExpiredPlayer && room.players.size === 0 && room.spectators.size === 0) this.rooms.delete(room.id);
+  }
+
+  private moveKey<T>(map: Map<string, T>, oldKey: string, newKey: string): void {
+    const value = map.get(oldKey);
+    map.delete(oldKey);
+    if (value !== undefined) map.set(newKey, value);
+  }
+
+  private getBacktrackedPosition(room: MatchRoom, playerId: string, targetTime: number): Vector3 | null {
+    const history = room.positionHistory.get(playerId);
+    if (!history || history.length === 0) return null;
+    if (targetTime < history[0].time - 10) return null; // Too far back
+    let best = history[0];
+    for (const record of history) {
+      if (record.time <= targetTime) best = record;
+      else break;
+    }
+    return best.position;
+  }
+
+  private processGrenades(room: MatchRoom, time: number): void {
+    for (const grenade of room.activeGrenades) {
+      if (grenade.exploded) continue;
+      const elapsed = (time - grenade.thrownAt) / 1000;
+      const timer = GRENADE_TIMERS[grenade.type];
+      if (elapsed >= timer) {
+        grenade.exploded = true;
+        // Grenade detonation - apply damage to players in range
+        const damageCfg = GRENADE_DAMAGE[grenade.type];
+        if (damageCfg.base <= 0) continue;
+        const gpos = this.simulateGrenadePosition(grenade, time);
+        for (const player of room.players.values()) {
+          if (!player.isAlive || player.id === grenade.throwerId) continue;
+          const dist = distance(player.position, gpos);
+          if (dist > damageCfg.radius) continue;
+          const dmg = Math.round(damageCfg.base * (1 - dist / damageCfg.radius));
+          if (dmg <= 0) continue;
+          player.health = Math.max(0, player.health - dmg);
+          if (player.health <= 0) {
+            player.isAlive = false;
+            player.deaths++;
+            const thrower = room.players.get(grenade.throwerId);
+            if (thrower) thrower.kills++;
+          }
+        }
+        if (grenade.type === 'flashbang') {
+          // Flashbang effect: apply to all players in range (server validated)
+          for (const player of room.players.values()) {
+            if (!player.isAlive || player.id === grenade.throwerId) continue;
+            const dist = distance(player.position, gpos);
+            if (dist < GRENADE_DAMAGE.flashbang.radius) {
+              player.flashIntensity = Math.max(player.flashIntensity ?? 0, 1 - dist / GRENADE_DAMAGE.flashbang.radius);
+            }
+          }
+        }
+      }
+    }
+    room.activeGrenades = room.activeGrenades.filter(g => !g.exploded || (time - g.thrownAt) < 10000);
+  }
+
+  private simulateGrenadePosition(grenade: ActiveGrenade, time: number): { x: number; y: number; z: number } {
+    const elapsed = Math.min((time - grenade.thrownAt) / 1000, GRENADE_TIMERS[grenade.type]);
+    const vel = { ...grenade.velocity };
+    const pos = { ...grenade.origin };
+    const dt = 0.02;
+    let simTime = 0;
+    while (simTime < elapsed) {
+      const step = Math.min(dt, elapsed - simTime);
+      vel.y -= 18 * step;
+      pos.x += vel.x * step;
+      pos.y += vel.y * step;
+      pos.z += vel.z * step;
+      if (pos.y < 0.13) {
+        pos.y = 0.13;
+        vel.y = Math.abs(vel.y) * 0.34;
+        vel.x *= 0.62;
+        vel.z *= 0.62;
+      }
+      simTime += step;
+    }
+    return pos;
+  }
+
+  handleGrenadeThrow(playerId: string, request: GrenadeThrowRequest): MatchSnapshot | undefined {
+    const room = this.findRoomByPlayer(playerId);
+    const player = room?.players.get(playerId);
+    if (!room || !player || !player.isAlive || room.phase !== 'live') return undefined;
+    const inventory = player.grenades ?? {};
+    const count = (inventory as Record<string, number>)[request.type] ?? 0;
+    if (count <= 0) return undefined;
+    player.grenades = { ...inventory, [request.type]: count - 1 };
+    room.activeGrenades.push({
+      id: `gren_${now()}_${Math.random().toString(36).slice(2, 6)}`,
+      type: request.type,
+      throwerId: playerId,
+      origin: cloneVector(request.origin),
+      velocity: cloneVector(request.velocity),
+      thrownAt: now(),
+      exploded: false
+    });
+    room.lastActivityAt = now();
+    return this.getSnapshot(room.id);
   }
 }

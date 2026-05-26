@@ -8,6 +8,9 @@ describe('NetworkManager event handlers', () => {
 
     network.on('roomJoined', data => {
       expectTypeOf(data.playerId).toEqualTypeOf<string>();
+      expectTypeOf(data.sessionId).toEqualTypeOf<string | undefined>();
+      expectTypeOf(data.resumed).toEqualTypeOf<boolean | undefined>();
+      expectTypeOf(data.spectator).toEqualTypeOf<boolean | undefined>();
       expectTypeOf(data.snapshot).toEqualTypeOf<MatchSnapshot | undefined>();
     });
 

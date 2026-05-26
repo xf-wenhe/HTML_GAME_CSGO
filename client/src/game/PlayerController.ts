@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { Physics } from './Physics.js';
+import { NamedBody, Physics } from './Physics.js';
 import { InputManager } from './InputManager.js';
 import { Scene } from './Scene.js';
-import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, accelerate, applyFriction, clampHorizontalSpeed, MovementParams } from './Movement.js';
+import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, accelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle, MovementParams } from './Movement.js';
 import { DamageProfile, HitRegion, calculateDamage } from './Combat.js';
 
 export class PlayerController {
@@ -29,23 +29,26 @@ export class PlayerController {
   private crouched = false;
   private crouchJumpActive = false;
   private lastLandingSpeed = 0;
+  private readonly bodyHalfHeight = 0.88;
+  private readonly maxStepHeight = 0.2;
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = scene.getCamera();
     this.input = input;
     this.physics = physics;
 
-    const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1.0, 0.5));
+    const shape = new CANNON.Box(new CANNON.Vec3(0.5, this.bodyHalfHeight, 0.5));
+    const bodyY = this.resolveBodyYFromEyeY(position.y);
     this.body = new CANNON.Body({
       mass: 70,
       shape: shape,
-      position: new CANNON.Vec3(position.x, position.y - this.eyeHeight, position.z),
+      position: new CANNON.Vec3(position.x, bodyY, position.z),
       fixedRotation: true,
       linearDamping: 0.02
     });
     this.physics.addBody(this.body);
 
-    this.camera.position.set(position.x, position.y, position.z);
+    this.camera.position.set(position.x, bodyY + this.eyeHeight, position.z);
   }
 
   update(dt: number): void {
@@ -131,6 +134,37 @@ export class PlayerController {
 
     this.body.velocity.x = velocity.x;
     this.body.velocity.z = velocity.z;
+    this.tryStepUp(wishDirection, Math.hypot(velocity.x, velocity.z));
+  }
+
+  private tryStepUp(wishDirection: THREE.Vector3, horizontalSpeed: number): void {
+    if (wishDirection.lengthSq() === 0) return;
+
+    const direction = wishDirection.clone().normalize();
+    const groundY = this.body.position.y - this.bodyHalfHeight;
+    const probeDistances = [0.34, 0.5, 0.68];
+
+    for (const probeDistance of probeDistances) {
+      const probeX = this.body.position.x + direction.x * probeDistance;
+      const probeZ = this.body.position.z + direction.z * probeDistance;
+      const from = new CANNON.Vec3(probeX, groundY + this.maxStepHeight + 0.12, probeZ);
+      const to = new CANNON.Vec3(probeX, groundY + 0.01, probeZ);
+      const ray = new CANNON.Ray(from, to);
+      const result = new CANNON.RaycastResult();
+
+      if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: true, result })) continue;
+
+      const obstacleHeight = result.hitPointWorld.y - groundY;
+      const surfaceName = (result.body as NamedBody | undefined)?.userData?.name;
+      if (!canStepUpObstacle({ grounded: this.grounded, obstacleHeight, maxStepHeight: this.maxStepHeight, horizontalSpeed, surfaceName })) continue;
+
+      const targetY = result.hitPointWorld.y + this.bodyHalfHeight + 0.01;
+      if (!this.canStandAt(probeX, targetY, probeZ)) continue;
+
+      this.body.position.y = Math.max(this.body.position.y, targetY);
+      if (this.body.velocity.y < 0) this.body.velocity.y = 0;
+      return;
+    }
   }
 
   private updateCrouchState(dt: number): void {
@@ -146,8 +180,12 @@ export class PlayerController {
   }
 
   private canStand(): boolean {
-    const from = new CANNON.Vec3(this.body.position.x, this.body.position.y + 0.85, this.body.position.z);
-    const to = new CANNON.Vec3(this.body.position.x, this.body.position.y + 1.35, this.body.position.z);
+    return this.canStandAt(this.body.position.x, this.body.position.y, this.body.position.z);
+  }
+
+  private canStandAt(x: number, y: number, z: number): boolean {
+    const from = new CANNON.Vec3(x, y + this.bodyHalfHeight * 0.85, z);
+    const to = new CANNON.Vec3(x, y + this.bodyHalfHeight + this.standingEyeHeight, z);
     const ray = new CANNON.Ray(from, to);
     const result = new CANNON.RaycastResult();
     return !ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: true, result });
@@ -155,10 +193,16 @@ export class PlayerController {
 
   private canJump(): boolean {
     const rayStart = new CANNON.Vec3(this.body.position.x, this.body.position.y, this.body.position.z);
-    const rayEnd = new CANNON.Vec3(this.body.position.x, this.body.position.y - 1.1, this.body.position.z);
+    const rayEnd = new CANNON.Vec3(this.body.position.x, this.body.position.y - this.bodyHalfHeight - 0.1, this.body.position.z);
     const ray = new CANNON.Ray(rayStart, rayEnd);
     const result = new CANNON.RaycastResult();
     return ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: true, result });
+  }
+
+  private resolveBodyYFromEyeY(eyeY: number): number {
+    const defaultStandingEyeY = this.bodyHalfHeight + this.standingEyeHeight;
+    const normalizedEyeY = eyeY <= 1.75 ? defaultStandingEyeY : eyeY;
+    return Math.max(normalizedEyeY - this.eyeHeight, this.bodyHalfHeight);
   }
 
   getPosition(): THREE.Vector3 {
@@ -194,7 +238,7 @@ export class PlayerController {
   }
 
   getCollisionHeight(): number {
-    return this.crouched ? 1.35 : 2;
+    return this.crouched ? 1.35 : this.bodyHalfHeight * 2;
   }
 
   takeDamage(amount: number, region: HitRegion = 'chest', armorPenetration = 0.35): void {
@@ -245,7 +289,7 @@ export class PlayerController {
   }
 
   setPosition(position: THREE.Vector3): void {
-    this.body.position.set(position.x, position.y - this.eyeHeight, position.z);
+    this.body.position.set(position.x, this.resolveBodyYFromEyeY(position.y), position.z);
   }
 
   dispose(): void {

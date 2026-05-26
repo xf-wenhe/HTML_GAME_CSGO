@@ -99,6 +99,11 @@ export interface WeaponSlotState {
   grenadeCount: number;
 }
 
+export interface NetworkHudState {
+  latencyMs?: number | null;
+  inputStatus?: string;
+}
+
 export class HUD {
   private element: HTMLElement;
   private healthValue: HTMLElement;
@@ -117,17 +122,24 @@ export class HUD {
   private scoreCt: HTMLElement;
   private scoreT: HTMLElement;
   private damageOverlay: HTMLElement;
+  private flashOverlay: HTMLElement;
   private resultPanel: HTMLElement;
   private pausePanel: HTMLElement;
   private lockPanel: HTMLElement;
   private scoreboard: HTMLElement;
   private buyMenu: HTMLElement;
   private crosshair: HTMLElement;
+  private scopeOverlay: HTMLElement;
+  private touchControls: HTMLElement;
   private notificationContainer: HTMLElement;
   private weaponSlots: HTMLElement;
   private liveKillFeed: HTMLElement;
   private radarCanvas: HTMLCanvasElement;
   private radarCtx: CanvasRenderingContext2D | null = null;
+  private mapLoadingOverlay: HTMLElement;
+  private mapLoadingName: HTMLElement;
+  private confirmDialog: HTMLElement;
+  private confirmLeaveHandler: (() => void) | null = null;
   private currentHealth = 100;
   private maxHealth = 100;
   private currentAmmo = 0;
@@ -154,17 +166,33 @@ export class HUD {
     this.scoreCt = this.element.querySelector('.score-ct') as HTMLElement;
     this.scoreT = this.element.querySelector('.score-t') as HTMLElement;
     this.damageOverlay = this.element.querySelector('.damage-overlay') as HTMLElement;
+    this.flashOverlay = document.createElement('div');
+    this.flashOverlay.className = 'flash-overlay';
+    this.flashOverlay.style.cssText = 'position:fixed;inset:0;background:white;opacity:0;pointer-events:none;z-index:100;transition:opacity 0.1s;';
+    this.element.appendChild(this.flashOverlay);
     this.resultPanel = this.element.querySelector('.result-panel') as HTMLElement;
     this.pausePanel = this.element.querySelector('.pause-panel') as HTMLElement;
     this.lockPanel = this.element.querySelector('.lock-panel') as HTMLElement;
     this.scoreboard = this.element.querySelector('.scoreboard') as HTMLElement;
     this.buyMenu = this.element.querySelector('.buy-menu') as HTMLElement;
     this.crosshair = this.element.querySelector('.crosshair') as HTMLElement;
+    this.scopeOverlay = this.element.querySelector('.scope-overlay') as HTMLElement;
+    this.touchControls = this.element.querySelector('.touch-controls') as HTMLElement;
     this.notificationContainer = this.element.querySelector('.notifications') as HTMLElement;
     this.weaponSlots = this.element.querySelector('.weapon-slots') as HTMLElement;
     this.liveKillFeed = this.element.querySelector('.kill-feed-live') as HTMLElement;
     this.radarCanvas = this.element.querySelector('.radar-canvas') as HTMLCanvasElement;
     this.radarCtx = this.radarCanvas?.getContext('2d') ?? null;
+    this.mapLoadingOverlay = this.element.querySelector('.map-loading-overlay') as HTMLElement;
+    this.mapLoadingName = this.element.querySelector('.map-loading-name') as HTMLElement;
+    this.confirmDialog = this.element.querySelector('.confirm-dialog') as HTMLElement;
+    this.confirmLeaveHandler = null;
+
+    this.element.querySelector('.confirm-dialog-yes')?.addEventListener('click', () => {
+      this.hideLeaveConfirm();
+      this.confirmLeaveHandler?.();
+    });
+    this.element.querySelector('.confirm-dialog-no')?.addEventListener('click', () => this.hideLeaveConfirm());
   }
 
   private weaponIconSVG(category: WeaponSlotId): string {
@@ -250,9 +278,9 @@ export class HUD {
       <div class="hud-bottom-left">
         <div class="vitals-display" aria-label="生命值与护甲">
           <span class="health-value" aria-label="生命值">100</span>
-          <span class="vitals-icon" aria-hidden="true">♥</span>
+          <span class="vitals-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
           <span class="armor-value" aria-label="护甲">100</span>
-          <span class="vitals-icon armor-icon" aria-hidden="true">⬡</span>
+          <span class="vitals-icon armor-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
         </div>
       </div>
 
@@ -265,7 +293,29 @@ export class HUD {
         </div>
       </div>
 
+      <div class="scope-overlay hidden" aria-hidden="true"></div>
+
       <div class="damage-overlay" aria-hidden="true"></div>
+
+      <div class="touch-controls hidden" aria-hidden="true">
+        <div class="touch-look-zone"></div>
+        <div class="touch-stick-base" aria-label="移动摇杆">
+          <div class="touch-stick-knob"></div>
+        </div>
+        <div class="touch-action-cluster">
+          <button class="touch-btn touch-btn-small" type="button" data-touch-key="Digit1" data-touch-mode="tap" aria-label="主武器">1</button>
+          <button class="touch-btn touch-btn-small" type="button" data-touch-key="Digit2" data-touch-mode="tap" aria-label="手枪">2</button>
+          <button class="touch-btn touch-btn-small" type="button" data-touch-key="Digit3" data-touch-mode="tap" aria-label="刀">3</button>
+          <button class="touch-btn touch-btn-small" type="button" data-touch-key="Digit4" data-touch-mode="tap" aria-label="投掷物">4</button>
+          <button class="touch-btn touch-btn-fire" type="button" data-touch-key="MouseLeft" aria-label="开火">FIRE</button>
+          <button class="touch-btn" type="button" data-touch-key="MouseRight" aria-label="副攻击">ALT</button>
+          <button class="touch-btn" type="button" data-touch-key="Space" data-touch-mode="tap" aria-label="跳跃">JUMP</button>
+          <button class="touch-btn" type="button" data-touch-key="KeyR" data-touch-mode="tap" aria-label="换弹">R</button>
+          <button class="touch-btn" type="button" data-touch-key="KeyE" data-touch-mode="tap" aria-label="互动">E</button>
+          <button class="touch-btn" type="button" data-touch-key="KeyB" data-touch-mode="tap" aria-label="购买">B</button>
+          <button class="touch-btn" type="button" data-touch-key="ControlLeft" aria-label="蹲下">C</button>
+        </div>
+      </div>
 
       <div class="result-panel hidden" role="dialog" aria-label="任务结果"></div>
       <div class="pause-panel hidden" role="dialog" aria-label="已暂停">
@@ -288,7 +338,24 @@ export class HUD {
       <div class="hud-bottom">
         <div class="notifications" aria-live="polite" aria-atomic="true"></div>
       </div>
-    `;
+
+      <div class="map-loading-overlay hidden" aria-label="地图加载中">
+        <div class="map-loading-content">
+          <div class="map-loading-spinner"></div>
+          <div class="map-loading-name"></div>
+        </div>
+      </div>
+
+      <div class="confirm-dialog hidden" aria-label="确认对话框" role="dialog">
+        <div class="confirm-dialog-box">
+          <div class="confirm-dialog-msg">确定要退出当前对局吗？</div>
+          <div class="confirm-dialog-buttons">
+            <button class="confirm-dialog-yes">确定退出</button>
+            <button class="confirm-dialog-no">继续游戏</button>
+          </div>
+        </div>
+      </div>`;
+
     hud.querySelectorAll<HTMLButtonElement>('.buy-menu button').forEach(button => {
       button.addEventListener('click', () => {
         if (button.disabled) return;
@@ -353,6 +420,14 @@ export class HUD {
 
   getElement(): HTMLElement {
     return this.element;
+  }
+
+  getTouchControlsElement(): HTMLElement {
+    return this.touchControls;
+  }
+
+  setTouchControlsVisible(visible: boolean): void {
+    this.touchControls.classList.toggle('hidden', !visible);
   }
 
   updateHealth(health: number, maxHealth: number = 100, armor?: number): void {
@@ -444,8 +519,11 @@ export class HUD {
     `;
   }
 
-  updateMatch(snapshot: MatchSnapshot, localPlayerId?: string): void {
+  updateMatch(snapshot: MatchSnapshot, localPlayerId?: string, networkState: NetworkHudState = {}): void {
     const localPlayer = snapshot.players.find(player => player.id === localPlayerId);
+    const localPing = networkState.latencyMs ?? localPlayer?.ping;
+    const localPingLabel = this.formatLatency(localPing);
+    const inputLabel = networkState.inputStatus ? ` ${networkState.inputStatus}` : '';
 
     this.timerText.textContent = this.formatClock(snapshot.roundTimeRemaining);
     this.roundInfo.textContent = `${snapshot.config.mode === 'tdm' ? 'TDM' : '爆破'} R${snapshot.round}`;
@@ -454,7 +532,7 @@ export class HUD {
 
     this.waveText.textContent = this.phaseLabel(snapshot.phase);
     this.roomText.textContent = `${snapshot.players.length}/${snapshot.config.maxPlayers}`;
-    this.networkText.textContent = localPlayer ? `${localPlayer.ping}ms` : '';
+    this.networkText.textContent = localPlayer ? `${localPingLabel}${inputLabel}` : `--ms${inputLabel}`;
     this.scoreText.textContent = localPlayer ? `$${localPlayer.money}` : '就绪';
 
     if (localPlayer) {
@@ -474,7 +552,7 @@ export class HUD {
           <td>${player.kills}</td>
           <td>${player.deaths}</td>
           <td>$${player.money}</td>
-          <td>${player.ping}</td>
+          <td>${player.id === localPlayerId ? this.formatLatencyValue(localPing) : this.formatLatencyValue(player.ping)}</td>
         </tr>
       `)
       .join('');
@@ -547,7 +625,7 @@ export class HUD {
 
   private createKillFeedRow(message: string, snapshot?: MatchSnapshot): HTMLElement {
     const row = document.createElement('p');
-    row.className = 'kill-feed-row';
+    row.className = 'kill-feed-row kill-feed-entry';
     const parsed = this.parseKillFeedMessage(message, snapshot);
     row.classList.add(`team-${parsed.attackerTeam ?? 'neutral'}`);
 
@@ -573,33 +651,57 @@ export class HUD {
     victim.textContent = parsed.victim;
     row.append(victim);
 
+    // Auto-fade after 4s
+    setTimeout(() => row.classList.add('kill-feed-fading'), 4000);
+
     return row;
   }
 
   private parseKillFeedMessage(message: string, snapshot?: MatchSnapshot): { attacker: string; weapon: string; victim: string; headshot: boolean; attackerTeam?: string } {
-    const headshot = message.includes('爆头');
+    const headshot = message.includes('HEADSHOT') || message.includes('爆头');
+    // Server format: "AttackerName [WeaponName] HEADSHOT VictimName"
+    // or: "AttackerName [WeaponName] VictimName"
+    const bracketOpen = message.indexOf('[');
+    const bracketClose = message.indexOf(']');
+    let attacker = '';
+    let weapon = '';
+    let victim = '';
+
+    if (bracketOpen > 0 && bracketClose > bracketOpen) {
+      attacker = message.slice(0, bracketOpen).trim();
+      weapon = message.slice(bracketOpen + 1, bracketClose).trim();
+      const afterBracket = message.slice(bracketClose + 1).trim();
+      victim = afterBracket.replace(/HEADSHOT|爆头/gi, '').trim();
+    } else {
+      // Fallback: space-delimited format "Attacker Weapon Victim" or "Attacker Weapon HEADSHOT Victim"
+      const clean = message.replace(/HEADSHOT|爆头/gi, '').trim();
+      const parts = clean.split(/\s+/);
+      if (parts.length >= 3) {
+        // Last word is victim, before that find weapon by checking known weapons
+        const knownWeapons = ['Vandal AR', 'Sentinel M4', 'Longbow AWP', 'Specter SMG', 'Bulldog Shotgun', 'S-9 Sidearm', 'Rook Heavy', 'Tactical Knife', 'Glock-18', 'AK-47', 'M4A1-S', 'M4A4', 'AWP', 'MP9', 'MP7', 'Nova', 'Desert Eagle', 'FAMAS', 'Galil AR'];
+        const weaponMatch = knownWeapons.find(w => clean.includes(w));
+        if (weaponMatch) {
+          const wIdx = clean.indexOf(weaponMatch);
+          attacker = clean.slice(0, wIdx).trim();
+          weapon = weaponMatch;
+          victim = clean.slice(wIdx + weaponMatch.length).trim();
+        } else {
+          attacker = parts[0];
+          weapon = parts.slice(1, -1).join(' ');
+          victim = parts[parts.length - 1];
+        }
+      }
+    }
+
     const players = snapshot?.players ?? [];
-    const attacker = players
-      .slice()
-      .sort((a, b) => b.name.length - a.name.length)
-      .find(player => message.startsWith(player.name));
-    const attackerName = attacker?.name ?? message;
-    const afterAttacker = attacker ? message.slice(attacker.name.length).trim() : '';
-    const victim = players
-      .slice()
-      .sort((a, b) => b.name.length - a.name.length)
-      .find(player => player.id !== attacker?.id && afterAttacker.endsWith(player.name));
-    const victimName = victim?.name ?? (attacker ? afterAttacker.replace('爆头', '').trim() : '');
-    const weapon = attacker && victim
-      ? afterAttacker.slice(0, Math.max(0, afterAttacker.length - victim.name.length)).replace('爆头', '').trim()
-      : this.inferWeaponLabel(message);
+    const attackerPlayer = players.find(p => p.name === attacker);
 
     return {
-      attacker: attackerName,
+      attacker: attacker || message,
       weapon: weapon || '击杀',
-      victim: victimName || '',
+      victim: victim || '',
       headshot,
-      attackerTeam: attacker?.team
+      attackerTeam: attackerPlayer?.team
     };
   }
 
@@ -607,10 +709,55 @@ export class HUD {
     this.resumeHandler = handler;
   }
 
+  setCrosshairStyle(style: string, color: string): void {
+    const colorMap: Record<string, string> = {
+      green: 'rgba(0, 230, 0, 0.92)',
+      cyan: 'rgba(0, 200, 220, 0.92)',
+      white: 'rgba(220, 220, 220, 0.92)',
+      yellow: 'rgba(220, 200, 0, 0.92)',
+    };
+    const c = colorMap[color] ?? colorMap.green;
+    this.crosshair.querySelectorAll('.ch-top, .ch-bottom, .ch-left, .ch-right').forEach(el => {
+      (el as HTMLElement).style.backgroundColor = c;
+    });
+    // Toggle dot style
+    this.crosshair.classList.toggle('crosshair-dot', style === 'dot');
+    this.crosshair.classList.toggle('crosshair-t', style === 't-cross');
+    this.crosshair.classList.toggle('crosshair-static', style === 'static');
+  }
+
   showDamage(): void {
     this.damageOverlay.classList.remove('damage-flash');
     void this.damageOverlay.offsetWidth;
     this.damageOverlay.classList.add('damage-flash');
+  }
+
+  showDirectionalDamage(angleRad: number): void {
+    const indicator = document.createElement('div');
+    indicator.className = 'damage-indicator';
+    const size = 120;
+    indicator.style.cssText = `
+      position:fixed; pointer-events:none; z-index:80;
+      width:${size}px; height:${size}px;
+      top:50%; left:50%;
+      transform: translate(-50%, -50%) rotate(${angleRad}rad);
+    `;
+    const arc = document.createElement('div');
+    arc.className = 'damage-arc';
+    arc.style.cssText = `
+      position:absolute; inset:0;
+      border:3px solid transparent;
+      border-top-color: var(--danger);
+      border-radius:50%;
+    `;
+    indicator.appendChild(arc);
+    this.element.appendChild(indicator);
+    setTimeout(() => indicator.remove(), 650);
+  }
+
+  setFlashOverlay(intensity: number): void {
+    this.flashOverlay.style.opacity = String(Math.min(1, intensity));
+    if (intensity < 0.01) this.flashOverlay.style.opacity = '0';
   }
 
   showResults(stats: { wave: number; kills: number; score: number; timeSurvived: number }): void {
@@ -627,6 +774,24 @@ export class HUD {
     `;
   }
 
+  showMatchSummary(snapshot: MatchSnapshot, localPlayerId?: string): void {
+    const summary = snapshot.summary;
+    if (!summary) return;
+    const localPlayer = snapshot.players.find(player => player.id === localPlayerId);
+    const winner = summary.winner === 'defenders' ? 'CT 胜利' : summary.winner === 'attackers' ? 'T 胜利' : '平局';
+    this.resultPanel.classList.remove('hidden');
+    this.resultPanel.innerHTML = `
+      <h2>${winner}</h2>
+      <p>${summary.topPlayer ? `MVP ${this.escapeHtml(summary.topPlayer.name)} · ${summary.topPlayer.kills} 击杀` : '对局结束'}</p>
+      <dl>
+        <div><dt>比分</dt><dd>${summary.finalScore.defenders}:${summary.finalScore.attackers}</dd></div>
+        <div><dt>你的击杀</dt><dd>${localPlayer?.kills ?? 0}</dd></div>
+        <div><dt>时长</dt><dd>${summary.durationSeconds}s</dd></div>
+      </dl>
+      <p class="result-hint">按 ESC 返回主菜单</p>
+    `;
+  }
+
   updateObjective(text: string): void {
     this.waveText.textContent = text;
   }
@@ -637,6 +802,16 @@ export class HUD {
 
   updateNetworkStatus(text: string): void {
     this.networkText.textContent = text;
+  }
+
+  private formatLatency(latencyMs?: number | null): string {
+    const value = this.formatLatencyValue(latencyMs);
+    return value === '--' ? '--ms' : `${value}ms`;
+  }
+
+  private formatLatencyValue(latencyMs?: number | null): string {
+    if (latencyMs === undefined || latencyMs === null || !Number.isFinite(latencyMs)) return '--';
+    return Math.min(999, Math.max(1, Math.round(latencyMs))).toString();
   }
 
   updateGrenade(label: string, count: number): void {
@@ -661,14 +836,48 @@ export class HUD {
 
   private weaponLabel(weaponId: string): string {
     const labels: Record<string, string> = {
-      sidearm: '制式手枪',
-      heavy_pistol: '重型手枪',
-      vandal: '突击步枪',
-      sentinel: '防守步枪',
-      operator: '狙击枪',
-      specter: '冲锋枪',
-      bulldog: '散弹枪',
-      knife: '战术刀'
+      sidearm: 'Glock-18',
+      pistol: 'Glock-18',
+      heavy_pistol: 'Desert Eagle',
+      deagle: 'Desert Eagle',
+      vandal: 'AK-47',
+      rifle: 'AK-47',
+      ak47: 'AK-47',
+      sentinel: 'M4A1-S',
+      m4a1s: 'M4A1-S',
+      defender_rifle: 'M4A4',
+      m4a4: 'M4A4',
+      operator: 'AWP',
+      sniper: 'AWP',
+      awp: 'AWP',
+      specter: 'MP9',
+      smg: 'MP7',
+      mp7: 'MP7',
+      bulldog: 'Nova',
+      shotgun: 'Nova',
+      nova: 'Nova',
+      knife: '战术刀',
+      famas: 'FAMAS',
+      galil: 'Galil AR',
+      sg553: 'SG 553',
+      aug: 'AUG',
+      ssg08: 'SSG 08',
+      scar20: 'SCAR-20',
+      g3sg1: 'G3SG1',
+      mag7: 'MAG-7',
+      xm1014: 'XM1014',
+      m249: 'M249',
+      negev: 'Negev',
+      p250: 'P250',
+      five_seven: 'Five-SeveN',
+      dual_berettas: 'Dual Berettas',
+      tec9: 'Tec-9',
+      cz75: 'CZ75-Auto',
+      mac10: 'MAC-10',
+      mp9: 'MP9',
+      pp_bizon: 'PP-Bizon',
+      ump45: 'UMP-45',
+      p90: 'P90',
     };
     return labels[weaponId] ?? weaponId;
   }
@@ -702,26 +911,21 @@ export class HUD {
   }
 
   showNotification(message: string, duration: number = 1000): void {
-    if (this.notificationTimeout) {
-      clearTimeout(this.notificationTimeout);
-      this.notificationTimeout = null;
-    }
+    // Create a new notification item each time (stacking behavior)
+    const item = document.createElement('div');
+    item.className = 'notification notification-item';
+    item.setAttribute('role', 'alert');
+    item.textContent = message;
+    this.notificationContainer.appendChild(item);
 
-    let notification = this.notificationContainer.querySelector('.notification') as HTMLElement | null;
-    if (!notification) {
-      notification = document.createElement('div');
-      notification.className = 'notification';
-      notification.setAttribute('role', 'alert');
-      this.notificationContainer.appendChild(notification);
-    }
-    notification.textContent = message;
-    notification.style.opacity = '1';
-    notification.style.transform = 'translateY(0)';
+    // Clean up old notifications (keep max 3)
+    const items = this.notificationContainer.querySelectorAll('.notification-item');
+    if (items.length > 3) items[0].remove();
 
-    this.notificationTimeout = window.setTimeout(() => {
-      notification.style.opacity = '0';
-      notification.style.transform = 'translateY(6px)';
-      setTimeout(() => notification.remove(), 250);
+    // Auto-dismiss
+    setTimeout(() => {
+      item.classList.add('notify-out');
+      setTimeout(() => item.remove(), 250);
     }, duration);
   }
 
@@ -729,7 +933,8 @@ export class HUD {
     localPos: { x: number; z: number; rotY: number },
     players: Array<{ x: number; z: number; team: string; isAlive: boolean; isLocal?: boolean }>,
     mapBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
-    bomb?: { x: number; z: number }
+    bomb?: { x: number; z: number },
+    callouts?: Array<{ name: string; position: { x: number; z: number }; radius: number }>
   ): void {
     const ctx = this.radarCtx;
     if (!ctx) return;
@@ -771,6 +976,22 @@ export class HUD {
       ctx.beginPath(); ctx.arc(bx, bz, 5, 0, Math.PI * 2); ctx.fill();
     }
 
+    // Callouts
+    if (callouts) {
+      ctx.font = '7px Rajdhani, sans-serif';
+      ctx.textAlign = 'center';
+      for (const co of callouts) {
+        const [cx, cz] = toRadar(co.position.x, co.position.z);
+        const cr = Math.max(2, (co.radius / (mapBounds.maxX - mapBounds.minX)) * (size - pad * 2));
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.arc(cx, cz, cr, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(200,200,210,0.55)';
+        const label = co.name.length > 7 ? co.name.slice(0, 6) + '.' : co.name;
+        ctx.fillText(label, cx, cz + 2.5);
+      }
+    }
+
     // Other players
     for (const p of players) {
       if (!p.isAlive || p.isLocal) continue;
@@ -804,6 +1025,11 @@ export class HUD {
     if (chRight) chRight.style.left = `${gap}px`;
   }
 
+  setScoped(scoped: boolean): void {
+    this.scopeOverlay.classList.toggle('hidden', !scoped);
+    this.crosshair.classList.toggle('hidden', scoped);
+  }
+
   showHitMarker(): void {
     this.crosshair.classList.add('hit');
     this.announceForScreenReader('命中确认');
@@ -812,8 +1038,28 @@ export class HUD {
     }, 100);
   }
 
+  showMapLoading(mapName: string): void {
+    this.mapLoadingName.textContent = mapName;
+    this.mapLoadingOverlay.classList.remove('hidden');
+  }
+
+  hideMapLoading(): void {
+    this.mapLoadingOverlay.classList.add('hidden');
+  }
+
+  showLeaveConfirm(handler: () => void): void {
+    this.confirmLeaveHandler = handler;
+    this.confirmDialog.classList.remove('hidden');
+  }
+
+  hideLeaveConfirm(): void {
+    this.confirmDialog.classList.add('hidden');
+    this.confirmLeaveHandler = null;
+  }
+
   hide(): void {
     this.element.classList.add('hidden');
+    this.setScoped(false);
     this.toggleBuyMenu(false);
     this.toggleScoreboard(false);
     this.hidePause();
@@ -822,6 +1068,7 @@ export class HUD {
 
   show(): void {
     this.element.classList.remove('hidden');
+    this.setScoped(false);
     this.hideResults();
     this.hidePause();
     this.hidePointerLockGuide();

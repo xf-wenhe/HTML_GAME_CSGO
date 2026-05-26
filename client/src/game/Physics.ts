@@ -1,5 +1,7 @@
 import * as CANNON from 'cannon-es';
 
+export type NamedBody = CANNON.Body & { userData?: { name?: string } };
+
 export class Physics {
   private world: CANNON.World;
   private bodies: CANNON.Body[] = [];
@@ -35,12 +37,17 @@ export class Physics {
     this.bodies.push(body);
   }
 
-  addStaticBox(position: CANNON.Vec3, halfExtents: CANNON.Vec3): CANNON.Body {
+  addStaticBox(position: CANNON.Vec3, halfExtents: CANNON.Vec3, rotation?: { x: number; y: number; z: number }, name?: string): CANNON.Body {
     const body = new CANNON.Body({
       mass: 0,
       shape: new CANNON.Box(halfExtents),
       position
     });
+    if (rotation && (rotation.x !== 0 || rotation.y !== 0 || rotation.z !== 0)) {
+      body.quaternion.setFromEuler(rotation.x, rotation.y, rotation.z);
+    }
+    const namedBody = body as NamedBody;
+    namedBody.userData = { ...(namedBody.userData ?? {}), name };
     this.addBody(body);
     return body;
   }

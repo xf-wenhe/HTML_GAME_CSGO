@@ -12,6 +12,17 @@ export class Scene {
   private arenaObjects: THREE.Object3D[] = [];
   private currentMapId: MapId = 'dust2';
 
+  // 性能优化：视锥剔除
+  private frustum = new THREE.Frustum();
+  private frustumMatrix = new THREE.Matrix4();
+  private frustumCullableObjects: THREE.Object3D[] = [];
+  private previousCameraPosition = new THREE.Vector3();
+  private cameraMovementThreshold = 5; // 相机移动多少单位后更新视锥
+
+  // 性能优化：距离剔除
+  private cullingDistance = 100; // 超过这个距离的对象将被剔除
+  private lodObjects: Map<THREE.Object3D, 'high' | 'low' | 'hidden'> = new Map();
+
   constructor() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x202733);
@@ -157,10 +168,41 @@ export class Scene {
       })
     );
     mesh.position.copy(spec.position);
+    if (spec.rotation) {
+      mesh.rotation.set(spec.rotation.x, spec.rotation.y, spec.rotation.z);
+    }
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = spec.name ?? 'arena-box';
+
+    // 性能优化：标记可剔除的对象
+    // 边界墙、地面、主要结构不应被剔除
+    const shouldCull = !(
+      spec.name?.includes('boundary') ||
+      spec.name?.includes('wall-back') ||
+      spec.name?.includes('wall-outer') ||
+      spec.name?.includes('floor') ||
+      spec.name?.includes('ground') ||
+      spec.name?.includes('platform-base') ||
+      spec.name?.includes('marker') ||
+      spec.name?.includes('lamp')
+    );
+
+    if (shouldCull) {
+      mesh.userData.frustumCullable = true;
+    }
+
     this.addArenaObject(mesh);
+  }
+
+  private addArenaObject(object: THREE.Object3D): void {
+    this.arenaObjects.push(object);
+    this.scene.add(object);
+
+    // 如果对象标记为可剔除，添加到剔除列表
+    if (object.userData.frustumCullable) {
+      this.frustumCullableObjects.push(object);
+    }
   }
 
   private addBombSiteMarker(label: string, position: THREE.Vector3): void {
@@ -188,14 +230,11 @@ export class Scene {
     this.addArenaObject(sprite);
   }
 
-  private addArenaObject(object: THREE.Object3D): void {
-    this.arenaObjects.push(object);
-    this.scene.add(object);
-  }
-
   private clearArenaObjects(): void {
     this.arenaObjects.forEach(object => this.scene.remove(object));
     this.arenaObjects = [];
+    this.frustumCullableObjects = [];
+    this.lodObjects.clear();
   }
 
   getCurrentArena(): ArenaData {
@@ -227,7 +266,50 @@ export class Scene {
   }
 
   render(): void {
+    // 更新视锥剔除
+    this.updateFrustumCulling();
+
+    // 渲染场景
     this.renderer?.render(this.scene, this.camera);
+
+    // 更新相机位置用于下次视锥更新
+    this.previousCameraPosition.copy(this.camera.position);
+  }
+
+  private updateFrustumCulling(): void {
+    // 检查相机是否移动足够多来更新视锥
+    const moved = this.camera.position.distanceTo(this.previousCameraPosition);
+    if (moved < this.cameraMovementThreshold && this.frustumCullableObjects.length > 0) {
+      return;
+    }
+
+    // 更新视锥矩阵
+    this.frustumMatrix.multiplyMatrices(
+      this.camera.projectionMatrix,
+      this.camera.matrixWorldInverse
+    );
+    this.frustum.setFromProjectionMatrix(this.frustumMatrix);
+
+    // 对可剔除的对象进行可见性检查
+    for (const obj of this.frustumCullableObjects) {
+      // 距离剔除
+      const distance = this.camera.position.distanceTo(obj.position);
+      if (distance > this.cullingDistance) {
+        obj.visible = false;
+        this.lodObjects.set(obj, 'hidden');
+        continue;
+      }
+
+      // 视锥剔除
+      const inFrustum = this.frustum.intersectsObject(obj);
+      obj.visible = inFrustum;
+      this.lodObjects.set(obj, inFrustum ? 'high' : 'hidden');
+    }
+  }
+
+  private isObjectFarEnoughForLOD(obj: THREE.Object3D): boolean {
+    const distance = this.camera.position.distanceTo(obj.position);
+    return distance > this.cullingDistance * 0.6; // 超过60%剔除距离使用低LOD
   }
 
   startRenderLoop(): void {

@@ -1,4 +1,5 @@
 import { DEFAULT_HIT_MULTIPLIERS, DamageProfile, HitRegion } from './Combat.js';
+import { RECOIL_PATTERNS } from './RecoilPatterns.js';
 
 export interface WeaponConfig {
   id: string;
@@ -75,7 +76,7 @@ export class Weapon {
     this.hitMultipliers = { ...DEFAULT_HIT_MULTIPLIERS, ...config.hitMultipliers };
     this.adsSpreadMultiplier = config.adsSpreadMultiplier ?? 0.58;
     this.pellets = config.pellets ?? 1;
-    this.recoilPattern = config.recoilPattern ?? [
+    this.recoilPattern = RECOIL_PATTERNS[config.id] ?? config.recoilPattern ?? [
       { x: 0, y: 0.012 },
       { x: 0.006, y: 0.024 },
       { x: -0.008, y: 0.034 },
@@ -103,7 +104,7 @@ export class Weapon {
 
     if (this.ammoConsumed) this.currentAmmo--;
     this.lastShotIndex = Math.min(this.recoilPattern.length - 1, this.lastShotIndex + 1);
-    this.shotPressure = Math.min(1.6, this.shotPressure + 0.16);
+    this.shotPressure = Math.min(1.6, this.shotPressure + (this.recoilPattern.length > 10 ? 0.06 : 0.16));
     this.lastShotTime = now;
     return true;
   }

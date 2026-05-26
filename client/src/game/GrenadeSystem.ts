@@ -55,8 +55,8 @@ export class GrenadeSystem {
     return this.selected;
   }
 
-  throwSelected(camera: THREE.Camera, mode: 'full' | 'light' = 'full'): boolean {
-    if (this.inventory[this.selected] <= 0) return false;
+  throwSelected(camera: THREE.Camera, mode: 'full' | 'light' = 'full'): { success: boolean; origin?: THREE.Vector3; velocity?: THREE.Vector3 } {
+    if (this.inventory[this.selected] <= 0) return { success: false };
     this.inventory[this.selected]--;
 
     const power = mode === 'light' ? 0.45 : 1;
@@ -70,16 +70,17 @@ export class GrenadeSystem {
     mesh.receiveShadow = true;
     this.scene.add(mesh);
 
+    const velocity = direction.clone().multiplyScalar(16 * power).add(new THREE.Vector3(0, mode === 'light' ? 2.2 : 4.8, 0));
     this.active.push({
       id: `grenade_${Math.random().toString(36).slice(2)}`,
       type: this.selected,
       mesh,
-      velocity: direction.multiplyScalar(16 * power).add(new THREE.Vector3(0, mode === 'light' ? 2.2 : 4.8, 0)),
+      velocity: velocity.clone(),
       timer: this.selected === 'flash' ? 1.3 : this.selected === 'smoke' ? 1.6 : 1.8,
       life: 0,
       exploded: false
     });
-    return true;
+    return { success: true, origin: camera.position.clone(), velocity };
   }
 
   update(dt: number, playerPosition: THREE.Vector3): { damage: number; flash: number } {

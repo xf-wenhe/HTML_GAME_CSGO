@@ -12,8 +12,9 @@ describe('InputManager mouse look normalization', () => {
     expect(detectMousePlatform('X11; Linux x86_64', 'Linux x86_64')).toBe('linux');
   });
 
-  it('uses a lower default Windows scale than macOS', () => {
+  it('uses low-latency Windows defaults without smoothing', () => {
     expect(defaultMouseLookSettings('windows').platformScale).toBeLessThan(defaultMouseLookSettings('macos').platformScale);
+    expect(defaultMouseLookSettings('windows').smoothing).toBe(0);
   });
 
   it('normalizes raw mouse movement with scale and frame clamping', () => {
@@ -62,6 +63,15 @@ describe('InputManager mouse look normalization', () => {
 
     expect(requestPointerLock).toHaveBeenCalledTimes(2);
     expect(input.getPointerLockInfo()).toMatchObject({ locked: true, denied: false, rawMouseInput: false });
+  });
+
+  it('consumes virtual action keys once', () => {
+    const input = new InputManager(undefined, 'windows');
+
+    input.setKeyPressed('KeyR', true);
+
+    expect(input.consumeKeyPress('KeyR')).toBe(true);
+    expect(input.consumeKeyPress('KeyR')).toBe(false);
   });
 });
 
