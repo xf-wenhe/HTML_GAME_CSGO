@@ -194,7 +194,10 @@ export class HUD {
       this.hideLeaveConfirm();
       handler?.();
     });
-    this.element.querySelector('.confirm-dialog-no')?.addEventListener('click', () => this.hideLeaveConfirm());
+    this.element.querySelector('.confirm-dialog-no')?.addEventListener('click', () => {
+      this.hideLeaveConfirm();
+      this.resumeHandler?.();
+    });
   }
 
   private weaponIconSVG(category: WeaponSlotId): string {
@@ -347,7 +350,7 @@ export class HUD {
           <button class="touch-btn" type="button" data-touch-key="MouseRight" aria-label="副攻击">ALT</button>
           <button class="touch-btn" type="button" data-touch-key="Space" data-touch-mode="tap" aria-label="跳跃">JUMP</button>
           <button class="touch-btn" type="button" data-touch-key="KeyR" data-touch-mode="tap" aria-label="换弹">R</button>
-          <button class="touch-btn" type="button" data-touch-key="KeyE" data-touch-mode="tap" aria-label="互动">E</button>
+          <button class="touch-btn" type="button" data-touch-key="KeyG" data-touch-mode="tap" aria-label="互动">G</button>
           <button class="touch-btn" type="button" data-touch-key="KeyB" data-touch-mode="tap" aria-label="购买">B</button>
           <button class="touch-btn" type="button" data-touch-key="ControlLeft" aria-label="蹲下">C</button>
         </div>

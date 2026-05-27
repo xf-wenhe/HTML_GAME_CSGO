@@ -82,11 +82,13 @@ export class Enemy {
     scene.add(this.mesh);
     void this.loadModel();
 
-    const shape = new CANNON.Box(new CANNON.Vec3(0.16, 0.36, 0.16));
+    // 将碰撞盒尺寸改为 1.6米高 (0.8是半高)
+    const shape = new CANNON.Box(new CANNON.Vec3(0.25, 0.8, 0.25));
     this.body = new CANNON.Body({
       mass: 50,
       shape: shape,
-      position: new CANNON.Vec3(config.position.x, config.position.y, config.position.z),
+      // 保证生成时，脚底踩在地面，而不是整个身子卡在地下
+      position: new CANNON.Vec3(config.position.x, config.position.y + 0.8, config.position.z),
       fixedRotation: true
     });
     physics.addBody(this.body);
@@ -137,7 +139,8 @@ export class Enemy {
   update(dt: number, playerPosition: THREE.Vector3, now: number, lineOfSightColliders: BoxSpec[] = []): number {
     if (this.state === 'dead') return 0;
 
-    this.mesh.position.set(this.body.position.x, this.body.position.y - 1, this.body.position.z);
+    // 将模型锚点完美对齐到物理盒子的底部（减去 0.8 的半高）
+    this.mesh.position.set(this.body.position.x, this.body.position.y - 0.8, this.body.position.z);
     this.healthBar.lookAt(playerPosition);
     this.animate(dt);
     this.hitStunRemaining = Math.max(0, this.hitStunRemaining - dt);
@@ -292,13 +295,13 @@ export class Enemy {
 
     const base = this.mesh.position;
     const zones: Array<{ region: HitRegion; center: THREE.Vector3; radius: number }> = [
-      { region: 'head', center: base.clone().add(new THREE.Vector3(0, 0.76, 0)), radius: 0.12 },
-      { region: 'chest', center: base.clone().add(new THREE.Vector3(0, 0.53, 0)), radius: 0.17 },
-      { region: 'stomach', center: base.clone().add(new THREE.Vector3(0, 0.37, 0)), radius: 0.16 },
-      { region: 'arm', center: base.clone().add(new THREE.Vector3(-0.19, 0.45, 0)), radius: 0.07 },
-      { region: 'arm', center: base.clone().add(new THREE.Vector3(0.19, 0.45, 0)), radius: 0.07 },
-      { region: 'leg', center: base.clone().add(new THREE.Vector3(-0.07, 0.16, 0)), radius: 0.09 },
-      { region: 'leg', center: base.clone().add(new THREE.Vector3(0.07, 0.16, 0)), radius: 0.09 }
+      { region: 'head', center: base.clone().add(new THREE.Vector3(0, 1.45, 0)), radius: 0.15 },
+      { region: 'chest', center: base.clone().add(new THREE.Vector3(0, 1.15, 0)), radius: 0.25 },
+      { region: 'stomach', center: base.clone().add(new THREE.Vector3(0, 0.85, 0)), radius: 0.22 },
+      { region: 'arm', center: base.clone().add(new THREE.Vector3(-0.35, 1.0, 0)), radius: 0.12 },
+      { region: 'arm', center: base.clone().add(new THREE.Vector3(0.35, 1.0, 0)), radius: 0.12 },
+      { region: 'leg', center: base.clone().add(new THREE.Vector3(-0.15, 0.4, 0)), radius: 0.15 },
+      { region: 'leg', center: base.clone().add(new THREE.Vector3(0.15, 0.4, 0)), radius: 0.15 }
     ];
 
     let best: { distance: number; region: HitRegion; point: THREE.Vector3 } | null = null;
@@ -318,7 +321,7 @@ export class Enemy {
       new THREE.SphereGeometry(region === 'head' ? 0.12 : 0.08, 10, 8),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.82 })
     );
-    marker.position.set(0, region === 'head' ? 2.18 : region === 'leg' ? 0.5 : 1.35, -0.34);
+    marker.position.set(0, region === 'head' ? 1.65 : region === 'leg' ? 0.45 : 1.3, -0.34);
     marker.userData.life = 0;
     marker.name = 'hit-flash';
     this.mesh.add(marker);
@@ -388,25 +391,25 @@ export class Enemy {
       if (this.state === 'dead' || !loaded) return;
 
       const oldModel = this.mesh.children[0];
-      this.normalizeHumanoidModel(loaded, 1.8);
 
-      // 强制修复某些模型材质全黑或透明的 BUG
-      loaded.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          if (child.material) {
-            child.material.depthWrite = true;
-            child.material.needsUpdate = true;
-          }
-        }
-      });
+      // 【重点】自动测量模型体积，强制将其缩放至 1.8 米高
+      const box = new THREE.Box3().setFromObject(loaded);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+
+      if (size.y > 0.001) {
+        const scale = 1.6 / size.y;
+        loaded.scale.set(scale, scale, scale);
+        // 修正锚点，让脚底板平齐
+        box.setFromObject(loaded);
+        loaded.position.y = -box.min.y;
+      }
 
       this.mesh.remove(oldModel);
       this.assetSource = loaded.userData.assetSource === 'glb' ? 'glb' : 'fallback';
       this.mesh.add(loaded);
-    } catch (error) {
-      console.warn("GLB 模型加载失败，继续使用默认方块人", error);
+    } catch (e) {
+      console.warn("加载模型失败", e);
     }
   }
 }

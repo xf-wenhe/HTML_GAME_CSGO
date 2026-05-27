@@ -565,7 +565,7 @@ document.addEventListener('keydown', (e) => {
       hud.toggleScoreboard(true);
     }
   }
-  if (e.key === 'e' || e.key === 'E') {
+  if (e.key === 'g' || e.key === 'G') {
     if (nearbyDrop) {
       equipPickedWeapon(droppedWeapons.pickup(nearbyDrop));
       nearbyDrop = null;
@@ -686,7 +686,7 @@ function gameLoop(now: number) {
   updateAimFov(dt);
   nearbyDrop = player ? droppedWeapons.update(playerPos) : null;
   if (nearbyDrop) {
-    hud.showNotification(`按 E 拾取 ${weaponDisplayName(nearbyDrop.weaponId)}`, 450);
+    hud.showNotification(`按 G 拾取 ${weaponDisplayName(nearbyDrop.weaponId)}`, 450);
   }
   const enemyDamage = enemyManager.update(dt, playerPos, now);
   if (enemyDamage > 0 && player) {
@@ -912,7 +912,7 @@ function handleVirtualActions(): void {
     if (inputMode === 'buyMenu') closeBuyMenu(false);
     else openBuyMenu();
   }
-  if (input.consumeKeyPress('KeyE') && inputMode === 'playing') {
+  if (input.consumeKeyPress('KeyG') && inputMode === 'playing') {
     if (nearbyDrop) {
       equipPickedWeapon(droppedWeapons.pickup(nearbyDrop));
       nearbyDrop = null;

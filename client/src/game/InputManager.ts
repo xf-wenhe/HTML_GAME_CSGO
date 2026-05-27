@@ -220,7 +220,7 @@ export class InputManager {
     this.keys.delete('MouseRight');
     this.keys.delete('Space');
     this.keys.delete('KeyR');
-    this.keys.delete('KeyE');
+    this.keys.delete('KeyG');
     this.keys.delete('KeyB');
     this.keys.delete('Digit1');
     this.keys.delete('Digit2');

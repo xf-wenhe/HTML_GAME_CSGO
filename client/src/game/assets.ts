@@ -54,6 +54,8 @@ function tuneMaterials(object: THREE.Object3D, definition: AssetDefinition): THR
         material.metalness = Math.min(0.85, Math.max(material.metalness, 0.35));
         material.roughness = Math.min(0.72, Math.max(material.roughness, 0.28));
         material.envMapIntensity = 1.25;
+        material.emissive = new THREE.Color(0x2a2f35);
+        material.emissiveIntensity = 0.15;
       } else if (definition.kind === 'enemy') {
         material.color.lerp(new THREE.Color(0xd7dde5), 0.08);
         material.roughness = Math.min(0.78, Math.max(material.roughness, 0.42));

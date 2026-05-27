@@ -126,7 +126,8 @@ export class Weapon {
         this.isReloading = false;
       }
     }
-    if (!this.isReloading && this.lastShotTime > 0 && (now - this.lastShotTime) / 1000 >= this.standRecovery) {
+    const timeSinceLastShot = (now - this.lastShotTime) / 1000;
+    if (!this.isReloading && this.lastShotTime > 0 && timeSinceLastShot >= 0.4) {
       this.shotPressure = 0;
       this.lastShotIndex = -1;
     }
@@ -147,8 +148,8 @@ export class Weapon {
   }
 
   getRecoilOffset(): { x: number; y: number } {
-    if (this.lastShotIndex < 0 || this.isMelee) return { x: 0, y: 0 };
-    return this.recoilPattern[Math.min(this.lastShotIndex, this.recoilPattern.length - 1)];
+    if (this.lastShotIndex <= 0 || this.isMelee) return { x: 0, y: 0 };
+    return this.recoilPattern[Math.min(this.lastShotIndex - 1, this.recoilPattern.length - 1)];
   }
 
   getDamageProfile(): DamageProfile {
