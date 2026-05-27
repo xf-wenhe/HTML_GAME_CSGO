@@ -1,0 +1,40 @@
+<h2>P1 地图纹理 - 实现方案选择</h2>
+<p class="subtitle">8张地图目前全用程序生成的纯色材质，视觉上毫无辨识度</p>
+
+<div class="section">
+  <div class="options">
+    <div class="option" data-choice="procedural-canvas" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Canvas 程序化纹理生成（推荐）</h3>
+        <p>基于现有的 <code>ProceduralTextures.ts</code> 框架，用 Canvas 2D 生成砖墙、混凝土、沙地、金属、木头等 tileable 纹理（256x256 或 512x512）。每种材质生成 2-3 个变体避免重复感。用地砖线、裂缝、噪点增加可信度。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>零外部依赖，零文件体积</li><li>完全可控（颜色、磨损度、对比度）</li><li>无缝平铺，无拉伸问题</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>达不到照片级写实</li><li>开发工作量大（约15-20种纹理）</li><li>风格偏向"风格化"而非写实</li></ul></div>
+        </div>
+      </div>
+    </div>
+    <div class="option" data-choice="free-textures" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>免版税纹理素材</h3>
+        <p>从 ambientCG / Poly Haven / OpenGameArt 下载真实 PBR 纹理（含颜色/法线/粗糙度贴图）。每种材质 ~1-2MB，总计 15-30MB。texture 目录已有 .gitkeep 空目录。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>照片级真实感（PBR 完整管线）</li><li>即下即用，无需调参</li><li>法线贴图增加立体感</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>文件量大（15-30MB）</li><li>不同来源风格不统一</li><li>需要筛选匹配的素材</li></ul></div>
+        </div>
+      </div>
+    </div>
+    <div class="option" data-choice="mixed-textures" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>混合方案</h3>
+        <p>高频材质（混凝土/沙地 — 占地图80%面积）用免版税 PBR 贴图保证品质。低频材质（木头/金属/玻璃）用 Canvas 程序生成。约 5-8 个下载素材，总量控制在 6-12MB。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>重要材质品质高</li><li>文件量可控</li><li>两种方案互补</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>两种纹理系统并存</li><li>仍需一定筛选工作</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,40 @@
+<h2>P0 音效 - 实现方案选择</h2>
+<p class="subtitle">音效是"手感"的核心。三种可行方案：</p>
+
+<div class="section">
+  <div class="options">
+    <div class="option" data-choice="synthesis" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Web Audio 合成增强</h3>
+        <p>基于现有 AudioFeedback.ts 框架，用高质量合成算法替代简单蜂鸣：多层振荡器 + 噪声发生器 + 包络控制，模拟真实枪声的"砰"感。无需额外文件，体积为零，但上限受限于合成算法复杂度。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>零依赖，零文件体积</li><li>可动态调参（距离衰减 / 室内混响）</li><li>代码即音效，无版权问题</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>永远达不到录音级别</li><li>开发调参工作量大</li><li>缺少枪声的金属撞击感</li></ul></div>
+        </div>
+      </div>
+    </div>
+    <div class="option" data-choice="free-sounds" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>免版税音效库</h3>
+        <p>从 Freesound.org / Mixkit / OpenGameArt 等开源音效库精选高品质枪声、脚步、弹壳落地声。约 30-50 个文件，总计 3-8 MB。脚步声可按材质分类（混凝土/沙地/金属/木头）。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>接近真实录音质量</li><li>材质脚步声可实现</li><li>文件小，加载快</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>需要筛选匹配素材</li><li>不同来源音质不一</li><li>可能找不到完全匹配的枪型</li></ul></div>
+        </div>
+      </div>
+    </div>
+    <div class="option" data-choice="procedural-audio" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>混合方案（推荐）</h3>
+        <p>核心高频音效（枪声/爆头/换弹）用免版税素材确保品质。低频氛围音（脚步/环境/弹壳）用 Web Audio 合成减少体积。约 15-20 个音频文件，总计 2-4 MB，按武器类型共享基础音色+参数变调区分每把枪。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>关键音效品质有保障</li><li>文件少，管理简单</li><li>Web Audio 合成提供动态性</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>两种系统并存，实现稍复杂</li><li>仍需筛选部分素材</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

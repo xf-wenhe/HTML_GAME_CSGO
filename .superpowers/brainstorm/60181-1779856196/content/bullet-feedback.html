@@ -1,0 +1,61 @@
+<h2>P1 弹孔贴花 + 子弹追踪线</h2>
+<p class="subtitle">开枪瞬间的视觉反馈——"我打到了哪里？子弹飞向何处？"</p>
+
+<div class="section">
+  <h3>弹孔贴花（Impact Decals）</h3>
+</div>
+<div class="options">
+  <div class="option" data-choice="decal-sprite" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Sprite 贴花（推荐）</h3>
+      <p>用 Canvas 预生成弹孔纹理（带 alpha 的黑色圆形+裂纹），贴到命中点表面的 Sprite 上。略微偏移避免 z-fighting。每种材质用不同纹理（混凝土=灰白坑+裂纹，金属=深色刮痕+火花痕，木头=浅色碎屑+凹陷）。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>性能好（Sprite 批处理简单）</li><li>可以 Canvas 动态生成不同变体</li><li>材质差异清晰可辨</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>贴到曲面/斜面会变形</li><li>需管理数量（限制在50-80个，旧的淡出移除）</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="decal-mesh" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>DecalGeometry 网格贴花</h3>
+      <p>Three.js DecalGeometry——在命中的 geometry 表面"投影"一个平面网格，完美贴合任何表面形状。每个贴花是一个独立的小 Mesh。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>完美贴合曲面/斜面</li><li>Three.js 官方支持</li><li>可以继承表面法线/光照</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>性能开销大（每个贴花都是独立 mesh）</li><li>大量贴花时需要 GPU instancing</li><li>碰撞体不是真实 mesh geometry</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  <h3>子弹追踪线（Tracer Lines）</h3>
+</div>
+<div class="options">
+  <div class="option" data-choice="tracer-line" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>细线 + 渐变透明度（推荐）</h3>
+      <p>每 3 发子弹产生一条追踪线，从枪口到命中点。使用细圆柱体或 Line geometry，白色/黄色核心+半透明边缘，持续 80-120ms 后淡出。类似 CS:GO 的曳光弹效果。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>实现简单，性能极轻</li><li>清晰显示子弹轨迹</li><li>每 3 发一次，视觉不杂乱</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>静态线条，无"飞行"动画</li><li>需控制同时存在的追踪线数量</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="tracer-particle" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>粒子拖尾系统</h3>
+      <p>从枪口发射一串小粒子（5-8个），沿弹道快速飞行，每个粒子有发光效果和拖尾。实现真正的"子弹飞行"视觉效果。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>动态飞行感，视觉效果震撼</li><li>粒子可响应光照</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>实现复杂（粒子池管理）</li><li>大量子弹时性能压力</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="subtitle">每个问题选一个方案。A+C 是性能和效果最均衡的组合。</p>
+</div>

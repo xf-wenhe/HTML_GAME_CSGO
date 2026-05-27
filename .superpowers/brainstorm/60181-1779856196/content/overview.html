@@ -1,0 +1,108 @@
+<h2>CS:GO 视觉/音效反馈优化 - 问题全景</h2>
+<p class="subtitle">基于代码审查的完整差距分析（P0 → P3）</p>
+
+<div class="section">
+  <h3>现状与差距总览</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">当前状态</div>
+      <div class="mockup-body">
+        <table style="width:100%;font-size:13px;line-height:1.6">
+          <tr><td style="color:var(--danger)">&#x2716;</td><td>音效：全部合成蜂鸣（90Hz方波 = 枪声）</td></tr>
+          <tr><td style="color:var(--danger)">&#x2716;</td><td>武器模型：程序几何体（preferFallback=true）</td></tr>
+          <tr><td style="color:var(--danger)">&#x2716;</td><td>弹孔贴花：无（打墙无任何反馈）</td></tr>
+          <tr><td style="color:var(--danger)">&#x2716;</td><td>子弹追踪线：无（看不到弹道轨迹）</td></tr>
+          <tr><td style="color:var(--danger)">&#x2716;</td><td>地图纹理：全部程序生成（灰色盒子）</td></tr>
+          <tr><td style="color:var(--danger)">&#x2716;</td><td>弹壳抛出：无物理模拟</td></tr>
+          <tr><td style="color:var(--danger)">&#x2716;</td><td>屏幕震动：无（爆炸/落地无感觉）</td></tr>
+          <tr><td style="color:var(--danger)">&#x2716;</td><td>AWP瞄准镜：静态覆盖（无畸变/色差）</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">CS:GO 标准</div>
+      <div class="mockup-body">
+        <table style="width:100%;font-size:13px;line-height:1.6">
+          <tr><td style="color:var(--accent)">&#x2714;</td><td>每把枪独特音色（距离衰减+混响）</td></tr>
+          <tr><td style="color:var(--accent)">&#x2714;</td><td>精细建模 + 动画 + 材质</td></tr>
+          <tr><td style="color:var(--accent)">&#x2714;</td><td>材质感知弹孔（混凝土/金属/木头不同）</td></tr>
+          <tr><td style="color:var(--accent)">&#x2714;</td><td>曳光弹（每3-5发一发示踪）</td></tr>
+          <tr><td style="color:var(--accent)">&#x2714;</td><td>材质贴图（砖墙/沙地/金属反光）</td></tr>
+          <tr><td style="color:var(--accent)">&#x2714;</td><td>弹壳物理 + 碰撞音效</td></tr>
+          <tr><td style="color:var(--accent)">&#x2714;</td><td>爆炸震屏 + 镜头抖动</td></tr>
+          <tr><td style="color:var(--accent)">&#x2714;</td><td>镜片畸变 + 色差 + 双渲染</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>优化优先级（8项 P0→P3）</h3>
+  <table style="width:100%;font-size:14px;line-height:1.8">
+    <tr style="background:rgba(255,77,77,0.15)">
+      <td style="padding:8px"><strong>P0</strong></td>
+      <td>&#x1F50A; 真实音效文件（枪声/脚步/爆头声）</td>
+      <td style="color:var(--danger);font-weight:bold">核心体验</td>
+    </tr>
+    <tr style="background:rgba(255,77,77,0.15)">
+      <td style="padding:8px"><strong>P0</strong></td>
+      <td>&#x1F52B; 启用GLB武器模型（关掉preferFallback）</td>
+      <td style="color:var(--danger);font-weight:bold">视觉可信度</td>
+    </tr>
+    <tr style="background:rgba(255,209,102,0.15)">
+      <td style="padding:8px"><strong>P1</strong></td>
+      <td>&#x1F4CD; 子弹弹孔贴花 + &#x1F4A8; 子弹追踪线</td>
+      <td style="color:var(--warning);font-weight:bold">射击反馈感</td>
+    </tr>
+    <tr style="background:rgba(255,209,102,0.15)">
+      <td style="padding:8px"><strong>P1</strong></td>
+      <td>&#x1F5FA; 地图纹理贴图（混凝土/沙地/金属/木头）</td>
+      <td style="color:var(--warning);font-weight:bold">地图辨识度</td>
+    </tr>
+    <tr style="background:rgba(100,149,237,0.15)">
+      <td style="padding:8px"><strong>P2</strong></td>
+      <td>&#x1F4E6; 弹壳抛出物理效果</td>
+      <td style="color:var(--info)">细节打磨</td>
+    </tr>
+    <tr style="background:rgba(100,149,237,0.15)">
+      <td style="padding:8px"><strong>P2</strong></td>
+      <td>&#x1F4�; 爆炸/落地屏幕震动</td>
+      <td style="color:var(--info)">沉浸感</td>
+    </tr>
+    <tr style="background:rgba(100,149,237,0.15)">
+      <td style="padding:8px"><strong>P3</strong></td>
+      <td>&#x1F52D; AWP瞄准镜畸变 + 色差</td>
+      <td style="color:var(--info)">完整度</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>实现策略选择</h3>
+  <p>总共8个优化项，涉及音效、建模、纹理、粒子、后处理等多个领域。请选择整体推进方式：</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="all" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>全量串行修复</h3>
+      <p>按 P0→P1→P2→P3 逐个实现，每个做完再做下一个，质量最高但耗时长</p>
+    </div>
+  </div>
+  <div class="option" data-choice="batch" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>按优先级分批并行</h3>
+      <p>P0 先做（音效+武器模型），验证后做 P1，再 P2+P3 收尾，平衡速度和质量</p>
+    </div>
+  </div>
+  <div class="option" data-choice="lean" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>精益方案（只做核心）</h3>
+      <p>仅做 P0+P1（音效、模型、弹孔、追踪线、地图纹理），跳过 P2/P3 细节打磨</p>
+    </div>
+  </div>
+</div>

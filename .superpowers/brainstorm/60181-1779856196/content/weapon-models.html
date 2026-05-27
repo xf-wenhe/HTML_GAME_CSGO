@@ -1,0 +1,40 @@
+<h2>P0 武器模型 — 启用 GLB 文件</h2>
+<p class="subtitle">8个GLB文件已就位（17-138KB），<code>preferFallback: true</code> 强制禁用了它们</p>
+
+<div class="section">
+  <h3>当前状态</h3>
+  <table style="width:100%;font-size:14px;line-height:1.8">
+    <tr><td>pistol.glb</td><td>59KB</td><td>→ 手枪类（Glock/USP/P250等）</td></tr>
+    <tr><td>heavy_pistol.glb</td><td>78KB</td><td>→ 重手枪（Deagle/R8）</td></tr>
+    <tr><td>smg.glb</td><td>81KB</td><td>→ 冲锋枪（MP9/MAC-10/MP7等）</td></tr>
+    <tr><td>shotgun.glb</td><td>43KB</td><td>→ 霰弹枪（Nova/XM1014）</td></tr>
+    <tr><td>rifle.glb</td><td>72KB</td><td>→ 步枪（AK47/M4A4/FAMAS等）</td></tr>
+    <tr><td>defender_rifle.glb</td><td>138KB</td><td>→ 防守步枪（M4A1-S/AUG）</td></tr>
+    <tr><td>sniper.glb</td><td>93KB</td><td>→ 狙击枪（AWP/SSG08）</td></tr>
+    <tr><td>knife.glb</td><td>17KB</td><td>→ 近战武器</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>执行方案</h3>
+  <p>直接把 8 个定义中的 <code>preferFallback: true</code> 改为 <code>false</code>，GLTFLoader 会异步加载 GLB。加载失败时现有 fallback 逻辑不受影响。</p>
+
+  <p style="margin-top:16px">额外需要确认的事情：</p>
+  <div class="options">
+    <div class="option" data-choice="scale-check" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>调整模型缩放/位置</h3>
+        <p>GLB 模型替换后在第一人称视角下可能需要微调 scale/position/rotation 参数，让武器在屏幕上看起来比例正确</p>
+      </div>
+    </div>
+    <div class="option" data-choice="material-tune" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>材质调优</h3>
+        <p><code>tuneMaterials()</code> 已经做了 metalness/roughness 调整，但真实 GLB 材质可能需要额外微调，尤其是金属反光和粗糙度</p>
+      </div>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:12px">这两项都会做，只是想确认你是否关注这些细节。</p>
+</div>

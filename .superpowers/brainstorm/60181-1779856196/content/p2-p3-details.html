@@ -1,0 +1,57 @@
+<h2>P2/P3 - 弹壳抛出 + 屏幕震动 + AWP瞄准镜</h2>
+<p class="subtitle">细节打磨项目，实现复杂度递减</p>
+
+<div class="section">
+  <h3>P2 - 弹壳抛出（Shell Casings）</h3>
+  <div class="options">
+    <div class="option" data-choice="shell-physics" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>简易物理 + 自动回收（推荐）</h3>
+        <p>开枪时从抛壳口生成弹壳 mesh（小圆柱体），给随机初速度（向右上抛出+旋转），受重力下落，碰到地面/墙面弹跳一次，3-5秒后自动移除。最多同时存在 20 个弹壳，超出移除最旧的。不同武器类型用不同弹壳颜色（步枪=铜色，手枪=金色，霰弹=红色）。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>简单物理（position += velocity*dt, velocity.y -= gravity*dt）</li><li>无需 cannon-es 参与</li><li>批量管理，性能可控</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>不与场景碰撞体交互（简化地面检测）</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>P2 - 屏幕震动（Screen Shake）</h3>
+  <div class="options">
+    <div class="option" data-choice="shake-camera" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>相机偏移衰减（推荐）</h3>
+        <p>爆炸/受重伤时给相机叠加随机偏移（x/y 轴正弦波衰减），持续 200-500ms。两个触发源：受到伤害（轻微，强度 α 伤害值），爆炸/闪光弹（强震，带余震衰减）。偏移量用 Perlin 式随机保证自然感。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>实现简单（修改 camera.position 偏移）</li><li>参数化控制（强度/频率/衰减速率）</li><li>不影响物理系统</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>过度使用会晕（需限制强度）</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>P3 - AWP 瞄准镜畸变</h3>
+  <div class="options">
+    <div class="option" data-choice="scope-post" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>后处理色差 + 镜头畸变（推荐）</h3>
+        <p>开镜时在 scope 遮罩边缘叠加径向模糊 + RGB 通道分离（chromatic aberration）。用 Three.js ShaderPass 或直接写 fragment shader 叠加到 scope overlay 上。再加一圈暗角 vignette 增强"透过镜片看"的感觉。非真实光学模拟，但视觉到位。</p>
+        <div class="pros-cons">
+          <div class="pros"><h4>Pros</h4><ul><li>视觉效果明显，提升沉浸感</li><li>Shader 实现高效</li><li>只影响 scope 区域，不清洗全屏</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul><li>需要写自定义 shader</li><li>色差过强会影响瞄准精度感</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="subtitle">这三个都是各自领域的推荐方案，点击确认即可。或者你有额外想法？</p>
+</div>
