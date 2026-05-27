@@ -5,6 +5,13 @@ import { ASSETS, loadAsset } from './assets.js';
 import { HitRegion, closestPointDistanceToRay } from './Combat.js';
 import type { BoxSpec } from './MapData.js';
 
+function markRaycastIgnore(root: THREE.Object3D): void {
+  root.userData.raycastIgnore = true;
+  root.traverse(child => {
+    child.userData.raycastIgnore = true;
+  });
+}
+
 export type EnemyType = 'patrol' | 'shooter' | 'assault';
 export type EnemyState = 'idle' | 'patrol' | 'chase' | 'attack' | 'dead';
 
@@ -37,6 +44,8 @@ export class Enemy {
   private animationClock = 0;
   private assetSource: 'glb' | 'fallback' = 'fallback';
   private hitStunRemaining = 0;
+  private hitReact = 0;
+  private healthBarRevealTime = 0;
   public readonly damage = 10;
 
   constructor(config: EnemyConfig, scene: THREE.Scene, physics: Physics) {
@@ -69,6 +78,7 @@ export class Enemy {
       this.mesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.8, 0.3), new THREE.MeshStandardMaterial({ color: 0x555555 })));
     }
     this.mesh.position.copy(config.position);
+    markRaycastIgnore(this.mesh);
     scene.add(this.mesh);
     void this.loadModel();
 
@@ -129,7 +139,6 @@ export class Enemy {
 
     this.mesh.position.set(this.body.position.x, this.body.position.y - 1, this.body.position.z);
     this.healthBar.lookAt(playerPosition);
-    this.healthBar.visible = this.mesh.position.distanceTo(playerPosition) < 22;
     this.animate(dt);
     this.hitStunRemaining = Math.max(0, this.hitStunRemaining - dt);
     if (this.hitStunRemaining > 0) {
@@ -140,6 +149,8 @@ export class Enemy {
 
     const distanceToPlayer = this.mesh.position.distanceTo(playerPosition);
     const seesPlayer = hasLineOfSight(this.mesh.position.clone().add(new THREE.Vector3(0, 1.4, 0)), playerPosition, lineOfSightColliders);
+    this.healthBarRevealTime = Math.max(0, this.healthBarRevealTime - dt);
+    this.healthBar.visible = this.healthBarRevealTime > 0 && distanceToPlayer < 22 && seesPlayer;
     let damage = 0;
 
     switch (this.state) {
@@ -200,14 +211,20 @@ export class Enemy {
     this.body.velocity.z = direction.z * this.speed;
 
     const angle = Math.atan2(direction.x, direction.z);
-    this.mesh.rotation.y = angle;
+    const delta = Math.atan2(Math.sin(angle - this.mesh.rotation.y), Math.cos(angle - this.mesh.rotation.y));
+    const maxStep = Math.min(1, dt * 10);
+    this.mesh.rotation.y += delta * maxStep;
   }
 
   private animate(dt: number): void {
     const speed = Math.hypot(this.body.velocity.x, this.body.velocity.z);
-    this.animationClock += dt * Math.max(2, speed * 4);
+    const speedRatio = THREE.MathUtils.clamp(speed / Math.max(0.001, this.speed), 0, 1.25);
+    this.animationClock += dt * (1.6 + speedRatio * 4.2);
     const t = this.animationClock;
-    const swing = Math.sin(t) * Math.min(0.45, speed * 0.14);
+    const stride = Math.sin(t * 1.05);
+    const strideAmp = THREE.MathUtils.lerp(0.02, 0.22, speedRatio);
+    const legSwing = stride * strideAmp;
+    const armSwing = stride * strideAmp * 0.78;
 
     // Pivot groups — rotation happens at the joint, giving natural limb movement
     const lLegPivot = this.mesh.getObjectByName('left-leg-pivot');
@@ -216,18 +233,21 @@ export class Enemy {
     const rArmPivot = this.mesh.getObjectByName('right-arm-pivot');
     const headMesh  = this.mesh.getObjectByName('head');
 
-    if (lLegPivot) lLegPivot.rotation.x = -swing * 0.85;
-    if (rLegPivot) rLegPivot.rotation.x =  swing * 0.85;
-    if (lArmPivot) lArmPivot.rotation.x =  swing;
-    if (rArmPivot) rArmPivot.rotation.x = -swing;
+    if (lLegPivot) lLegPivot.rotation.x = -legSwing;
+    if (rLegPivot) rLegPivot.rotation.x = legSwing;
+    if (lArmPivot) lArmPivot.rotation.x = armSwing;
+    if (rArmPivot) rArmPivot.rotation.x = -armSwing;
 
     if (headMesh) {
-      headMesh.rotation.y = THREE.MathUtils.lerp(headMesh.rotation.y, speed > 0.1 ? Math.sin(t * 1.1) * 0.04 : 0, 0.1);
+      headMesh.rotation.y = THREE.MathUtils.lerp(headMesh.rotation.y, speed > 0.1 ? Math.sin(t * 1.2) * 0.025 : 0, 0.08);
     }
-    if (speed > 0.1) {
-      this.mesh.position.y += Math.sin(t * 2) * 0.005 * Math.min(1, speed);
-    }
-    this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, speed > 0.1 ? -0.04 : 0, 0.08);
+    const bob = speed > 0.08 ? Math.abs(Math.sin(t * 2.1)) * 0.015 * speedRatio : 0;
+    this.mesh.position.y += bob;
+
+    this.hitReact = Math.max(0, this.hitReact - dt * 3.6);
+    const moveLean = speed > 0.08 ? -THREE.MathUtils.clamp(speedRatio * 0.03, 0.008, 0.03) : 0;
+    this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, moveLean, 0.12);
+    this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, -this.hitReact * 0.14, 0.22);
   }
 
   private attack(now: number): number {
@@ -259,6 +279,8 @@ export class Enemy {
 
     this.flashHit(region);
     this.hitStunRemaining = region === 'head' ? 0.18 : 0.1;
+    this.hitReact = Math.max(this.hitReact, region === 'head' ? 1 : 0.7);
+    this.healthBarRevealTime = 1.2;
     if (this.health <= 0) {
       this.health = 0;
       this.die();
@@ -331,15 +353,61 @@ export class Enemy {
     return this.assetSource;
   }
 
-  private async loadModel(): Promise<void> {
-    const loaded = await loadAsset(ASSETS.enemy_assault);
-    if (this.state === 'dead') return;
+  private normalizeHumanoidModel(model: THREE.Object3D, targetHeight: number): void {
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
 
-    const oldModel = this.mesh.children[0];
-    this.mesh.remove(oldModel);
-    loaded.position.set(0, 0, 0);
-    this.assetSource = loaded.userData.assetSource === 'glb' ? 'glb' : 'fallback';
-    this.mesh.add(loaded);
+    const lateralMax = Math.max(size.x, size.z);
+    if (size.y < lateralMax * 1.1) {
+      if (size.z >= size.x && size.z > size.y) {
+        model.rotateX(Math.PI / 2);
+      } else if (size.x > size.z && size.x > size.y) {
+        model.rotateZ(-Math.PI / 2);
+      }
+      box.setFromObject(model);
+      box.getSize(size);
+    }
+
+    if (size.y > 0.0001) {
+      const scaleFactor = targetHeight / size.y;
+      model.scale.multiplyScalar(scaleFactor);
+      box.setFromObject(model);
+    }
+
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    model.position.x -= center.x;
+    model.position.z -= center.z;
+    model.position.y -= box.min.y;
+  }
+
+  private async loadModel(): Promise<void> {
+    try {
+      const loaded = await loadAsset(ASSETS.enemy_assault);
+      if (this.state === 'dead' || !loaded) return;
+
+      const oldModel = this.mesh.children[0];
+      this.normalizeHumanoidModel(loaded, 1.8);
+
+      // 强制修复某些模型材质全黑或透明的 BUG
+      loaded.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material.depthWrite = true;
+            child.material.needsUpdate = true;
+          }
+        }
+      });
+
+      this.mesh.remove(oldModel);
+      this.assetSource = loaded.userData.assetSource === 'glb' ? 'glb' : 'fallback';
+      this.mesh.add(loaded);
+    } catch (error) {
+      console.warn("GLB 模型加载失败，继续使用默认方块人", error);
+    }
   }
 }
 

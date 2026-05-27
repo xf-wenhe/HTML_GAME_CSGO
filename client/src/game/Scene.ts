@@ -46,28 +46,33 @@ export class Scene {
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure = 1.22;
+      // 【修改 1】将曝光度从 1.22 提升到 1.85，画面瞬间明亮
+      this.renderer.toneMappingExposure = 1.85; 
     } catch (error) {
       this.fallbackCanvas = this.createWebGLErrorCanvas(error);
     }
 
-    const ambientLight = new THREE.AmbientLight(0xe8f1ff, 0.56);
+    // 【修改 2】增强环境光，色调改为温暖的沙漠白
+    const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.85); 
     this.scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xfff3d0, 2.15);
-    directionalLight.position.set(-12, 22, 12);
+    // 【修改 3】增强主光源（太阳），并调整照射角度
+    const directionalLight = new THREE.DirectionalLight(0xffeedd, 3.2); 
+    directionalLight.position.set(-25, 40, 20); 
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
     directionalLight.shadow.camera.near = 1;
-    directionalLight.shadow.camera.far = 80;
-    directionalLight.shadow.camera.left = -38;
-    directionalLight.shadow.camera.right = 38;
-    directionalLight.shadow.camera.top = 38;
-    directionalLight.shadow.camera.bottom = -38;
+    directionalLight.shadow.camera.far = 120; // 加大阴影覆盖范围
+    directionalLight.shadow.camera.left = -50;
+    directionalLight.shadow.camera.right = 50;
+    directionalLight.shadow.camera.top = 50;
+    directionalLight.shadow.camera.bottom = -50;
+    directionalLight.shadow.bias = -0.0005; // 消除阴影锯齿伪影
     this.scene.add(directionalLight);
 
-    const hemiLight = new THREE.HemisphereLight(0x9fc4ff, 0x403a31, 0.82);
+    // 【修改 4】天光反射，模拟蓝天对暗部的补光，以及沙地对墙壁的反光
+    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x8f7a5a, 1.2);
     this.scene.add(hemiLight);
 
     this.setArena(this.currentMapId);
@@ -93,7 +98,8 @@ export class Scene {
 
     // Map-specific sky colors
     const skyColors: Record<string, { bg: number; fog: number; fogNear: number; fogFar: number; skyTop: number; skyHorizon: number }> = {
-      Dust2:     { bg: 0x5b8cbf, fog: 0x7bacc8, fogNear: 55, fogFar: 145, skyTop: 0x3a6b9e, skyHorizon: 0xbdd8e8 },
+      // 【修改 5】换成真实的 CSGO Dust2 偏暖色天空和漫反射沙雾
+      Dust2:     { bg: 0x8cb5d6, fog: 0xd6cbb4, fogNear: 60, fogFar: 180, skyTop: 0x6a9ccf, skyHorizon: 0xd6ccb4 },
       Mirage:    { bg: 0x6a8faa, fog: 0x7a9fb5, fogNear: 50, fogFar: 130, skyTop: 0x4a7090, skyHorizon: 0xc0d8e8 },
       Inferno:   { bg: 0x6d7b6a, fog: 0x758568, fogNear: 45, fogFar: 120, skyTop: 0x4a5a48, skyHorizon: 0xbcc8b8 },
       Train:     { bg: 0x5a6a78, fog: 0x6a7885, fogNear: 45, fogFar: 120, skyTop: 0x3a4a58, skyHorizon: 0xb0c0d0 },
@@ -209,8 +215,8 @@ export class Scene {
     mesh.receiveShadow = true;
     mesh.name = spec.name ?? 'arena-box';
 
-    // Try PBR textures asynchronously, falling back to Canvas
-    if (spec.textureKey) {
+    // Try PBR textures asynchronously on Dust2 only, falling back to Canvas.
+    if (spec.textureKey && this.currentMapId === 'dust2') {
       const pbrKey = spec.textureKey as PBRTextureKey;
       const tileX = Math.max(1, Math.round(spec.size.x / 1.5));
       const tileY = Math.max(1, Math.round(spec.size.z / 1.5));

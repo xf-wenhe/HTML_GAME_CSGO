@@ -42,6 +42,32 @@ const TEAM_TINT: Record<Team, THREE.Color> = {
   defenders: new THREE.Color(0x2563eb),
 };
 
+function normalizeHumanoidModel(model: THREE.Object3D, targetHeight: number): void {
+  const bounds = new THREE.Box3().setFromObject(model);
+  const size = bounds.getSize(new THREE.Vector3());
+
+  const lateralMax = Math.max(size.x, size.z);
+  if (size.y < lateralMax * 1.1) {
+    if (size.z >= size.x && size.z > size.y) {
+      model.rotateX(Math.PI / 2);
+    } else if (size.x > size.z && size.x > size.y) {
+      model.rotateZ(-Math.PI / 2);
+    }
+    bounds.setFromObject(model);
+    bounds.getSize(size);
+  }
+
+  if (size.y > 0.0001) {
+    model.scale.multiplyScalar(targetHeight / size.y);
+    bounds.setFromObject(model);
+  }
+
+  const center = bounds.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y -= bounds.min.y;
+}
+
 export class RemotePlayers {
   private meshes = new Map<string, THREE.Group>();
   private interpolation = new Interpolation();
@@ -111,10 +137,7 @@ export class RemotePlayers {
           });
         }
       });
-      const bounds = new THREE.Box3().setFromObject(model);
-      const height = bounds.getSize(new THREE.Vector3()).y;
-      if (height > 0) model.scale.multiplyScalar(0.72 / height);
-      model.position.y = 0;
+      normalizeHumanoidModel(model, 0.72);
       group.add(model);
     } else {
       this.addGeometryFallback(group, color);

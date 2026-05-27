@@ -48,6 +48,7 @@ export class ProjectileSystem {
     this.scene.traverse(object => {
       if (!object.visible) return;
       if (object instanceof THREE.Sprite) return;
+      if (object.userData?.raycastIgnore) return;
       if ((object as THREE.Mesh).isMesh) targets.push(object);
     });
     return targets;

@@ -202,6 +202,11 @@ export function disposeTextures(): void {
 const pbrCache = new Map<string, { map: THREE.Texture; normalMap?: THREE.Texture; roughnessMap?: THREE.Texture }>();
 const textureLoader = new THREE.TextureLoader();
 
+const PBR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const COLOR_SUFFIXES = ['color', 'albedo', 'basecolor', 'base_color', 'diffuse'];
+const NORMAL_SUFFIXES = ['normal', 'nrm', 'nor'];
+const ROUGHNESS_SUFFIXES = ['roughness', 'rough'];
+
 function wrapTexture(tex: THREE.Texture, repeatX: number, repeatY: number): THREE.Texture {
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
@@ -220,14 +225,40 @@ function wrapNonColorTexture(tex: THREE.Texture, repeatX: number, repeatY: numbe
   return tex;
 }
 
+async function loadFirstTextureVariant(
+  key: PBRTextureKey,
+  basePath: string,
+  suffixes: string[],
+  repeatX: number,
+  repeatY: number,
+  isColor: boolean
+): Promise<THREE.Texture | undefined> {
+  for (const suffix of suffixes) {
+    for (const ext of PBR_EXTENSIONS) {
+      const url = `${basePath}/${key}_${suffix}.${ext}`;
+      try {
+        const tex = await textureLoader.loadAsync(url);
+        return isColor
+          ? wrapTexture(tex, repeatX, repeatY)
+          : wrapNonColorTexture(tex, repeatX, repeatY);
+      } catch {
+        // Try next filename variant.
+      }
+    }
+  }
+  return undefined;
+}
+
 export async function loadPBRTextureSet(
   key: PBRTextureKey,
   basePath: string,
   repeatX: number = 1,
   repeatY: number = 1
 ): Promise<{ map: THREE.Texture; normalMap?: THREE.Texture; roughnessMap?: THREE.Texture } | null> {
-  if (pbrCache.has(key)) {
-    const cached = pbrCache.get(key)!;
+  const cacheKey = `${key}|${repeatX}|${repeatY}`;
+
+  if (pbrCache.has(cacheKey)) {
+    const cached = pbrCache.get(cacheKey)!;
     return {
       map: cached.map.clone(),
       normalMap: cached.normalMap?.clone(),
@@ -236,37 +267,20 @@ export async function loadPBRTextureSet(
   }
 
   try {
-    const colorResponse = await fetch(`${basePath}/${key}_color.jpg`);
-    if (!colorResponse.ok) throw new Error('PBR texture not found');
-    const colorBlob = await colorResponse.blob();
-    const colorUrl = URL.createObjectURL(colorBlob);
+    const map = await loadFirstTextureVariant(key, basePath, COLOR_SUFFIXES, repeatX, repeatY, true);
+    if (!map) {
+      return null;
+    }
 
-    const map = wrapTexture(textureLoader.load(colorUrl), repeatX, repeatY);
+    const normalMap = await loadFirstTextureVariant(key, basePath, NORMAL_SUFFIXES, repeatX, repeatY, false);
+    const roughnessMap = await loadFirstTextureVariant(key, basePath, ROUGHNESS_SUFFIXES, repeatX, repeatY, false);
 
-    let normalMap: THREE.Texture | undefined;
-    let roughnessMap: THREE.Texture | undefined;
-
-    try {
-      const normalResponse = await fetch(`${basePath}/${key}_normal.jpg`);
-      if (normalResponse.ok) {
-        const nBlob = await normalResponse.blob();
-        const nUrl = URL.createObjectURL(nBlob);
-        normalMap = wrapNonColorTexture(textureLoader.load(nUrl), repeatX, repeatY);
-      }
-    } catch { /* normal map optional */ }
-
-    try {
-      const roughResponse = await fetch(`${basePath}/${key}_roughness.jpg`);
-      if (roughResponse.ok) {
-        const rBlob = await roughResponse.blob();
-        const rUrl = URL.createObjectURL(rBlob);
-        roughnessMap = wrapNonColorTexture(textureLoader.load(rUrl), repeatX, repeatY);
-      }
-    } catch { /* roughness map optional */ }
-
-    // Cache the original
-    pbrCache.set(key, { map: map.clone(), normalMap: normalMap?.clone(), roughnessMap: roughnessMap?.clone() });
-    setTimeout(() => { URL.revokeObjectURL(colorUrl); }, 5000);
+    // Cache by key+tiling to avoid sharing incorrect repeat values.
+    pbrCache.set(cacheKey, {
+      map: map.clone(),
+      normalMap: normalMap?.clone(),
+      roughnessMap: roughnessMap?.clone()
+    });
 
     return { map, normalMap, roughnessMap };
   } catch {

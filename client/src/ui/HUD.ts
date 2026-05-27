@@ -267,7 +267,7 @@ export class HUD {
       </div>
 
       <div class="hud-top-right">
-        <div class="ammo-container" style="align-items:flex-end;">
+        <div class="hud-top-right-panel">
           <div class="kill-feed-live" aria-label="击杀提示"></div>
           <div class="weapon-slots" aria-label="武器槽位">
             <div class="weapon-slot active" data-slot="primary">

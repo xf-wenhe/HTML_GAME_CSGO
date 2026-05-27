@@ -171,6 +171,8 @@ let lastFrameTime = performance.now();
 let hadPointerLock = false;
 let usingGrenade = false;
 let activeSlot: 'primary' | 'pistol' | 'knife' | 'grenade' = 'pistol';
+// 【新增】记录上一次使用的武器槽，默认开局是刀
+let previousSlot: 'primary' | 'pistol' | 'knife' | 'grenade' = 'knife'; 
 let equippedPrimary = '';
 let equippedPistol = 'pistol';
 let nearbyDrop: DroppedWeapon | null = null;
@@ -322,6 +324,11 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   droppedWeapons.clear();
   nearbyDrop = null;
   lastHitRegion = null;
+
+  // 【新增】打扫战场：清空上一局遗留的弹孔、弹壳和子弹轨迹
+  impactDecalManager.clear();
+  shellCasingManager.clear();
+  tracerSystem.clear();
 
   player = new PlayerController(scene, physics, input, scene.getCurrentArena().playerSpawn.clone());
   player.healFull();
@@ -477,6 +484,7 @@ document.addEventListener('keydown', (e) => {
   if (isSpectating && e.key !== 'Tab') return;
 
   if (e.key === '1') {
+    if (equippedPrimary && activeSlot !== 'primary') previousSlot = activeSlot; // 记录槽位
     usingGrenade = false;
     if (equippedPrimary) {
       activeSlot = 'primary';
@@ -486,9 +494,16 @@ document.addEventListener('keydown', (e) => {
       return;
     }
   }
-  if (e.key === '2') { usingGrenade = false; activeSlot = 'pistol'; weaponManager.switchWeapon(equippedPistol); }
-  if (e.key === '3') { usingGrenade = false; activeSlot = 'knife'; weaponManager.switchWeapon('knife'); }
+  if (e.key === '2') { 
+    if (activeSlot !== 'pistol') previousSlot = activeSlot; // 记录槽位
+    usingGrenade = false; activeSlot = 'pistol'; weaponManager.switchWeapon(equippedPistol); 
+  }
+  if (e.key === '3') { 
+    if (activeSlot !== 'knife') previousSlot = activeSlot; // 记录槽位
+    usingGrenade = false; activeSlot = 'knife'; weaponManager.switchWeapon('knife'); 
+  }
   if (e.key === '4') {
+    if (activeSlot !== 'grenade') previousSlot = activeSlot; // 记录槽位
     usingGrenade = true;
     activeSlot = 'grenade';
     const selected = grenades.cycle();
@@ -496,16 +511,46 @@ document.addEventListener('keydown', (e) => {
     hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[selected]);
     syncWeaponHud();
   }
+  
+  // 【新增】Q 键一键切枪逻辑
+  if (e.key === 'q' || e.key === 'Q') {
+    const target = previousSlot;
+    if (target === 'primary' && !equippedPrimary) return; // 如果主武器已经扔了，就不切过去
+    
+    // 互换当前槽位和上一个槽位
+    previousSlot = activeSlot;
+    activeSlot = target;
+    
+    if (activeSlot === 'primary') {
+      usingGrenade = false;
+      weaponManager.switchWeapon(equippedPrimary);
+    } else if (activeSlot === 'pistol') {
+      usingGrenade = false;
+      weaponManager.switchWeapon(equippedPistol);
+    } else if (activeSlot === 'knife') {
+      usingGrenade = false;
+      weaponManager.switchWeapon('knife');
+    } else if (activeSlot === 'grenade') {
+      usingGrenade = true;
+      hud.showNotification(`已选择${grenades.getSelectedLabel()}`);
+      hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[grenades.getSelected()]);
+      syncWeaponHud();
+    }
+  }
+
   if (e.key === 'r' || e.key === 'R') {
     weaponManager.startReload();
     hud.setScoped(false);
     if (currentMode === 'multiplayer') network.send({ type: 'reload' });
   }
 
-  if (['1', '2', '3'].includes(e.key)) {
-    hud.updateWeapon(weaponManager.getCurrentWeapon());
-    syncWeaponHud();
-    if (currentMode === 'multiplayer') network.send({ type: 'switchWeapon', weaponId: currentMultiplayerWeaponId() });
+  // 修改：把 q 和 Q 加进更新 UI 和同步网络的数组里，排除手雷的干扰
+  if (['1', '2', '3', 'q', 'Q'].includes(e.key)) {
+    if (!usingGrenade) {
+      hud.updateWeapon(weaponManager.getCurrentWeapon());
+      syncWeaponHud();
+      if (currentMode === 'multiplayer') network.send({ type: 'switchWeapon', weaponId: currentMultiplayerWeaponId() });
+    }
   }
 
   if (e.key === 'b' || e.key === 'B') {
@@ -825,6 +870,7 @@ function handleVirtualActions(): void {
   if (isSpectating) return;
 
   if (input.consumeKeyPress('Digit1')) {
+    if (equippedPrimary && activeSlot !== 'primary') previousSlot = activeSlot; // 【新增】记录
     usingGrenade = false;
     if (equippedPrimary) {
       activeSlot = 'primary';
@@ -835,18 +881,21 @@ function handleVirtualActions(): void {
     }
   }
   if (input.consumeKeyPress('Digit2')) {
+    if (activeSlot !== 'pistol') previousSlot = activeSlot; // 【新增】记录
     usingGrenade = false;
     activeSlot = 'pistol';
     weaponManager.switchWeapon(equippedPistol);
     syncSwitchedWeapon();
   }
   if (input.consumeKeyPress('Digit3')) {
+    if (activeSlot !== 'knife') previousSlot = activeSlot; // 【新增】记录
     usingGrenade = false;
     activeSlot = 'knife';
     weaponManager.switchWeapon('knife');
     syncSwitchedWeapon();
   }
   if (input.consumeKeyPress('Digit4')) {
+    if (activeSlot !== 'grenade') previousSlot = activeSlot; // 【新增】记录
     usingGrenade = true;
     activeSlot = 'grenade';
     const selected = grenades.cycle();
@@ -1098,6 +1147,12 @@ function findClosestRayTarget(origin: THREE.Vector3, direction: THREE.Vector3, r
       best = { enemy, region: hit.region, distance: hit.distance };
     }
   }
+  if (best) {
+    const occlusion = projectileSystem.fireRaycast(origin, direction, Math.max(0.01, best.distance - 0.04));
+    if (occlusion.hit) {
+      return null;
+    }
+  }
   return best;
 }
 
@@ -1216,19 +1271,21 @@ function switchLocalWeaponFromBuy(weaponId: WeaponId): void {
   const localWeapon = multiplayerWeaponToLocal(weaponId);
   dropReplacedWeapon(localWeapon);
   if (localWeapon === 'knife') {
+    if (activeSlot !== 'knife') previousSlot = activeSlot; // 【新增】记录槽位
     activeSlot = 'knife';
   } else if (isPistolWeapon(localWeapon)) {
     equippedPistol = localWeapon;
+    if (activeSlot !== 'pistol') previousSlot = activeSlot; // 【新增】记录槽位
     activeSlot = 'pistol';
   } else {
     equippedPrimary = localWeapon;
+    if (activeSlot !== 'primary') previousSlot = activeSlot; // 【新增】记录槽位
     activeSlot = 'primary';
   }
   weaponManager.switchWeapon(localWeapon);
   hud.updateWeapon(weaponManager.getCurrentWeapon());
   syncWeaponHud();
 }
-
 function applySoloBuy(request: BuyRequest): void {
   if (request.armor) {
     player?.buyArmor();
@@ -1248,9 +1305,11 @@ function equipPickedWeapon(localWeapon: string): void {
   usingGrenade = false;
   if (isPistolWeapon(localWeapon)) {
     equippedPistol = localWeapon;
+    if (activeSlot !== 'pistol') previousSlot = activeSlot; // 【新增】记录槽位
     activeSlot = 'pistol';
   } else {
     equippedPrimary = localWeapon;
+    if (activeSlot !== 'primary') previousSlot = activeSlot; // 【新增】记录槽位
     activeSlot = 'primary';
   }
   weaponManager.switchWeapon(localWeapon);

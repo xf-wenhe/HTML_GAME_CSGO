@@ -120,6 +120,15 @@ export class ShellCasingManager {
     }
   }
 
+  // 【新增】清理掉落在地上的所有弹壳
+  clear(): void {
+    this.casings.forEach(c => {
+      this.scene.remove(c.mesh);
+      (c.mesh.material as THREE.Material).dispose();
+    });
+    this.casings = [];
+  }
+  
   dispose(): void {
     this.casings.forEach(c => {
       this.scene.remove(c.mesh);

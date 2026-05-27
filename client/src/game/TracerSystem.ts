@@ -62,6 +62,16 @@ export class TracerSystem {
     }
   }
 
+  // 【新增】清理滞留在空中的曳光弹轨迹
+  clear(): void {
+    this.tracers.forEach(t => {
+      this.scene.remove(t.line);
+      t.line.geometry.dispose();
+      (t.line.material as THREE.Material).dispose();
+    });
+    this.tracers = [];
+  }
+  
   dispose(): void {
     this.tracers.forEach(t => {
       this.scene.remove(t.line);

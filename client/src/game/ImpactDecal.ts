@@ -179,6 +179,20 @@ export class ImpactDecalManager {
     });
   }
 
+  // 【新增】清理当前所有弹孔 (InstancedMesh 高性能版专属)
+  clear(): void {
+    // 1. 将所有材质的弹孔渲染数量重置为 0（瞬间隐藏所有弹孔，不销毁内存）
+    this.instancedMeshes.forEach(mesh => {
+      mesh.count = 0;
+      mesh.instanceMatrix.needsUpdate = true;
+    });
+    
+    // 2. 清空底层的坐标记录队列
+    this.decalRecords.forEach(records => {
+      records.length = 0;
+    });
+  }
+
   dispose(): void {
     this.instancedMeshes.forEach(mesh => {
       this.scene.remove(mesh);
