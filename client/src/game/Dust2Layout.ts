@@ -78,6 +78,16 @@ function plat(x: number, z: number, w: number, d: number, h: number = PLATFORM_H
   };
 }
 
+/** 天花板/屋顶水平面（厚16 HU，yOff为底面高度） */
+function ceil(x: number, z: number, w: number, d: number, yOff: number, name?: string): ArenaCollider {
+  const SLAB = 16;
+  return {
+    position: { x: hammerToGame(x), y: hammerToGame(yOff + SLAB / 2), z: hammerToGame(-z) },
+    size: { x: hammerToGame(w), y: hammerToGame(SLAB), z: hammerToGame(d) },
+    name
+  };
+}
+
 // 地图Z轴范围: zMin=-3584, zMax=6656, centerZ=(6656-3584)/2=1536
 const MAP_CENTER_Z = (DUST2_HAMMER_BOUNDS.zMin + DUST2_HAMMER_BOUNDS.zMax) / 2;
 
@@ -339,6 +349,32 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   crt(-3328, 3840, 48, 48, 48, 0, 'dust2-a-long-extra-box-2'),
   crt(3040, 4096, 48, 48, 48, 0, 'dust2-b-tunnels-extra-box-1'),
   crt(3040, 4672, 48, 48, 48, 0, 'dust2-b-tunnels-extra-box-2'),
+
+  // ══════════════════════════════════════════════════════════════
+  // 天花板 / 屋顶 / 建筑封顶（3D 立体补全）
+  // 坐标均为 Hammer units，yOff = 天花板底面距地高度
+  // ══════════════════════════════════════════════════════════════
+
+  // ── B 隧道下层天花板 ──
+  // 走廊宽 320 HU (x=2880→3200), 从 T 侧入口(z=5504)延伸至楼梯底(z=512)
+  // CS:GO 隧道内净高约 200 HU
+  ceil(3040, 3008, 320, 4992, 200, 'dust2-b-lower-tunnel-ceiling'),
+
+  // ── B 隧道上层天花板 ──
+  // 上层地面在 128 HU, 内高 200 → 顶面在 328 HU
+  // 覆盖楼梯顶端(z=512)到 B 包点入口(z=-1536)
+  ceil(3040, -512, 320, 2048, 328, 'dust2-b-upper-tunnel-ceiling'),
+
+  // ── Upper Dark 房间顶板 ──
+  // 房间 x=3200→3456 (w=256), z=-192→192 (d=384), 与上层同高
+  ceil(3328, 0, 256, 384, 328, 'dust2-upper-dark-ceiling'),
+
+  // ── B 隧道入口段天花板（T侧入口走廊）──
+  // z=5504→6144 宽走廊延伸进入 B 隧道的过渡段
+  ceil(3264, 5824, 448, 640, 200, 'dust2-b-tunnel-entrance-ceiling'),
+
+  // ── A Site 西北封闭房间屋顶（真正室内）──
+  ceil(-2816, -1856, 512, 128, WALL_HEIGHT_HAMMER, 'dust2-a-site-closed-room-roof'),
 ];
 
 // ═══════════════════════════════════════════════════════════════

@@ -26,6 +26,7 @@ export interface BoxSpec {
   opacity?: number;
   name?: string;
   rotation?: { x: number; y: number; z: number };
+  textureKey?: 'sand' | 'concrete' | 'wood' | 'metal' | 'plaster';
 }
 
 export interface EnemySpawnPoint {
@@ -514,15 +515,35 @@ function buildWarehouseArena(): ArenaData {
 }
 
 function buildDust2Arena(): ArenaData {
-  const colliderBoxes: BoxSpec[] = DUST2_COLLIDERS.map(c => ({
-    position: new THREE.Vector3(c.position.x, c.position.y, c.position.z),
-    size: new THREE.Vector3(c.size.x, c.size.y, c.size.z),
-    rotation: c.rotation ? { ...c.rotation } : undefined,
-    color: 0xb99b64,
-    metalness: 0.22,
-    roughness: 0.58,
-    name: c.name
-  }));
+  const colliderBoxes: BoxSpec[] = DUST2_COLLIDERS.map(c => {
+    const n = c.name ?? '';
+    let color = 0xb8a070;
+    let textureKey: BoxSpec['textureKey'] = 'sand';
+    let metalness = 0.08;
+    let roughness = 0.82;
+
+    if (n.includes('tunnel') || n.includes('dark') || n.includes('upper')) {
+      color = 0x9a8878; textureKey = 'concrete'; metalness = 0.05; roughness = 0.90;
+    } else if (n.includes('catwalk') || n.includes('stair') || n.includes('ramp')) {
+      color = 0x9a9080; textureKey = 'concrete'; metalness = 0.05; roughness = 0.88;
+    } else if (n.includes('door') || n.includes('post')) {
+      color = 0x7a6040; textureKey = 'metal'; metalness = 0.35; roughness = 0.55;
+    } else if (n.includes('box') || n.includes('car') || n.includes('bucket') || n.includes('plat')) {
+      color = 0xc4a46b; textureKey = 'sand'; metalness = 0.06; roughness = 0.85;
+    } else if (n.includes('a-site') || n.includes('b-site')) {
+      color = 0xc8b890; textureKey = 'plaster'; metalness = 0.04; roughness = 0.88;
+    } else if (n.includes('boundary')) {
+      color = 0xa09070; textureKey = 'sand';
+    }
+
+    return {
+      position: new THREE.Vector3(c.position.x, c.position.y, c.position.z),
+      size: new THREE.Vector3(c.size.x, c.size.y, c.size.z),
+      rotation: c.rotation ? { ...c.rotation } : undefined,
+      color, textureKey, metalness, roughness,
+      name: c.name
+    };
+  });
 
   const props: BoxSpec[] = [
     // CT Window 玻璃
@@ -533,8 +554,19 @@ function buildDust2Arena(): ArenaData {
     box(-25.6, 0.16, 12.8, 3.84, 0.04, 3.84, 0xd4a017, 'dust2-a-bomb-marker', 0.1, 0.6),
     // B Site 包点地面标记
     box(25.6, 0.16, 12.8, 3.84, 0.04, 3.84, 0xd4a017, 'dust2-b-bomb-marker', 0.1, 0.6),
-    // 沙地地面
-    box(0, 0.01, -10.24, 81.92, 0.02, 102.4, 0xd4b87a, 'dust2-sand-floor', 0.05, 0.75),
+    // 沙地地面（贴图）
+    { ...box(0, 0.01, -10.24, 81.92, 0.02, 102.4, 0xffffff, 'dust2-sand-floor', 0.04, 0.88), textureKey: 'sand' as const },
+
+    // ── 木门视觉模型 ──
+    // A Long Doors
+    { ...box(-26.88, 1.28, -20.48, 0.92, 2.56, 0.10, 0xffffff, 'dust2-a-doors-left', 0.08, 0.88), textureKey: 'wood' as const },
+    { ...box(-26.88, 1.28, -19.52, 0.92, 2.56, 0.10, 0xffffff, 'dust2-a-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
+    // Mid Doors
+    { ...box(-0.48, 1.28, -20.48, 0.92, 2.56, 0.10, 0xffffff, 'dust2-mid-doors-left', 0.08, 0.88), textureKey: 'wood' as const },
+    { ...box(0.48, 1.28, -20.48, 0.92, 2.56, 0.10, 0xffffff, 'dust2-mid-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
+    // B Doors
+    { ...box(18.40, 0.96, 15.36, 0.62, 1.92, 0.10, 0xffffff, 'dust2-b-doors-left', 0.08, 0.88), textureKey: 'wood' as const },
+    { ...box(19.12, 0.96, 15.36, 0.62, 1.92, 0.10, 0xffffff, 'dust2-b-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
   ];
 
   return {

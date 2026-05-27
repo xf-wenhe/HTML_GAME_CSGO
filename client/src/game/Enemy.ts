@@ -62,7 +62,12 @@ export class Enemy {
         break;
     }
 
-    this.mesh = this.createEnemyMesh();
+    try {
+      this.mesh = this.createEnemyMesh();
+    } catch {
+      this.mesh = new THREE.Group();
+      this.mesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.8, 0.3), new THREE.MeshStandardMaterial({ color: 0x555555 })));
+    }
     this.mesh.position.copy(config.position);
     scene.add(this.mesh);
     void this.loadModel();
@@ -99,15 +104,21 @@ export class Enemy {
     this.healthBar = new THREE.Group();
     this.healthBar.position.y = 0.85;
     const bg = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.32, 0.03),
-      new THREE.MeshBasicMaterial({ color: 0x130f0f, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+      new THREE.PlaneGeometry(0.32, 0.032),
+      new THREE.MeshBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
     );
+    // Border frame
+    const border = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.34, 0.046),
+      new THREE.MeshBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+    );
+    border.position.z = -0.001;
     this.healthFill = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.31, 0.016),
-      new THREE.MeshBasicMaterial({ color: 0xff3b30, side: THREE.DoubleSide })
+      new THREE.PlaneGeometry(0.30, 0.018),
+      new THREE.MeshBasicMaterial({ color: 0x4bc263, side: THREE.DoubleSide })
     );
     this.healthFill.position.z = 0.002;
-    this.healthBar.add(bg, this.healthFill);
+    this.healthBar.add(border, bg, this.healthFill);
     group.add(this.healthBar);
 
     return group;
@@ -195,16 +206,28 @@ export class Enemy {
   private animate(dt: number): void {
     const speed = Math.hypot(this.body.velocity.x, this.body.velocity.z);
     this.animationClock += dt * Math.max(2, speed * 4);
-    const swing = Math.sin(this.animationClock) * Math.min(0.35, speed * 0.08);
-    const leftArm = this.mesh.getObjectByName('left-arm');
-    const rightArm = this.mesh.getObjectByName('right-arm');
-    const leftLeg = this.mesh.getObjectByName('left-leg');
-    const rightLeg = this.mesh.getObjectByName('right-leg');
-    if (leftArm) leftArm.rotation.x = swing;
-    if (rightArm) rightArm.rotation.x = -swing;
-    if (leftLeg) leftLeg.rotation.x = -swing;
-    if (rightLeg) rightLeg.rotation.x = swing;
-    this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, speed > 0.1 ? -0.035 : 0, 0.08);
+    const t = this.animationClock;
+    const swing = Math.sin(t) * Math.min(0.45, speed * 0.14);
+
+    // Pivot groups — rotation happens at the joint, giving natural limb movement
+    const lLegPivot = this.mesh.getObjectByName('left-leg-pivot');
+    const rLegPivot = this.mesh.getObjectByName('right-leg-pivot');
+    const lArmPivot = this.mesh.getObjectByName('left-arm-pivot');
+    const rArmPivot = this.mesh.getObjectByName('right-arm-pivot');
+    const headMesh  = this.mesh.getObjectByName('head');
+
+    if (lLegPivot) lLegPivot.rotation.x = -swing * 0.85;
+    if (rLegPivot) rLegPivot.rotation.x =  swing * 0.85;
+    if (lArmPivot) lArmPivot.rotation.x =  swing;
+    if (rArmPivot) rArmPivot.rotation.x = -swing;
+
+    if (headMesh) {
+      headMesh.rotation.y = THREE.MathUtils.lerp(headMesh.rotation.y, speed > 0.1 ? Math.sin(t * 1.1) * 0.04 : 0, 0.1);
+    }
+    if (speed > 0.1) {
+      this.mesh.position.y += Math.sin(t * 2) * 0.005 * Math.min(1, speed);
+    }
+    this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, speed > 0.1 ? -0.04 : 0, 0.08);
   }
 
   private attack(now: number): number {
@@ -223,6 +246,17 @@ export class Enemy {
     const healthRatio = Math.max(0, this.health / this.maxHealth);
     this.healthFill.scale.x = healthRatio;
     this.healthFill.position.x = -(1 - healthRatio) * 0.15;
+
+    // Green → Yellow → Red gradient based on health
+    const fillMat = this.healthFill.material as THREE.MeshBasicMaterial;
+    if (healthRatio > 0.5) {
+      fillMat.color.setHex(0x4bc263); // green
+    } else if (healthRatio > 0.25) {
+      fillMat.color.setHex(0xe8a030); // yellow
+    } else {
+      fillMat.color.setHex(0xff3b30); // red
+    }
+
     this.flashHit(region);
     this.hitStunRemaining = region === 'head' ? 0.18 : 0.1;
     if (this.health <= 0) {

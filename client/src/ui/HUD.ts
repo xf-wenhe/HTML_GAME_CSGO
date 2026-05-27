@@ -190,18 +190,43 @@ export class HUD {
     this.confirmLeaveHandler = null;
 
     this.element.querySelector('.confirm-dialog-yes')?.addEventListener('click', () => {
+      const handler = this.confirmLeaveHandler;
       this.hideLeaveConfirm();
-      this.confirmLeaveHandler?.();
+      handler?.();
     });
     this.element.querySelector('.confirm-dialog-no')?.addEventListener('click', () => this.hideLeaveConfirm());
   }
 
   private weaponIconSVG(category: WeaponSlotId): string {
     const icons: Record<WeaponSlotId, string> = {
-      primary: `<svg viewBox="0 0 24 12" class="slot-svg" aria-hidden="true"><rect x="0" y="4" width="17" height="4" rx="1"/><rect x="17" y="3" width="5" height="5" rx="1"/><rect x="5" y="8" width="4" height="4" rx="1"/></svg>`,
-      pistol:  `<svg viewBox="0 0 18 12" class="slot-svg" aria-hidden="true"><rect x="0" y="3" width="11" height="4" rx="1"/><rect x="11" y="2" width="5" height="5" rx="1"/><rect x="2" y="7" width="3" height="5" rx="1"/></svg>`,
-      knife:   `<svg viewBox="0 0 20 8" class="slot-svg" aria-hidden="true"><polygon points="0,2 13,0 15,4 13,8 0,6"/><rect x="13" y="2" width="7" height="4" rx="1"/></svg>`,
-      grenade: `<svg viewBox="0 0 10 16" class="slot-svg" aria-hidden="true"><ellipse cx="5" cy="11" rx="4" ry="4"/><rect x="3" y="0" width="4" height="7" rx="1"/></svg>`
+      // AK-47 style: barrel + body + magazine + stock + grip
+      primary: `<svg viewBox="0 0 28 14" class="slot-svg" aria-hidden="true">
+        <rect x="0" y="5" width="18" height="3" rx="0.5"/>
+        <rect x="18" y="4" width="7" height="5" rx="0.5"/>
+        <rect x="5" y="8" width="5" height="4" rx="0.5" opacity="0.85"/>
+        <rect x="25" y="3" width="3" height="7" rx="0.5" opacity="0.75"/>
+        <rect x="1" y="4" width="2" height="2" rx="0.3" opacity="0.6"/>
+      </svg>`,
+      // Pistol: horizontal barrel + body + vertical grip
+      pistol: `<svg viewBox="0 0 22 14" class="slot-svg" aria-hidden="true">
+        <rect x="0" y="4" width="14" height="4" rx="0.5"/>
+        <rect x="14" y="3" width="6" height="6" rx="0.5"/>
+        <rect x="4" y="8" width="4" height="6" rx="0.5" opacity="0.85"/>
+        <rect x="0" y="5" width="3" height="2" rx="0.3" opacity="0.5"/>
+      </svg>`,
+      // Knife: blade + guard + handle
+      knife: `<svg viewBox="0 0 22 10" class="slot-svg" aria-hidden="true">
+        <polygon points="0,3 15,1 16,5 15,9 0,7"/>
+        <rect x="14" y="2" width="2" height="6" rx="0.3"/>
+        <rect x="16" y="3" width="6" height="4" rx="0.5" opacity="0.8"/>
+      </svg>`,
+      // Grenade: round body + safety lever + pin ring
+      grenade: `<svg viewBox="0 0 12 18" class="slot-svg" aria-hidden="true">
+        <ellipse cx="6" cy="12" rx="5" ry="5"/>
+        <rect x="4" y="2" width="4" height="6" rx="0.5"/>
+        <rect x="2" y="1" width="8" height="2" rx="1" opacity="0.7"/>
+        <rect x="5" y="0" width="2" height="3" rx="0.5" opacity="0.85"/>
+      </svg>`,
     };
     return icons[category];
   }
@@ -242,46 +267,56 @@ export class HUD {
       </div>
 
       <div class="hud-top-right">
-        <div class="ammo-container">
-          <span class="score-text" aria-label="分数或金钱">0</span>
-          <span class="weapon-name" aria-label="当前武器">制式手枪</span>
-          <div class="ammo-display" aria-label="弹药">
-            <span class="ammo-current" aria-label="当前弹匣">12</span>
-            <span class="ammo-separator" aria-hidden="true">|</span>
-            <span class="ammo-reserve" aria-hidden="true">∞</span>
-          </div>
+        <div class="ammo-container" style="align-items:flex-end;">
+          <div class="kill-feed-live" aria-label="击杀提示"></div>
           <div class="weapon-slots" aria-label="武器槽位">
             <div class="weapon-slot active" data-slot="primary">
               <span class="slot-key">1</span>
               ${this.weaponIconSVG('primary')}
-              <span class="slot-name">突击步枪</span>
+              <span class="slot-name">步枪</span>
             </div>
             <div class="weapon-slot" data-slot="pistol">
               <span class="slot-key">2</span>
               ${this.weaponIconSVG('pistol')}
-              <span class="slot-name">制式手枪</span>
+              <span class="slot-name">手枪</span>
             </div>
             <div class="weapon-slot" data-slot="knife">
               <span class="slot-key">3</span>
               ${this.weaponIconSVG('knife')}
-              <span class="slot-name">战术刀</span>
+              <span class="slot-name">刀</span>
             </div>
             <div class="weapon-slot" data-slot="grenade">
               <span class="slot-key">4</span>
               ${this.weaponIconSVG('grenade')}
-              <span class="slot-name">高爆雷 x1</span>
+              <span class="slot-name">手雷 x1</span>
             </div>
           </div>
-          <div class="kill-feed-live" aria-label="击杀提示"></div>
         </div>
       </div>
 
       <div class="hud-bottom-left">
         <div class="vitals-display" aria-label="生命值与护甲">
-          <span class="health-value" aria-label="生命值">100</span>
-          <span class="vitals-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
-          <span class="armor-value" aria-label="护甲">100</span>
-          <span class="vitals-icon armor-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+          <div class="vitals-block">
+            <span class="health-value" aria-label="生命值">100</span>
+            <span class="vitals-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
+          </div>
+          <div class="vitals-sep" aria-hidden="true"></div>
+          <div class="vitals-block">
+            <span class="armor-value" aria-label="护甲">100</span>
+            <span class="vitals-icon armor-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-bottom-right">
+        <div class="ammo-container" aria-label="弹药与武器">
+          <span class="score-text" aria-label="分数或金钱">$800</span>
+          <span class="weapon-name" aria-label="当前武器">制式手枪</span>
+          <div class="ammo-display" aria-label="弹药">
+            <span class="ammo-current" aria-label="当前弹匣">12</span>
+            <span class="ammo-separator" aria-hidden="true">|</span>
+            <span class="ammo-reserve" aria-hidden="true">36</span>
+          </div>
         </div>
       </div>
 
@@ -352,8 +387,8 @@ export class HUD {
         <div class="confirm-dialog-box">
           <div class="confirm-dialog-msg">确定要退出当前对局吗？</div>
           <div class="confirm-dialog-buttons">
-            <button class="confirm-dialog-yes">确定退出</button>
             <button class="confirm-dialog-no">继续游戏</button>
+            <button class="confirm-dialog-yes">确定退出</button>
           </div>
         </div>
       </div>`;
@@ -441,6 +476,8 @@ export class HUD {
     this.healthValue.textContent = this.currentHealth.toString();
     this.healthValue.classList.toggle('low', percentage <= 0.25);
     this.healthValue.classList.toggle('medium', percentage > 0.25 && percentage <= 0.5);
+    // CS:GO blood-edge vignette when below 30 HP
+    this.element.classList.toggle('low-health', percentage <= 0.3);
 
     if (armor !== undefined) {
       this.armorValue.textContent = Math.max(0, Math.round(armor)).toString();
@@ -1011,7 +1048,7 @@ export class HUD {
     const [lx, lz] = toRadar(localPos.x, localPos.z);
     ctx.save();
     ctx.translate(lx, lz);
-    ctx.rotate(localPos.rotY);
+    ctx.rotate(-localPos.rotY);
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.moveTo(0, -7); ctx.lineTo(4, 5); ctx.lineTo(0, 2); ctx.lineTo(-4, 5);

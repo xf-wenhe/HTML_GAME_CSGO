@@ -26,32 +26,36 @@
 /* ==================== CSS Variables ==================== */
 :root {
   /* CS:GO surface colors */
-  --surface-1: #0e1519;
-  --surface-2: #1b2838;
-  --surface-3: #232d35;
-  --surface-4: #2f3f4d;
+  --surface-1: #0a0e12;
+  --surface-2: #141c24;
+  --surface-3: #1c2730;
+  --surface-4: #263040;
 
-  /* CS:GO accent colors */
-  --primary: #ff9a00;
-  --primary-hover: #ffb347;
+  /* CS:GO accent colors — gold/amber like the real game */
+  --primary: #e8c96a;
+  --primary-hover: #f0d980;
   --danger: #ff4655;
   --danger-hover: #ff6b78;
   --success: #4bc263;
-  --warning: #ff9a00;
+  --warning: #e8a030;
 
   /* Team colors */
   --ct-blue: #4b69ff;
   --t-red: #ff4655;
   --money-green: #9be88f;
 
+  /* CS:GO gold accent */
+  --csgo-gold: #e8c96a;
+  --csgo-panel: rgba(0, 0, 0, 0.75);
+
   /* Text */
-  --text-primary: #c6d4df;
+  --text-primary: #dce8f0;
   --text-secondary: #8fa3b3;
-  --text-tertiary: #6a8499;
+  --text-tertiary: #5a7080;
 
   /* HUD */
-  --hud-bg: rgba(14, 21, 25, 0.82);
-  --hud-border: rgba(75, 105, 255, 0.3);
+  --hud-bg: rgba(0, 0, 0, 0.75);
+  --hud-border: rgba(75, 105, 255, 0.25);
 
   /* Spacing */
   --spacing-xs: 8px;
@@ -60,10 +64,10 @@
   --spacing-lg: 24px;
   --spacing-xl: 32px;
 
-  /* Border radius */
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
+  /* Border radius — CS:GO is sharp/flat */
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
 
   /* Transitions */
   --transition-fast: 120ms ease;
@@ -130,8 +134,8 @@ body {
   height: 150px;
   border-radius: 50%;
   overflow: hidden;
-  border: 1.5px solid rgba(100, 140, 200, 0.4);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.4);
+  border: 2px solid rgba(100, 160, 100, 0.45);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.9), 0 4px 20px rgba(0,0,0,0.7), inset 0 0 20px rgba(0,0,0,0.5);
 }
 
 .radar-canvas {
@@ -185,11 +189,12 @@ body {
 .round-strip {
   display: flex;
   align-items: stretch;
-  min-width: 320px;
-  background: rgba(14, 21, 25, 0.9);
-  border: 1px solid rgba(75, 105, 255, 0.2);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  backdrop-filter: blur(8px);
+  min-width: 300px;
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
   font-family: 'Rajdhani', sans-serif;
   user-select: none;
 }
@@ -198,31 +203,33 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 16px;
-  font-size: 26px;
+  padding: 4px 14px;
+  font-size: 30px;
   font-weight: 700;
 }
 
 .team-score.ct {
-  background: rgba(75, 105, 255, 0.15);
+  background: rgba(75, 105, 255, 0.22);
 }
 
 .team-score.t {
-  background: rgba(255, 70, 85, 0.15);
+  background: rgba(255, 70, 85, 0.22);
 }
 
 .ct-label {
   color: var(--ct-blue);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .t-label {
   color: var(--t-red);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .score-ct {
@@ -238,25 +245,26 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4px 20px;
-  border-left: 1px solid rgba(255,255,255,0.08);
-  border-right: 1px solid rgba(255,255,255,0.08);
-  min-width: 90px;
+  padding: 4px 18px;
+  border-left: 1px solid rgba(255,255,255,0.07);
+  border-right: 1px solid rgba(255,255,255,0.07);
+  min-width: 84px;
 }
 
 .timer-text {
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   color: #ffffff;
-  min-width: 52px;
+  min-width: 56px;
   text-align: center;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .round-info {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-tertiary);
-  letter-spacing: 1px;
+  letter-spacing: 2px;
   text-transform: uppercase;
 }
 
@@ -275,17 +283,37 @@ body {
 /* ==================== Vitals (CS:GO: bottom-left numbers) ==================== */
 .vitals-display {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  align-items: center;
+  gap: 0;
   font-family: 'Rajdhani', sans-serif;
   line-height: 1;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  background: rgba(0, 0, 0, 0.68);
+  padding: 6px 14px 8px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+.vitals-block {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.vitals-sep {
+  width: 1px;
+  height: 28px;
+  background: rgba(255,255,255,0.12);
+  margin: 0 12px;
+  align-self: center;
 }
 
 .health-value {
-  font-size: 48px;
+  font-size: 64px;
   font-weight: 700;
   color: #ffffff;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+  line-height: 1;
 }
 
 .health-value.medium {
@@ -297,16 +325,35 @@ body {
   animation: pulse-warning 0.6s ease infinite;
 }
 
+/* Low-health full-screen blood vignette */
+.hud.low-health::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 45;
+  animation: blood-pulse 0.75s ease-in-out infinite;
+}
+
+@keyframes blood-pulse {
+  0%, 100% { box-shadow: inset 0 0 100px rgba(200, 0, 0, 0); }
+  50%       { box-shadow: inset 0 0 100px rgba(200, 0, 0, 0.38); }
+}
+
 .vitals-icon {
-  font-size: 18px;
-  color: var(--text-tertiary);
+  font-size: 16px;
+  color: rgba(255,255,255,0.45);
   align-self: center;
+  margin-bottom: 4px;
 }
 
 .armor-value {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 600;
-  color: var(--ct-blue);
+  color: #9ab8d8;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
 }
 
 .armor-icon {
@@ -318,23 +365,27 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: 0;
+  background: rgba(0, 0, 0, 0.68);
+  padding: 6px 14px 8px;
+  border-top: 1px solid rgba(255,255,255,0.07);
 }
 
 .score-text {
   color: var(--money-green);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  margin-bottom: 2px;
 }
 
 .weapon-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--csgo-gold);
   text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-bottom: 2px;
+  letter-spacing: 3px;
+  margin-bottom: 1px;
 }
 
 .ammo-display {
@@ -342,31 +393,35 @@ body {
   font-weight: 700;
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 2px;
   font-family: 'Rajdhani', sans-serif;
   line-height: 1;
 }
 
 .ammo-current {
-  font-size: 52px;
+  font-size: 56px;
   font-weight: 700;
   color: #ffffff;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .ammo-separator {
-  color: #4a6070;
+  color: rgba(255,255,255,0.25);
   font-size: 28px;
-  margin: 0 2px;
+  font-weight: 300;
+  margin: 0 4px;
   align-self: center;
 }
 
 .ammo-reserve {
   color: var(--text-secondary);
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 600;
   align-self: flex-end;
   padding-bottom: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 .ammo-low {
@@ -376,27 +431,27 @@ body {
 
 @keyframes pulse-warning {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.45; }
 }
 
 /* ==================== Weapon Slots ==================== */
 .weapon-slots {
   display: grid;
-  grid-template-columns: repeat(4, minmax(56px, 1fr));
-  gap: 4px;
-  width: min(380px, 40vw);
-  margin-top: 6px;
+  grid-template-columns: repeat(4, minmax(52px, 1fr));
+  gap: 3px;
+  width: min(360px, 38vw);
+  margin-top: 5px;
 }
 
 .weapon-slot {
   display: grid;
-  grid-template-columns: 16px 22px 1fr;
+  grid-template-columns: 14px 20px 1fr;
   align-items: center;
-  min-height: 32px;
-  padding: 3px 6px;
-  border: 1px solid rgba(100, 120, 140, 0.2);
-  background: rgba(14, 21, 25, 0.7);
-  color: rgba(140, 160, 180, 0.6);
+  min-height: 28px;
+  padding: 2px 5px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(140, 160, 180, 0.5);
   font-size: 11px;
   font-family: 'Rajdhani', sans-serif;
   line-height: 1;
@@ -404,15 +459,16 @@ body {
 }
 
 .weapon-slot.active {
-  border-color: rgba(255, 154, 0, 0.7);
-  background: linear-gradient(180deg, rgba(255, 154, 0, 0.18), rgba(14, 21, 25, 0.8));
+  border-color: var(--csgo-gold);
+  border-left: 3px solid var(--csgo-gold);
+  background: rgba(232, 201, 106, 0.12);
   color: var(--text-primary);
 }
 
 .slot-key {
-  color: var(--primary-hover);
+  color: var(--csgo-gold);
   font-weight: 700;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .slot-svg {
@@ -420,7 +476,7 @@ body {
   height: 12px;
   fill: currentColor;
   display: block;
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .weapon-slot.active .slot-svg {
@@ -431,9 +487,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 /* ==================== Crosshair (CS:GO 4-line) ==================== */
@@ -445,8 +502,9 @@ body {
 
 .ch-top, .ch-bottom, .ch-left, .ch-right {
   position: absolute;
-  background: rgba(0, 230, 0, 0.92);
-  box-shadow: 0 0 3px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,1);
+  background: rgb(0, 230, 0);
+  /* Black outline behind for visibility on any background */
+  box-shadow: 0 0 0 1px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8);
 }
 
 .ch-top, .ch-bottom {
@@ -472,6 +530,7 @@ body {
 .crosshair.hit .ch-left,
 .crosshair.hit .ch-right {
   background: var(--danger);
+  box-shadow: 0 0 0 1px rgba(0,0,0,1), 0 0 6px rgba(255,70,85,0.6);
 }
 
 /* Crosshair variants */
@@ -546,15 +605,15 @@ body {
 
 /* Kill feed animations */
 .kill-feed-entry {
-  animation: kill-feed-in 250ms ease-out;
+  animation: kill-feed-in 200ms ease-out;
 }
 @keyframes kill-feed-in {
-  0% { opacity: 0; transform: translateX(30px); }
+  0% { opacity: 0; transform: translateX(40px); }
   100% { opacity: 1; transform: translateX(0); }
 }
 .kill-feed-fading {
-  opacity: 0.35;
-  transition: opacity 400ms ease;
+  opacity: 0.28;
+  transition: opacity 500ms ease;
 }
 
 /* Notification animations */
@@ -835,10 +894,10 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
-  width: min(420px, 42vw);
+  gap: 2px;
+  width: min(400px, 40vw);
   min-height: 60px;
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 12px;
   font-weight: 600;
   font-family: 'Rajdhani', sans-serif;
@@ -850,13 +909,13 @@ body {
   grid-auto-flow: column;
   grid-auto-columns: max-content;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   max-width: 100%;
-  min-height: 22px;
-  padding: 3px 7px;
-  border: 1px solid rgba(75, 105, 255, 0.12);
-  background: rgba(11, 16, 22, 0.82);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  min-height: 20px;
+  padding: 2px 8px 2px 6px;
+  border-left: 2px solid rgba(255,255,255,0.15);
+  background: rgba(0, 0, 0, 0.72);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.5);
   overflow: hidden;
   white-space: nowrap;
 }
@@ -869,7 +928,9 @@ body {
 }
 
 .kill-feed-player {
-  max-width: 120px;
+  max-width: 110px;
+  text-transform: uppercase;
+  font-size: 11px;
 }
 
 .kill-feed-attacker {
@@ -885,27 +946,37 @@ body {
   color: var(--t-red);
 }
 
+.kill-feed-row.team-attackers {
+  border-left-color: rgba(255, 70, 85, 0.55);
+}
+
 .kill-feed-row.team-defenders .kill-feed-attacker {
   color: var(--ct-blue);
 }
 
+.kill-feed-row.team-defenders {
+  border-left-color: rgba(75, 105, 255, 0.55);
+}
+
 .kill-feed-weapon {
-  max-width: 104px;
-  padding: 1px 5px;
-  border: 1px solid rgba(140, 160, 180, 0.2);
-  color: var(--text-secondary);
+  max-width: 100px;
+  padding: 0 5px;
+  border: 1px solid rgba(232, 201, 106, 0.3);
+  background: rgba(232, 201, 106, 0.08);
+  color: var(--csgo-gold);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .kill-feed-headshot {
-  padding: 1px 4px;
-  border: 1px solid rgba(255, 70, 85, 0.4);
-  color: #fecaca;
-  background: rgba(127, 29, 29, 0.35);
+  padding: 0 4px;
+  color: #ff8a8a;
   font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 /* ==================== Buy Menu ==================== */
@@ -915,7 +986,7 @@ body {
   bottom: 68px;
   display: grid;
   grid-template-columns: repeat(3, minmax(200px, 1fr));
-  gap: 8px;
+  gap: 6px;
   width: min(1100px, calc(100vw - 32px));
   transform: translateX(-50%);
   pointer-events: auto;
@@ -939,10 +1010,10 @@ body {
 .buy-hint {
   grid-column: 1 / -1;
   text-align: center;
-  color: var(--primary-hover);
-  font-size: 12px;
+  color: var(--csgo-gold);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   text-transform: uppercase;
   margin-bottom: 2px;
 }
@@ -950,33 +1021,36 @@ body {
 .buy-category {
   min-width: 0;
   padding: 8px;
-  border: 1px solid rgba(75, 105, 255, 0.2);
-  background: rgba(11, 16, 22, 0.92);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-top: 2px solid rgba(232, 201, 106, 0.3);
+  background: rgba(0, 0, 0, 0.88);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
 }
 
 .buy-category-title {
-  margin-bottom: 7px;
-  color: var(--ct-blue);
-  font-size: 11px;
+  margin-bottom: 6px;
+  color: var(--csgo-gold);
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   text-transform: uppercase;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(232, 201, 106, 0.2);
 }
 
 .buy-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  gap: 3px;
 }
 
 .buy-menu button {
   min-width: 0;
-  min-height: 56px;
+  min-height: 52px;
   padding: 5px 7px;
-  border: 1px solid rgba(75, 105, 255, 0.22);
-  background: rgba(14, 21, 25, 0.9);
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
@@ -985,15 +1059,17 @@ body {
   align-items: center;
   gap: 7px;
   transition: background var(--transition-fast), border-color var(--transition-fast);
+  position: relative;
 }
 
 .buy-menu button:hover {
-  background: rgba(75, 105, 255, 0.2);
-  border-color: var(--ct-blue);
+  background: rgba(232, 201, 106, 0.12);
+  border-color: rgba(232, 201, 106, 0.5);
+  border-left: 3px solid var(--csgo-gold);
 }
 
 .buy-menu button:disabled {
-  opacity: 0.38;
+  opacity: 0.32;
   cursor: not-allowed;
 }
 
@@ -1022,33 +1098,33 @@ body {
 
 .buy-item-name {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: uppercase;
 }
 
 .buy-item-price {
   display: block;
-  color: var(--money-green);
+  color: var(--csgo-gold);
   font-size: 11px;
   font-weight: 700;
+  letter-spacing: 1px;
 }
 
 .buy-item-damage-bar {
-  height: 3px;
-  background: rgba(255,255,255,0.12);
-  border-radius: 2px;
+  height: 2px;
+  background: rgba(255,255,255,0.08);
   overflow: hidden;
   margin-top: 2px;
 }
 
 .buy-item-damage-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--ct-blue), var(--primary));
-  border-radius: 2px;
+  background: linear-gradient(90deg, #4b69ff 0%, #e8c96a 50%, #ff4655 100%);
 }
 
 .buy-item-damage {
@@ -1725,6 +1801,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 180;
+  pointer-events: auto;
   transition: opacity 0.2s;
 }
 .confirm-dialog.hidden {
@@ -1734,45 +1811,52 @@ body {
 .confirm-dialog-box {
   background: #141c24;
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px;
-  padding: 24px 32px;
+  border-top: 2px solid var(--primary);
+  border-radius: 4px;
+  padding: 28px 36px 24px;
   text-align: center;
+  min-width: 320px;
 }
 .confirm-dialog-msg {
   font-family: 'Rajdhani', sans-serif;
   font-size: 18px;
-  font-weight: 500;
-  color: #c8d6e5;
-  margin-bottom: 20px;
+  font-weight: 600;
+  color: #dce8f0;
+  margin-bottom: 24px;
+  letter-spacing: 0.02em;
 }
 .confirm-dialog-buttons {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
 }
-.confirm-dialog-yes {
-  padding: 8px 24px;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--red);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.confirm-dialog-yes:hover { background: #e84040; }
 .confirm-dialog-no {
-  padding: 8px 24px;
+  flex: 1;
+  padding: 9px 20px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #141c24;
+  background: var(--primary);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.15s;
+  letter-spacing: 0.04em;
+}
+.confirm-dialog-no:hover { background: var(--primary-hover); }
+.confirm-dialog-yes {
+  flex: 1;
+  padding: 9px 20px;
   font-family: 'Rajdhani', sans-serif;
   font-size: 15px;
   font-weight: 600;
-  color: #c8d6e5;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 4px;
+  color: rgba(220, 232, 245, 0.7);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 2px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.04em;
 }
-.confirm-dialog-no:hover { background: rgba(255,255,255,0.14); }
+.confirm-dialog-yes:hover { background: rgba(255, 70, 85, 0.15); color: var(--danger); border-color: var(--danger); }

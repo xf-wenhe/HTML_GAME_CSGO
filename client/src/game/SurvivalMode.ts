@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { EnemyManager } from './EnemyManager.js';
-import { INDUSTRIAL_ARENA } from './MapData.js';
+import { EnemySpawnPoint } from './MapData.js';
 
 export type GamePhase = 'menu' | 'playing' | 'waveComplete' | 'gameOver';
 export type NpcDifficulty = 'easy' | 'normal' | 'hard' | 'expert';
@@ -28,10 +28,12 @@ export class SurvivalMode {
   private startedAt = 0;
   private lastSpawnIndex = 0;
   private difficulty: NpcDifficulty = 'normal';
+  private arenaSpawns: EnemySpawnPoint[] = [];
 
   constructor(private enemies: EnemyManager) {}
 
-  start(now: number, difficulty: NpcDifficulty = 'normal'): void {
+  start(now: number, difficulty: NpcDifficulty = 'normal', spawns: EnemySpawnPoint[] = []): void {
+    this.arenaSpawns = spawns;
     this.phase = 'waveComplete';
     this.difficulty = difficulty;
     this.wave = 0;
@@ -45,12 +47,12 @@ export class SurvivalMode {
   update(dt: number, now: number): SurvivalStats {
     if (this.phase === 'waveComplete') {
       this.prepRemaining = Math.max(0, this.prepRemaining - dt);
-      if (this.prepRemaining === 0) {
+      if (this.prepRemaining === 0 && this.arenaSpawns.length > 0) {
         this.beginNextWave();
       }
     }
 
-    if (this.phase === 'playing' && this.enemies.getAliveCount() === 0 && this.waveKills >= this.waveTarget) {
+    if (this.phase === 'playing' && this.enemies.getAliveCount() === 0 && this.waveTarget > 0 && this.waveKills >= this.waveTarget) {
       this.phase = 'waveComplete';
       this.prepRemaining = 4;
     }
@@ -84,6 +86,7 @@ export class SurvivalMode {
   }
 
   private beginNextWave(): void {
+    if (this.arenaSpawns.length === 0) return;
     this.phase = 'playing';
     this.wave++;
     this.waveKills = 0;
@@ -91,7 +94,9 @@ export class SurvivalMode {
     this.waveTarget = Math.min(Math.round((4 + this.wave * 2) * tuning.count), 22);
 
     for (let i = 0; i < this.waveTarget; i++) {
-      const spawn = INDUSTRIAL_ARENA.enemySpawns[(this.lastSpawnIndex + i) % INDUSTRIAL_ARENA.enemySpawns.length];
+      const spawns = this.arenaSpawns;
+      const spawn = spawns[(this.lastSpawnIndex + i) % spawns.length];
+      if (!spawn) continue;
       const jitter = new THREE.Vector3((Math.random() - 0.5) * 2.2, 0, (Math.random() - 0.5) * 2.2);
       const position = spawn.position.clone().add(jitter);
       const type = this.wave >= 4 && i % 4 === 0 ? 'assault' : spawn.type;
@@ -107,7 +112,7 @@ export class SurvivalMode {
         ]
       });
     }
-    this.lastSpawnIndex = (this.lastSpawnIndex + this.waveTarget) % INDUSTRIAL_ARENA.enemySpawns.length;
+    this.lastSpawnIndex = (this.lastSpawnIndex + this.waveTarget) % this.arenaSpawns.length;
   }
 
   private currentObjective(): string {
