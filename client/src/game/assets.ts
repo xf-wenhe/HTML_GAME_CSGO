@@ -65,9 +65,18 @@ function tuneMaterials(object: THREE.Object3D, definition: AssetDefinition): THR
   return object;
 }
 
+function safeLoadFallback(definition: AssetDefinition): THREE.Object3D {
+  try {
+    return markRenderable(tuneMaterials(definition.fallback(), definition), 'fallback');
+  } catch {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.8, 0.3), new THREE.MeshStandardMaterial({ color: 0x555555 }));
+    return markRenderable(box, 'fallback');
+  }
+}
+
 export async function loadAsset(definition: AssetDefinition): Promise<THREE.Object3D> {
   if (definition.preferFallback || (typeof process !== 'undefined' && process.env.VITEST)) {
-    return markRenderable(tuneMaterials(applyDefinitionTransform(definition.fallback(), definition), definition), 'fallback');
+    return safeLoadFallback(definition);
   }
 
   if (!cache.has(definition.id)) {
@@ -80,10 +89,10 @@ export async function loadAsset(definition: AssetDefinition): Promise<THREE.Obje
             resolve(markRenderable(tuneMaterials(applyDefinitionTransform(model, definition), definition), 'glb'));
           },
           undefined,
-          () => resolve(markRenderable(tuneMaterials(applyDefinitionTransform(definition.fallback(), definition), definition), 'fallback'))
+          () => resolve(safeLoadFallback(definition))
         );
       } catch {
-        resolve(markRenderable(tuneMaterials(applyDefinitionTransform(definition.fallback(), definition), definition), 'fallback'));
+        resolve(safeLoadFallback(definition));
       }
     }));
   }
@@ -192,72 +201,176 @@ export function createFallbackWeapon(color: number, length = 0.9, variant: 'pist
 
 export function createFallbackEnemy(): THREE.Object3D {
   const group = new THREE.Group();
-  const armor = new THREE.MeshStandardMaterial({ color: 0x8f1f1f, roughness: 0.48, metalness: 0.18 });
-  const darkArmor = new THREE.MeshStandardMaterial({ color: 0x1f242b, roughness: 0.56, metalness: 0.28 });
-  const cloth = new THREE.MeshStandardMaterial({ color: 0x2f3338, roughness: 0.75 });
-  const visor = new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.18, emissive: 0x4a2200 });
-  const rifle = new THREE.MeshStandardMaterial({ color: 0x111315, roughness: 0.35, metalness: 0.75 });
 
-  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.32, 0.34), darkArmor);
-  hips.position.y = 0.82;
+  // CS:GO T-side color scheme
+  const armor     = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 0.72, metalness: 0.0  });
+  const darkArmor = new THREE.MeshStandardMaterial({ color: 0x1c1a16, roughness: 0.55, metalness: 0.32 });
+  const cloth     = new THREE.MeshStandardMaterial({ color: 0x3a3228, roughness: 0.90, metalness: 0.0  });
+  const visor     = new THREE.MeshStandardMaterial({ color: 0xd4a030, roughness: 0.12, metalness: 0.1, emissive: new THREE.Color(0x3a2000), emissiveIntensity: 0.4 });
+  const metal     = new THREE.MeshStandardMaterial({ color: 0x0f1113, roughness: 0.25, metalness: 0.88 });
+  const gripMat   = new THREE.MeshStandardMaterial({ color: 0x1e1c1a, roughness: 0.75, metalness: 0.0  });
+
+  // ── Hips / Belt (at y=0.96, the hip pivot reference height) ──────────────
+  const hips = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.12, 6, 12), cloth);
+  hips.position.y = 0.96;
   group.add(hips);
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.06, 0.34), darkArmor);
+  belt.position.set(0, 0.88, 0);
+  group.add(belt);
 
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.92, 0.38), armor);
-  torso.position.y = 1.33;
-  torso.rotation.x = -0.08;
+  // ── Left leg — pivot at hip joint ────────────────────────────────────────
+  const leftLegPivot = new THREE.Group();
+  leftLegPivot.name = 'left-leg-pivot';
+  leftLegPivot.position.set(-0.20, 0.96, 0);
+  group.add(leftLegPivot);
+
+  const leftThigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.36, 6, 12), cloth);
+  leftThigh.position.y = -0.22;
+  leftLegPivot.add(leftThigh);
+
+  const leftKneePivot = new THREE.Group();
+  leftKneePivot.position.y = -0.44;
+  leftLegPivot.add(leftKneePivot);
+
+  const leftShin = new THREE.Mesh(new THREE.CapsuleGeometry(0.080, 0.38, 6, 12), cloth);
+  leftShin.position.y = -0.22;
+  leftKneePivot.add(leftShin);
+
+  const leftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.10, 0.28), darkArmor);
+  leftBoot.position.set(0, -0.46, 0.02);
+  leftKneePivot.add(leftBoot);
+
+  // ── Right leg ─────────────────────────────────────────────────────────────
+  const rightLegPivot = new THREE.Group();
+  rightLegPivot.name = 'right-leg-pivot';
+  rightLegPivot.position.set(0.20, 0.96, 0);
+  group.add(rightLegPivot);
+
+  const rightThigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.36, 6, 12), cloth);
+  rightThigh.position.y = -0.22;
+  rightLegPivot.add(rightThigh);
+
+  const rightKneePivot = new THREE.Group();
+  rightKneePivot.position.y = -0.44;
+  rightLegPivot.add(rightKneePivot);
+
+  const rightShin = new THREE.Mesh(new THREE.CapsuleGeometry(0.080, 0.38, 6, 12), cloth);
+  rightShin.position.y = -0.22;
+  rightKneePivot.add(rightShin);
+
+  const rightBoot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.10, 0.28), darkArmor);
+  rightBoot.position.set(0, -0.46, 0.02);
+  rightKneePivot.add(rightBoot);
+
+  // ── Torso (capsule — organic shape) ──────────────────────────────────────
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.20, 0.52, 8, 16), armor);
+  torso.name = 'torso';
+  torso.position.y = 1.40;
   group.add(torso);
 
-  const chestRig = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.16, 0.44), darkArmor);
-  chestRig.position.set(0, 1.45, -0.02);
-  group.add(chestRig);
+  // Tactical vest overlay
+  const vestFront = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.50, 0.06), darkArmor);
+  vestFront.position.set(0, 1.42, -0.22);
+  group.add(vestFront);
+  const pouch1 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.12, 0.05), darkArmor);
+  pouch1.position.set(-0.14, 1.32, -0.26);
+  group.add(pouch1);
+  const pouch2 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.12, 0.05), darkArmor);
+  pouch2.position.set(0.14, 1.32, -0.26);
+  group.add(pouch2);
 
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.16, 10), cloth);
-  neck.position.y = 1.87;
+  // ── Left arm — pivot at shoulder (child of torso space) ──────────────────
+  const leftShoulderPivot = new THREE.Group();
+  leftShoulderPivot.name = 'left-arm-pivot';
+  leftShoulderPivot.position.set(-0.24, 1.60, 0);
+  group.add(leftShoulderPivot);
+
+  const leftUpperArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.30, 6, 12), cloth);
+  leftUpperArm.position.y = -0.18;
+  leftShoulderPivot.add(leftUpperArm);
+
+  const leftElbowPivot = new THREE.Group();
+  leftElbowPivot.position.y = -0.36;
+  leftShoulderPivot.add(leftElbowPivot);
+
+  const leftForearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.062, 0.26, 6, 12), cloth);
+  leftForearm.position.y = -0.16;
+  leftElbowPivot.add(leftForearm);
+
+  // ── Right arm ─────────────────────────────────────────────────────────────
+  const rightShoulderPivot = new THREE.Group();
+  rightShoulderPivot.name = 'right-arm-pivot';
+  rightShoulderPivot.position.set(0.24, 1.60, 0);
+  group.add(rightShoulderPivot);
+
+  const rightUpperArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.30, 6, 12), cloth);
+  rightUpperArm.position.y = -0.18;
+  rightShoulderPivot.add(rightUpperArm);
+
+  const rightElbowPivot = new THREE.Group();
+  rightElbowPivot.position.y = -0.36;
+  rightShoulderPivot.add(rightElbowPivot);
+
+  const rightForearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.062, 0.26, 6, 12), cloth);
+  rightForearm.position.y = -0.16;
+  rightElbowPivot.add(rightForearm);
+
+  // ── Neck ──────────────────────────────────────────────────────────────────
+  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.10, 6, 10), cloth);
+  neck.position.y = 1.82;
   group.add(neck);
 
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.36, 0.42), armor);
-  head.position.y = 2.12;
+  // ── Head (sphere — organic) ────────────────────────────────────────────
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), armor);
+  head.name = 'head';
+  head.position.y = 2.08;
   group.add(head);
 
-  const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.18, 0.48), darkArmor);
-  helmet.position.y = 2.31;
+  // Helmet dome (upper hemisphere feel via scaled sphere)
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.205, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), darkArmor);
+  helmet.position.set(0, 2.10, 0.02);
   group.add(helmet);
 
-  const face = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.09, 0.035), visor);
-  face.position.set(0, 2.13, -0.23);
-  group.add(face);
+  // Helmet brim
+  const brim = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.04, 0.14), darkArmor);
+  brim.position.set(0, 1.97, -0.20);
+  group.add(brim);
 
-  const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.78, 0.2), cloth);
-  leftArm.name = 'left-arm';
-  leftArm.position.set(-0.52, 1.28, -0.08);
-  leftArm.rotation.z = -0.15;
-  group.add(leftArm);
+  // Goggles
+  const goggleL = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.04), visor);
+  goggleL.position.set(-0.09, 2.07, -0.17);
+  group.add(goggleL);
+  const goggleR = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.04), visor);
+  goggleR.position.set(0.09, 2.07, -0.17);
+  group.add(goggleR);
 
-  const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.78, 0.2), cloth);
-  rightArm.name = 'right-arm';
-  rightArm.position.set(0.52, 1.28, -0.08);
-  rightArm.rotation.z = 0.15;
-  group.add(rightArm);
+  // ── Weapon (AK-47 style) ──────────────────────────────────────────────────
+  const weaponOrigin = new THREE.Group();
+  weaponOrigin.position.set(0.32, 1.30, -0.38);
+  weaponOrigin.rotation.set(0.14, -0.18, -0.06);
 
-  const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.86, 0.24), cloth);
-  leftLeg.name = 'left-leg';
-  leftLeg.position.set(-0.22, 0.27, 0);
-  group.add(leftLeg);
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.09, 0.70), metal);
+  weaponOrigin.add(receiver);
+  const barrelMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.52, 12), metal);
+  barrelMesh.rotation.x = Math.PI / 2;
+  barrelMesh.position.set(0, 0.02, -0.58);
+  weaponOrigin.add(barrelMesh);
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.18, 0.09), gripMat);
+  mag.rotation.x = -0.25;
+  mag.position.set(0, -0.12, -0.08);
+  weaponOrigin.add(mag);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.07), gripMat);
+  grip.rotation.x = -0.30;
+  grip.position.set(0, -0.08, 0.14);
+  weaponOrigin.add(grip);
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.28), gripMat);
+  stock.position.set(0, -0.01, 0.38);
+  weaponOrigin.add(stock);
+  group.add(weaponOrigin);
 
-  const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.86, 0.24), cloth);
-  rightLeg.name = 'right-leg';
-  rightLeg.position.set(0.22, 0.27, 0);
-  group.add(rightLeg);
-
-  const weapon = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.11, 0.98), rifle);
-  weapon.position.set(0.34, 1.28, -0.42);
-  weapon.rotation.set(0.18, -0.22, -0.08);
-  group.add(weapon);
-
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.72, 10), rifle);
-  barrel.rotation.x = Math.PI / 2;
-  barrel.position.set(0.27, 1.3, -0.98);
-  group.add(barrel);
+  group.traverse(child => {
+    if (child instanceof THREE.Mesh) child.castShadow = true;
+  });
 
   return group;
 }
@@ -270,7 +383,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.42,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.18, -0.06, 0.18],
-    preferFallback: true,
+    preferFallback: false,
     fallback: () => createFallbackWeapon(0x3f4650, 0.55, 'pistol')
   },
   heavy_pistol: {
@@ -280,7 +393,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.42,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.22, -0.08, 0.18],
-    preferFallback: true,
+    preferFallback: false,
     fallback: () => createFallbackWeapon(0x4b5563, 0.62, 'pistol')
   },
   rifle: {
@@ -290,7 +403,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.18,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.18, -0.08, 0.24],
-    preferFallback: true,
+    preferFallback: false,
     fallback: () => createFallbackWeapon(0x3d4651, 0.95, 'rifle')
   },
   defender_rifle: {
@@ -300,7 +413,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.18,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.08, -0.12, 0.2],
-    preferFallback: true,
+    preferFallback: false,
     fallback: () => createFallbackWeapon(0x45515c, 0.9, 'rifle')
   },
   sniper: {
@@ -310,7 +423,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.145,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.25, -0.12, 0.28],
-    preferFallback: true,
+    preferFallback: false,
     fallback: () => createFallbackWeapon(0x303842, 1.12, 'sniper')
   },
   smg: {
@@ -320,7 +433,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.24,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.12, -0.1, 0.2],
-    preferFallback: true,
+    preferFallback: false,
     fallback: () => createFallbackWeapon(0x35404a, 0.72, 'smg')
   },
   shotgun: {
@@ -330,7 +443,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.17,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.18, -0.11, 0.24],
-    preferFallback: true,
+    preferFallback: false,
     fallback: () => createFallbackWeapon(0x47311f, 0.8, 'shotgun')
   },
   knife: {
@@ -340,7 +453,7 @@ export const ASSETS: Record<string, AssetDefinition> = {
     scale: 0.62,
     rotation: [0, Math.PI / 2, 0],
     position: [-0.08, -0.08, 0.12],
-    preferFallback: true,
+    preferFallback: false,
     fallback: () => createFallbackWeapon(0xa8b0ba, 0.6, 'knife')
   },
   enemy_assault: {
