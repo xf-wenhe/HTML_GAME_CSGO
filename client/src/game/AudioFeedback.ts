@@ -1,12 +1,5 @@
 import { HitRegion } from './Combat.js';
 
-export type AudioCueType =
-  | 'weapon:shoot' | 'weapon:empty' | 'weapon:reload'
-  | 'hit:body' | 'hit:head' | 'kill'
-  | 'footstep:run' | 'footstep:walk' | 'land';
-
-export interface AudioCue { type: AudioCueType; label: string; intensity: number; }
-
 export interface FootstepState {
   moving: boolean; walking: boolean; crouched: boolean; grounded: boolean;
 }
@@ -60,6 +53,6 @@ export class AudioFeedback {
     const interval = state.walking ? 430 : 310;
     if (now - this.lastFootstepAt < interval) return;
     this.lastFootstepAt = now;
-    this.audioManager.play(state.walking ? 'footstep_concrete' : 'footstep_concrete', { volume: state.walking ? 0.16 : 0.28 });
+    this.audioManager.play('footstep_concrete', { volume: state.walking ? 0.16 : 0.28 });
   }
 }
