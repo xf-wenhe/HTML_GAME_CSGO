@@ -14,6 +14,8 @@ import { Enemy } from './game/Enemy.js';
 import { RemotePlayers } from './game/RemotePlayers.js';
 import { SurvivalMode } from './game/SurvivalMode.js';
 import { GrenadeSystem } from './game/GrenadeSystem.js';
+import { ShellCasingManager } from './game/ShellCasing.js';
+import { ScreenShake } from './game/ScreenShake.js';
 import { DroppedWeapon, DroppedWeaponSystem } from './game/DroppedWeaponSystem.js';
 import { HitRegion, calculateDamage } from './game/Combat.js';
 import { AudioFeedback } from './game/AudioFeedback.js';
@@ -88,6 +90,8 @@ const audioManager = new AudioManager();
 const audioFeedback = new AudioFeedback(audioManager);
 const settings = new Settings();
 const prediction = new Prediction();
+const shellCasingManager = new ShellCasingManager(scene.getScene());
+const screenShake = new ScreenShake();
 
 audioManager.init().then(() => {
   audioManager.loadFiles({
@@ -582,6 +586,8 @@ function gameLoop(now: number) {
 
   impactDecalManager.update(now);
   tracerSystem.update(now);
+  shellCasingManager.update(dt);
+  screenShake.update(dt);
 
   const playerPos = player?.getPosition() || new THREE.Vector3(0, 0, 0);
   updateRadarPanel();
@@ -596,6 +602,7 @@ function gameLoop(now: number) {
     player.takeDamage(enemyDamage, 'chest', 0.28);
     hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
     hud.showDamage();
+    screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
     if (player.isDead()) {
       survival.gameOver();
       hud.showResults(survival.getStats(now));
@@ -651,6 +658,7 @@ function gameLoop(now: number) {
     player.takeDamage(grenadeResult.damage, 'chest', 0.15);
     hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
     hud.showDamage();
+    screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
   }
 
   if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && usingGrenade && input.isKeyPressed('MouseRight') && player) {
@@ -738,6 +746,11 @@ function gameLoop(now: number) {
           }
         }
       }
+      // Shell casing ejection
+      if (!result.isMelee) {
+        const ejectPos = weaponManager.getEjectPosition();
+        shellCasingManager.spawn(ejectPos, result.direction, weaponManager.getCurrentWeaponId());
+      }
       if (weaponManager.isScoped()) {
         weaponManager.setAiming(false);
         hud.setScoped(false);
@@ -746,7 +759,14 @@ function gameLoop(now: number) {
     }
   }
 
+  // Apply screen shake before rendering
+  const shakeOffset = screenShake.getOffset();
+  const camera = scene.getCamera();
+  camera.position.x += shakeOffset.x;
+  camera.position.y += shakeOffset.y;
   scene.render();
+  camera.position.x -= shakeOffset.x;
+  camera.position.y -= shakeOffset.y;
   requestAnimationFrame(gameLoop);
 }
 

@@ -200,6 +200,11 @@ export class WeaponManager {
     return muzzleLocal.applyMatrix4(this.weaponRoot.matrixWorld);
   }
 
+  getEjectPosition(): THREE.Vector3 {
+    const ejectLocal = new THREE.Vector3(0.15, -0.02, -0.5);
+    return ejectLocal.applyMatrix4(this.weaponRoot.matrixWorld);
+  }
+
   shouldSpawnTracer(): boolean {
     this.shotCounter++;
     if (this.shotCounter % 3 === 0) {
