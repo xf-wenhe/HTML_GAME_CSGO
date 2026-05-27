@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { Scene } from './game/Scene.js';
@@ -29,6 +30,39 @@ import { MainMenu } from './ui/MainMenu.js';
 import { Settings } from './ui/Settings.js';
 import { MULTIPLAYER_MAPS } from './game/config/maps.js';
 import './ui/style.css';
+
+// 将服务端的增量补丁合并到本地的完整快照中
+function mergeDelta(target: any, delta: any) {
+  for (const key in delta) {
+    if (delta[key] === null) {
+      // 遇到 null：如果是对象键则删除，如果是数组元素则表示该索引处无变化
+      if (!Array.isArray(target)) {
+        delete target[key];
+      }
+    } else if (Array.isArray(delta[key])) {
+      if (!target[key] || !Array.isArray(target[key])) {
+        target[key] = delta[key];
+      } else {
+        // 遍历并合并不完整的稀疏数组
+        for (let i = 0; i < delta[key].length; i++) {
+          if (delta[key][i] !== null && delta[key][i] !== undefined) {
+            if (typeof delta[key][i] === 'object' && !Array.isArray(delta[key][i])) {
+              target[key][i] = target[key][i] || {};
+              mergeDelta(target[key][i], delta[key][i]);
+            } else {
+              target[key][i] = delta[key][i];
+            }
+          }
+        }
+      }
+    } else if (typeof delta[key] === 'object') {
+      target[key] = target[key] || {};
+      mergeDelta(target[key], delta[key]);
+    } else {
+      target[key] = delta[key];
+    }
+  }
+}
 
 declare global {
   interface Window {
@@ -404,8 +438,20 @@ network.on('roomState', (data) => {
   applyMatchSnapshot(data.snapshot);
 });
 
-network.on('matchSnapshot', (data) => {
-  applyMatchSnapshot(data.snapshot);
+(network as any).on('matchDelta', (payload: { isDelta: boolean; data: any }) => {
+  if (!payload.isDelta) {
+    // 如果收到的是全量包（刚进房间的第一帧），直接覆盖
+    currentSnapshot = payload.data;
+  } else {
+    // 如果收到的是增量包，需要先和本地上一次的数据合并
+    if (!currentSnapshot) return; 
+    mergeDelta(currentSnapshot, payload.data);
+  }
+  
+  // 添加非空判断，防止 TypeScript 报错
+  if (currentSnapshot) {
+    applyMatchSnapshot(currentSnapshot);
+  }
 });
 
 network.on('roomError', (data) => {

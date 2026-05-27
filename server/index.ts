@@ -11,6 +11,89 @@ const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') console.log(...args);
 };
 
+// 深度克隆，阻断引用污染
+function cloneSnapshot(snap: any): any {
+  return JSON.parse(JSON.stringify(snap));
+}
+
+// 核心：Delta Diff 算法
+function calculateDelta(oldSnap: any, newSnap: any): any {
+  if (!oldSnap) return newSnap;
+  const delta: any = {};
+  let hasChanges = false;
+
+  // 1. 找出修改和新增的字段
+  for (const key in newSnap) {
+    const newVal = newSnap[key];
+    const oldVal = oldSnap[key];
+
+    if (typeof newVal !== 'object' || newVal === null) {
+      // 浮点数量化压缩：仅保留2位小数
+      const checkVal = (typeof newVal === 'number' && !Number.isInteger(newVal))
+        ? Math.round(newVal * 100) / 100 : newVal;
+      const oldCheckVal = (typeof oldVal === 'number' && !Number.isInteger(oldVal))
+        ? Math.round(oldVal * 100) / 100 : oldVal;
+
+      if (checkVal !== oldCheckVal) {
+        delta[key] = checkVal;
+        hasChanges = true;
+      }
+    } else if (Array.isArray(newVal)) {
+      // 数组长度变化（例如玩家进出），直接发送完整新数组
+      if (!oldVal || oldVal.length !== newVal.length) {
+        delta[key] = newVal;
+        hasChanges = true;
+      } else {
+        // 长度相同，按索引逐个 Diff（极大幅度压缩不变的玩家数据）
+        const arrDelta: any[] = [];
+        let arrChanged = false;
+        for (let i = 0; i < newVal.length; i++) {
+          if (typeof newVal[i] === 'object' && newVal[i] !== null) {
+            const itemDelta = calculateDelta(oldVal[i], newVal[i]);
+            if (itemDelta && Object.keys(itemDelta).length > 0) {
+              arrDelta[i] = itemDelta;
+              if (newVal[i].id) arrDelta[i].id = newVal[i].id; // 强制保留 ID
+              arrChanged = true;
+            } else {
+              arrDelta[i] = null; // 无变化，占位符
+            }
+          } else if (oldVal[i] !== newVal[i]) {
+            arrDelta[i] = newVal[i];
+            arrChanged = true;
+          } else {
+            arrDelta[i] = null;
+          }
+        }
+        if (arrChanged) {
+          // 移除数组尾部多余的 null 占位符，进一步压缩包体
+          while (arrDelta.length > 0 && arrDelta[arrDelta.length - 1] === null) {
+            arrDelta.pop();
+          }
+          delta[key] = arrDelta;
+          hasChanges = true;
+        }
+      }
+    } else {
+      // 递归子对象
+      const objDelta = calculateDelta(oldVal || {}, newVal);
+      if (objDelta && Object.keys(objDelta).length > 0) {
+        delta[key] = objDelta;
+        hasChanges = true;
+      }
+    }
+  }
+
+  // 2. 找出被删除的字段 (例如炸弹拆除后字段消失)
+  for (const key in oldSnap) {
+    if (!(key in newSnap)) {
+      delta[key] = null; 
+      hasChanges = true;
+    }
+  }
+
+  return hasChanges ? delta : undefined;
+}
+
 export function createGameServer() {
   const app = express();
   const httpServer = createServer(app);
@@ -188,8 +271,24 @@ export function createGameServer() {
       debugLog(`Tick rate restored to ${TARGET_TICK}Hz`);
     }
 
+    const lastSnapshots = new Map<string, any>(); // 用于存放上一帧状态
+    
+    // 替换原有的 tick 发送逻辑：
     roomManager.tick().forEach(snapshot => {
-      io.to(snapshot.roomId).emit('matchSnapshot', snapshot);
+      const roomId = snapshot.roomId;
+      const prev = lastSnapshots.get(roomId);
+      const delta = calculateDelta(prev, snapshot);
+
+      // 只有当画面有任何动态时才发送网络包
+      if (delta) {
+        io.to(roomId).emit('matchDelta', {
+          isDelta: !!prev,
+          data: delta
+        });
+      }
+      
+      // 更新历史参照帧
+      lastSnapshots.set(roomId, cloneSnapshot(snapshot));
     });
 
     const nextTickAt = lastTick + currentInterval;
