@@ -12,6 +12,8 @@ export class Physics {
     this.world.defaultContactMaterial.friction = 0;
     this.world.defaultContactMaterial.restitution = 0;
 
+    // 【优化 1：启用 SAP 宽相检测】将物理碰撞的性能消耗从 O(n^2) 降级到近乎 O(n)
+    this.world.broadphase = new CANNON.SAPBroadphase(this.world);
     const defaultMaterial = new CANNON.Material('default');
     const defaultContactMaterial = new CANNON.ContactMaterial(
       defaultMaterial,

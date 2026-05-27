@@ -711,6 +711,7 @@ export class RoomManager {
     return teams === 'both' || teams.includes(team);
   }
 
+  // server/rooms.ts
   private snapshot(room: MatchRoom): MatchSnapshot {
     return {
       roomId: room.id,
@@ -719,20 +720,22 @@ export class RoomManager {
       serverTime: now(),
       round: room.round,
       roundTimeRemaining: Math.max(0, (room.roundEndsAt - now()) / 1000),
-      score: { ...room.score },
+      score: room.score, // 【优化 3】移除 { ...room.score }，直接传引用，交由底层序列化
       players: Array.from(room.players.values()).map(player => ({
-        ...player,
-        ownedWeapons: player.ownedWeapons ? [...player.ownedWeapons] : undefined,
-        position: { ...player.position },
-        rotation: { ...player.rotation },
+        ...player, // 外层对象浅拷贝即可
+        // 移除 [...player.ownedWeapons] 和 { ...player.position } 的高频解构
+        ownedWeapons: player.ownedWeapons,
+        position: player.position,
+        rotation: player.rotation,
         lastProcessedSeq: room.lastInputSeq.get(player.id)
       })),
       spectatorCount: room.spectators.size,
-      bomb: room.bomb ? { ...room.bomb, position: room.bomb.position ? { ...room.bomb.position } : undefined } : undefined,
-      killFeed: [...room.killFeed],
-      lastHit: room.lastHit ? { ...room.lastHit, position: room.lastHit.position ? { ...room.lastHit.position } : undefined } : undefined,
-      events: [...room.events],
-      securityEvents: [...room.securityEvents],
+      // 简化 Bomb 对象的解构
+      bomb: room.bomb,
+      killFeed: room.killFeed,
+      lastHit: room.lastHit,
+      events: room.events,
+      securityEvents: room.securityEvents,
       summary: room.phase === 'matchEnd' ? this.buildSummary(room) : undefined
     };
   }
@@ -793,15 +796,27 @@ export class RoomManager {
     if (value !== undefined) map.set(newKey, value);
   }
 
+  // server/rooms.ts
   private getBacktrackedPosition(room: MatchRoom, playerId: string, targetTime: number): Vector3 | null {
     const history = room.positionHistory.get(playerId);
     if (!history || history.length === 0) return null;
     if (targetTime < history[0].time - 10) return null; // Too far back
+
+    // 【优化 2：二分查找】利用时间戳的有序性，快速定位延迟补偿的对应帧
+    let left = 0;
+    let right = history.length - 1;
     let best = history[0];
-    for (const record of history) {
-      if (record.time <= targetTime) best = record;
-      else break;
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (history[mid].time <= targetTime) {
+        best = history[mid]; // 记录当前最接近的值
+        left = mid + 1;      // 继续向后找看看有没有更接近的
+      } else {
+        right = mid - 1;     // 时间超前了，往前找
+      }
     }
+    
     return best.position;
   }
 
