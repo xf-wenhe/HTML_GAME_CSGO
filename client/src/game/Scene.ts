@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ARENA_MAPS, ArenaData, BoxSpec } from './MapData.js';
 import { MapId } from './types.js';
+import { getTexture, loadPBRTextureSet, PBRTextureKey } from './ProceduralTextures.js';
 
 export class Scene {
   private scene: THREE.Scene;
@@ -176,10 +177,24 @@ export class Scene {
   }
 
   private addBox(spec: BoxSpec): void {
+    let map: THREE.Texture | null = null;
+    if (spec.textureKey) {
+      map = getTexture(spec.textureKey);
+      // Auto-calculate UV repeat based on surface size (1 tile per ~1.5 game units)
+      const tileSize = 1.5;
+      map = map.clone();
+      map.repeat.set(
+        Math.max(1, Math.round(spec.size.x / tileSize)),
+        Math.max(1, Math.round(spec.size.z / tileSize))
+      );
+      map.needsUpdate = true;
+    }
+
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(spec.size.x, spec.size.y, spec.size.z),
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color(spec.color).lerp(new THREE.Color(0xffffff), 0.14),
+        color: map ? 0xffffff : new THREE.Color(spec.color).lerp(new THREE.Color(0xffffff), 0.14),
+        map: map ?? undefined,
         metalness: spec.metalness ?? 0.2,
         roughness: spec.roughness ?? 0.6,
         transparent: spec.opacity !== undefined && spec.opacity < 1,
@@ -193,6 +208,24 @@ export class Scene {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = spec.name ?? 'arena-box';
+
+    // Try PBR textures asynchronously, falling back to Canvas
+    if (spec.textureKey) {
+      const pbrKey = spec.textureKey as PBRTextureKey;
+      const tileX = Math.max(1, Math.round(spec.size.x / 1.5));
+      const tileY = Math.max(1, Math.round(spec.size.z / 1.5));
+
+      loadPBRTextureSet(pbrKey, '/assets/textures', tileX, tileY).then(pbrSet => {
+        if (pbrSet) {
+          (mesh.material as THREE.MeshStandardMaterial).map = pbrSet.map;
+          if (pbrSet.normalMap) (mesh.material as THREE.MeshStandardMaterial).normalMap = pbrSet.normalMap;
+          if (pbrSet.roughnessMap) (mesh.material as THREE.MeshStandardMaterial).roughnessMap = pbrSet.roughnessMap;
+          (mesh.material as THREE.MeshStandardMaterial).color.set(0xffffff);
+          (mesh.material as THREE.MeshStandardMaterial).needsUpdate = true;
+        }
+        // If PBR fails, the Canvas texture from getTexture is already applied
+      });
+    }
 
     // 性能优化：标记可剔除的对象
     // 边界墙、地面、主要结构不应被剔除
