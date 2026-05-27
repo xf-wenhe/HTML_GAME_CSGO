@@ -36,6 +36,7 @@ export class WeaponManager {
   private scoped = false;
   private meleeSwing = 0;
   private feedbackEvents: WeaponFeedbackEvent[] = [];
+  private shotCounter = 0;
 
   constructor() {
     Object.entries(WEAPON_DEFINITIONS).forEach(([id, weapon]) => {
@@ -192,6 +193,20 @@ export class WeaponManager {
     );
 
     this.muzzleFlash.material.opacity = Math.max(0, this.muzzleFlash.material.opacity - dt * 9);
+  }
+
+  getMuzzleWorldPosition(): THREE.Vector3 {
+    const muzzleLocal = new THREE.Vector3(0, 0.03, -0.92);
+    return muzzleLocal.applyMatrix4(this.weaponRoot.matrixWorld);
+  }
+
+  shouldSpawnTracer(): boolean {
+    this.shotCounter++;
+    if (this.shotCounter % 3 === 0) {
+      this.shotCounter = 0;
+      return true;
+    }
+    return false;
   }
 
   dispose(): void {

@@ -5,7 +5,9 @@ import { Physics } from './game/Physics.js';
 import { InputManager } from './game/InputManager.js';
 import { PlayerController } from './game/PlayerController.js';
 import { ShootResult, WeaponManager } from './game/WeaponManager.js';
-import { ProjectileSystem } from './game/ProjectileSystem.js';
+import { ProjectileSystem, RaycastResult } from './game/ProjectileSystem.js';
+import { ImpactDecalManager } from './game/ImpactDecal.js';
+import { TracerSystem } from './game/TracerSystem.js';
 import { NetworkManager } from './network/NetworkManager.js';
 import { EnemyManager } from './game/EnemyManager.js';
 import { Enemy } from './game/Enemy.js';
@@ -72,6 +74,8 @@ const physics = new Physics();
 const input = new InputManager();
 const weaponManager = new WeaponManager();
 const projectileSystem = new ProjectileSystem(scene.getScene(), physics);
+const impactDecalManager = new ImpactDecalManager(scene.getScene());
+const tracerSystem = new TracerSystem(scene.getScene());
 const network = new NetworkManager();
 const enemyManager = new EnemyManager(scene.getScene(), physics);
 const survival = new SurvivalMode(enemyManager);
@@ -576,6 +580,9 @@ function gameLoop(now: number) {
     audioFeedback.playWeapon(event.type, event.weaponId);
   });
 
+  impactDecalManager.update(now);
+  tracerSystem.update(now);
+
   const playerPos = player?.getPosition() || new THREE.Vector3(0, 0, 0);
   updateRadarPanel();
   updateWeaponAimState();
@@ -703,13 +710,34 @@ function gameLoop(now: number) {
           }
         });
       }
-      const hitscanResult = result.isMelee ? { hit: false } : projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
+      const hitscanResult: RaycastResult & { damage: number } = result.isMelee
+        ? { hit: false, damage: 0 }
+        : projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
 
       if (hitscanResult.hit) {
         hud.showHitMarker();
       }
 
       applyLocalWeaponHit(result);
+
+      // Spawn impact effects (decals + tracers)
+      if (!result.isMelee) {
+        const weaponRange = weaponManager.getCurrentWeapon().range;
+        const enemyTarget = findClosestRayTarget(result.origin, result.direction, weaponRange);
+        if (enemyTarget) {
+          const hitPoint = result.origin.clone().add(result.direction.clone().multiplyScalar(enemyTarget.distance));
+          const hitNormal = hitscanResult.hit ? hitscanResult.normal! : new THREE.Vector3(0, 1, 0);
+          impactDecalManager.spawn(hitPoint, hitNormal, 'concrete');
+          if (weaponManager.shouldSpawnTracer()) {
+            tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitPoint);
+          }
+        } else if (hitscanResult.hit) {
+          impactDecalManager.spawn(hitscanResult.point!, hitscanResult.normal!, 'concrete');
+          if (weaponManager.shouldSpawnTracer()) {
+            tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitscanResult.point!);
+          }
+        }
+      }
       if (weaponManager.isScoped()) {
         weaponManager.setAiming(false);
         hud.setScoped(false);
