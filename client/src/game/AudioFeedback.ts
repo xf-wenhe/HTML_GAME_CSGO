@@ -1,52 +1,58 @@
 import { HitRegion } from './Combat.js';
 
 export type AudioCueType =
-  | 'weapon:shoot'
-  | 'weapon:empty'
-  | 'weapon:reload'
-  | 'hit:body'
-  | 'hit:head'
-  | 'kill'
-  | 'footstep:run'
-  | 'footstep:walk'
-  | 'land';
+  | 'weapon:shoot' | 'weapon:empty' | 'weapon:reload'
+  | 'hit:body' | 'hit:head' | 'kill'
+  | 'footstep:run' | 'footstep:walk' | 'land';
 
-export interface AudioCue {
-  type: AudioCueType;
-  label: string;
-  intensity: number;
-}
+export interface AudioCue { type: AudioCueType; label: string; intensity: number; }
 
 export interface FootstepState {
-  moving: boolean;
-  walking: boolean;
-  crouched: boolean;
-  grounded: boolean;
+  moving: boolean; walking: boolean; crouched: boolean; grounded: boolean;
 }
 
+// Map weapon IDs to audio cue file keys
+const WEAPON_FIRE_SOUNDS: Record<string, string> = {
+  pistol: 'pistol_fire', heavy_pistol: 'heavy_pistol_fire', deagle: 'heavy_pistol_fire',
+  rifle: 'rifle_fire', defender_rifle: 'rifle_fire', ak47: 'rifle_fire',
+  m4a1s: 'rifle_fire', m4a4: 'rifle_fire', famas: 'rifle_fire', galil: 'rifle_fire',
+  sg553: 'rifle_fire', aug: 'rifle_fire',
+  smg: 'smg_fire', mp9: 'smg_fire', mac10: 'smg_fire', mp7: 'smg_fire',
+  ump45: 'smg_fire', p90: 'smg_fire',
+  shotgun: 'shotgun_fire', nova: 'shotgun_fire', xm1014: 'shotgun_fire', mag7: 'shotgun_fire',
+  sniper: 'sniper_fire', awp: 'sniper_fire', ssg08: 'sniper_fire',
+  knife: 'knife_swing',
+};
+
 export class AudioFeedback {
-  private events: AudioCue[] = [];
-  private context: AudioContext | null = null;
   private lastFootstepAt = 0;
 
-  constructor(private options: { enabled?: boolean } = {}) {}
+  constructor(private audioManager: { play: (id: string, opts?: { volume?: number; pitch?: number }) => void }) {}
 
   playWeapon(type: 'shoot' | 'empty' | 'reload', weaponId: string): void {
-    const intensity = type === 'shoot' ? 0.42 : type === 'empty' ? 0.24 : 0.3;
-    this.emit({ type: `weapon:${type}` as AudioCueType, label: weaponId, intensity });
+    if (type === 'shoot') {
+      const soundKey = WEAPON_FIRE_SOUNDS[weaponId] ?? 'rifle_fire';
+      this.audioManager.play(soundKey, { volume: 0.42 });
+    } else if (type === 'empty') {
+      this.audioManager.play('weapon_empty', { volume: 0.24 });
+    } else if (type === 'reload') {
+      this.audioManager.play('weapon_reload', { volume: 0.30 });
+    }
   }
 
   playHit(region: HitRegion): void {
-    this.emit({ type: region === 'head' ? 'hit:head' : 'hit:body', label: region, intensity: region === 'head' ? 0.46 : 0.3 });
+    if (region === 'head') {
+      this.audioManager.play('hit_head', { volume: 0.46 });
+    } else {
+      this.audioManager.play('hit_body', { volume: 0.30 });
+    }
   }
 
-  playKill(): void {
-    this.emit({ type: 'kill', label: 'kill', intensity: 0.55 });
-  }
+  playKill(): void { this.audioManager.play('kill', { volume: 0.55 }); }
 
   playLand(speed: number): void {
     if (speed < 2.2) return;
-    this.emit({ type: 'land', label: 'land', intensity: Math.min(0.5, speed / 18) });
+    this.audioManager.play('land', { volume: Math.min(0.5, speed / 18) });
   }
 
   playFootstep(state: FootstepState, now: number = performance.now()): void {
@@ -54,32 +60,6 @@ export class AudioFeedback {
     const interval = state.walking ? 430 : 310;
     if (now - this.lastFootstepAt < interval) return;
     this.lastFootstepAt = now;
-    this.emit({ type: state.walking ? 'footstep:walk' : 'footstep:run', label: state.walking ? 'walk' : 'run', intensity: state.walking ? 0.16 : 0.28 });
-  }
-
-  consumeEvents(): AudioCue[] {
-    const events = [...this.events];
-    this.events = [];
-    return events;
-  }
-
-  private emit(cue: AudioCue): void {
-    this.events.push(cue);
-    if (this.options.enabled === false || typeof window === 'undefined') return;
-    try {
-      const AudioCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtor) return;
-      this.context ??= new AudioCtor();
-      const oscillator = this.context.createOscillator();
-      const gain = this.context.createGain();
-      oscillator.type = cue.type.includes('head') || cue.type === 'kill' ? 'triangle' : 'square';
-      oscillator.frequency.value = cue.type.includes('footstep') ? 90 : cue.type.includes('reload') ? 180 : cue.type.includes('empty') ? 220 : cue.type.includes('head') ? 880 : 420;
-      gain.gain.value = cue.intensity * 0.035;
-      oscillator.connect(gain).connect(this.context.destination);
-      oscillator.start();
-      oscillator.stop(this.context.currentTime + (cue.type.includes('reload') ? 0.09 : 0.045));
-    } catch {
-      // Browser autoplay policies can reject audio context creation; gameplay must continue silently.
-    }
+    this.audioManager.play(state.walking ? 'footstep_concrete' : 'footstep_concrete', { volume: state.walking ? 0.16 : 0.28 });
   }
 }

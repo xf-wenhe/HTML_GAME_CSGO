@@ -15,6 +15,7 @@ import { GrenadeSystem } from './game/GrenadeSystem.js';
 import { DroppedWeapon, DroppedWeaponSystem } from './game/DroppedWeaponSystem.js';
 import { HitRegion, calculateDamage } from './game/Combat.js';
 import { AudioFeedback } from './game/AudioFeedback.js';
+import { AudioManager } from './game/AudioManager.js';
 import { WEAPON_DEFINITIONS } from './game/Weapons.js';
 import { Prediction } from './network/Prediction.js';
 import type { BuyRequest, GrenadeThrowRequest, MapId, MatchMode, MatchSnapshot, PlayerSnapshot, WeaponId } from './game/types.js';
@@ -79,9 +80,33 @@ const droppedWeapons = new DroppedWeaponSystem(scene.getScene());
 const remotePlayers = new RemotePlayers(scene.getScene());
 const hud = new HUD();
 const mainMenu = new MainMenu();
-const audioFeedback = new AudioFeedback();
+const audioManager = new AudioManager();
+const audioFeedback = new AudioFeedback(audioManager);
 const settings = new Settings();
 const prediction = new Prediction();
+
+audioManager.init().then(() => {
+  audioManager.loadFiles({
+    pistol_fire: '/assets/audio/pistol_fire.ogg',
+    heavy_pistol_fire: '/assets/audio/heavy_pistol_fire.ogg',
+    rifle_fire: '/assets/audio/rifle_fire.ogg',
+    smg_fire: '/assets/audio/smg_fire.ogg',
+    shotgun_fire: '/assets/audio/shotgun_fire.ogg',
+    sniper_fire: '/assets/audio/sniper_fire.ogg',
+    knife_swing: '/assets/audio/knife_swing.ogg',
+    weapon_reload: '/assets/audio/weapon_reload.ogg',
+    weapon_empty: '/assets/audio/weapon_empty.ogg',
+    weapon_switch: '/assets/audio/weapon_switch.ogg',
+    hit_body: '/assets/audio/hit_body.ogg',
+    hit_head: '/assets/audio/hit_head.ogg',
+    kill: '/assets/audio/kill.ogg',
+    footstep_concrete: '/assets/audio/footstep_concrete.ogg',
+    footstep_sand: '/assets/audio/footstep_sand.ogg',
+    footstep_metal: '/assets/audio/footstep_metal.ogg',
+    footstep_wood: '/assets/audio/footstep_wood.ogg',
+    land: '/assets/audio/land.ogg',
+  });
+});
 
 let player: PlayerController | null = null;
 let gameRunning = false;
@@ -270,7 +295,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   hud.showNotification(mode === 'solo' ? '单人任务已开始' : '正在等待玩家...');
 
   if (mode === 'solo') {
-    survival.start(performance.now(), mainMenu.getDifficulty());
+    survival.start(performance.now(), mainMenu.getDifficulty(), scene.getCurrentArena().enemySpawns);
   } else {
     if (network.isConnected()) joinMultiplayerAfterConnection();
     else network.connect();
