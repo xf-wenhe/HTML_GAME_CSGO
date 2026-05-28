@@ -139,10 +139,16 @@ export class Enemy {
   update(dt: number, playerPosition: THREE.Vector3, now: number, lineOfSightColliders: BoxSpec[] = []): number {
     if (this.state === 'dead') return 0;
 
+    // 【防飞天补丁】物理引擎卡模型时会产生极大的Y轴速度，我们强制截断向上的最大速度
+    if (this.body.velocity.y > 2) {
+      this.body.velocity.y = 2; 
+    }
+
     // 将模型锚点完美对齐到物理盒子的底部（减去 0.8 的半高）
     this.mesh.position.set(this.body.position.x, this.body.position.y - 0.8, this.body.position.z);
     this.healthBar.lookAt(playerPosition);
     this.animate(dt);
+    
     this.hitStunRemaining = Math.max(0, this.hitStunRemaining - dt);
     if (this.hitStunRemaining > 0) {
       this.body.velocity.x = 0;
@@ -180,6 +186,8 @@ export class Enemy {
         if (distanceToPlayer > this.attackRange * 1.2 || !seesPlayer) {
           this.state = 'chase';
         } else {
+          // 【修复】进入攻击范围后，停止移动但必须始终转头盯着玩家！
+          this.rotateTowards(playerPosition, dt);
           damage = this.attack(now);
         }
         break;
@@ -202,7 +210,24 @@ export class Enemy {
       direction.normalize();
       this.body.velocity.x = direction.x * this.speed;
       this.body.velocity.z = direction.z * this.speed;
+      // 【修复】巡逻的时候也要朝着目标点转过去
+      this.rotateTowards(target, dt);
     }
+  }
+
+  // 【新增】统一的转向逻辑
+  private rotateTowards(target: THREE.Vector3, dt: number): void {
+    const direction = new THREE.Vector3().subVectors(target, this.mesh.position);
+    direction.y = 0;
+    if (direction.lengthSq() < 0.001) return;
+    
+    // + Math.PI 是为了修正模型正反面反转的问题（180度）
+    const angle = Math.atan2(direction.x, direction.z) + Math.PI;
+    
+    // 寻找最短的旋转路径进行平滑插值
+    const delta = Math.atan2(Math.sin(angle - this.mesh.rotation.y), Math.cos(angle - this.mesh.rotation.y));
+    const maxStep = Math.min(1, dt * 10);
+    this.mesh.rotation.y += delta * maxStep;
   }
 
   private moveTo(target: THREE.Vector3, dt: number): void {
@@ -213,10 +238,8 @@ export class Enemy {
     this.body.velocity.x = direction.x * this.speed;
     this.body.velocity.z = direction.z * this.speed;
 
-    const angle = Math.atan2(direction.x, direction.z);
-    const delta = Math.atan2(Math.sin(angle - this.mesh.rotation.y), Math.cos(angle - this.mesh.rotation.y));
-    const maxStep = Math.min(1, dt * 10);
-    this.mesh.rotation.y += delta * maxStep;
+    // 直接调用统一转向逻辑
+    this.rotateTowards(target, dt);
   }
 
   private animate(dt: number): void {

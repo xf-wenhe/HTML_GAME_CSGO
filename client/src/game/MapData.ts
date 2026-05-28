@@ -532,6 +532,24 @@ function buildDust2Arena(): ArenaData {
       color = 0xc4a46b; textureKey = 'sand'; metalness = 0.06; roughness = 0.85;
     } else if (n.includes('a-site') || n.includes('b-site')) {
       color = 0xc8b890; textureKey = 'plaster'; metalness = 0.04; roughness = 0.88;
+    } else if (n.includes('palace')) {
+      // Palace 中东风格砖砌内饰
+      color = 0xc0b498; textureKey = 'plaster'; metalness = 0.04; roughness = 0.86;
+    } else if (n.includes('pillar')) {
+      // 宫殿内部石柱
+      color = 0xc8bc98; textureKey = 'plaster'; metalness = 0.03; roughness = 0.85;
+    } else if (n.includes('pit')) {
+      // A Pit 沙坑区域 — 更暖的沙漠色调
+      color = 0xc8a470; textureKey = 'sand'; metalness = 0.06; roughness = 0.86;
+    } else if (n.includes('fork')) {
+      // B洞岔路 — 隧道混凝土
+      color = 0x9e8e7e; textureKey = 'concrete'; metalness = 0.05; roughness = 0.88;
+    } else if (n.includes('window')) {
+      // 窗户框架
+      color = 0x887658; textureKey = 'metal'; metalness = 0.28; roughness = 0.60;
+    } else if (n.includes('border') || n.includes('wall')) {
+      // 区域边界墙 — 沙漠石砌
+      color = 0xb09870; textureKey = 'sand'; metalness = 0.07; roughness = 0.84;
     } else if (n.includes('boundary')) {
       color = 0xa09070; textureKey = 'sand';
     }

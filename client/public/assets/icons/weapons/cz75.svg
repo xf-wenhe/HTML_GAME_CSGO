@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 115 60"><g fill="white"><rect x="8" y="22" width="60" height="10" rx="2"/><rect x="24" y="14" width="44" height="8" rx="2"/><rect x="66" y="32" width="14" height="22" rx="3" transform="skewX(-4)"/><rect x="9" y="25" width="3" height="4" rx="1" fill="black"/><rect x="14" y="25" width="3" height="4" rx="1" fill="black"/><path d="M62 32 Q68 38 68 44 L63 44 Q63 40 58 36Z"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 55">
+  <defs><linearGradient id="cz-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F0C060"/><stop offset="100%" stop-color="#D4942A"/></linearGradient></defs>
+  <g fill="url(#cz-grad)">
+    <rect x="4" y="26" width="56" height="8" rx="2"/>
+    <rect x="60" y="22" width="36" height="14" rx="3"/>
+    <rect x="4" y="34" width="16" height="4" rx="1" opacity="0.5"/>
+    <rect x="80" y="36" width="8" height="14" rx="1.5"/>
+    <path d="M80 36 Q82 42 86 44 Q90 44 92 38 L92 36Z" opacity="0.8"/>
+    <rect x="88" y="36" width="6" height="14" rx="2"/>
+  </g>
+</svg>

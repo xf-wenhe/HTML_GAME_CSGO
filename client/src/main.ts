@@ -565,19 +565,46 @@ document.addEventListener('keydown', (e) => {
       hud.toggleScoreboard(true);
     }
   }
+  // ==================== G 键：拾取与丢弃武器 ====================
   if (e.key === 'g' || e.key === 'G') {
+    // 1. 如果脚下有武器，优先拾取
     if (nearbyDrop) {
       equipPickedWeapon(droppedWeapons.pickup(nearbyDrop));
       nearbyDrop = null;
       return;
     }
+
+    // 2. 如果没有可拾取的，则丢弃当前手里的武器
+    const currentWeaponId = weaponManager.getCurrentWeaponId();
+    if (currentWeaponId !== 'knife' && !usingGrenade) {
+      const dropPos = player!.getPosition().clone().add(new THREE.Vector3(0, 1.2, 0));
+      const lookDir = scene.getCamera().getWorldDirection(new THREE.Vector3());
+      dropPos.add(lookDir.multiplyScalar(0.8));
+
+      droppedWeapons.dropWeapon(currentWeaponId, dropPos);
+
+      if (activeSlot === 'primary') {
+        equippedPrimary = '';
+        activeSlot = equippedPistol ? 'pistol' : 'knife';
+      } else if (activeSlot === 'pistol') {
+        equippedPistol = '';
+        activeSlot = equippedPrimary ? 'primary' : 'knife';
+      }
+      
+      weaponManager.switchWeapon(activeSlot === 'primary' ? equippedPrimary : activeSlot === 'pistol' ? equippedPistol : 'knife');
+      syncWeaponHud();
+      hud.showNotification(`已丢弃 ${weaponDisplayName(currentWeaponId)}`);
+    }
+  }
+
+  // ==================== E 键：互动 (拆弹 / 下包) ====================
+  if (e.key === 'e' || e.key === 'E') {
     const site = nearestBombSite();
     if (!isSpectating) {
       if (currentSnapshot?.bomb?.plantedAt) network.send({ type: 'defuseBomb' });
       else network.send({ type: 'plantBomb', request: { site } });
     }
   }
-
 });
 
 document.addEventListener('keyup', (e) => {
@@ -707,6 +734,15 @@ function gameLoop(now: number) {
     if (enemy.isDead() && !recordedKills.has(enemy.id)) {
       recordedKills.add(enemy.id);
       survival.recordKill(enemy.getPosition());
+
+      // 【新增】NPC 死亡掉落武器
+      // 这里随机掉落几把经典主战武器，让单机闯关有以战养战的快感
+      const possibleDrops = ['ak47', 'm4a4', 'awp', 'mac10', 'p90', 'deagle'];
+      const randomWeapon = possibleDrops[Math.floor(Math.random() * possibleDrops.length)];
+      
+      // 在尸体稍微偏上的位置生成武器模型，防止卡在地下
+      const dropPos = enemy.getPosition().clone().add(new THREE.Vector3(0, 0.3, 0));
+      droppedWeapons.dropWeapon(randomWeapon, dropPos);
     }
   });
 
@@ -744,12 +780,18 @@ function gameLoop(now: number) {
   hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[grenades.getSelected()]);
   syncWeaponHud();
 
-  const grenadeResult = grenades.update(dt, playerPos);
+  // 获取玩家面朝方向（用于闪光弹方向感知）
+  const lookDir = scene.getCamera().getWorldDirection(new THREE.Vector3());
+  const grenadeResult = grenades.update(dt, playerPos, lookDir);
   if (grenadeResult.damage > 0 && player) {
     player.takeDamage(grenadeResult.damage, 'chest', 0.15);
     hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
     hud.showDamage();
     screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
+  }
+  // 闪光弹效果：单人模式下直接应用（多人模式由服务端同步）
+  if (grenadeResult.flash > 0 && currentMode !== 'multiplayer' && hud) {
+    hud.setFlashOverlay(grenadeResult.flash);
   }
 
   if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && usingGrenade && input.isKeyPressed('MouseRight') && player) {
@@ -912,12 +954,34 @@ function handleVirtualActions(): void {
     if (inputMode === 'buyMenu') closeBuyMenu(false);
     else openBuyMenu();
   }
+  // 移动端虚拟按键 G：拾取/丢弃
   if (input.consumeKeyPress('KeyG') && inputMode === 'playing') {
     if (nearbyDrop) {
       equipPickedWeapon(droppedWeapons.pickup(nearbyDrop));
       nearbyDrop = null;
       return;
     }
+    const currentWeaponId = weaponManager.getCurrentWeaponId();
+    if (currentWeaponId !== 'knife' && !usingGrenade) {
+      const dropPos = player!.getPosition().clone().add(new THREE.Vector3(0, 1.2, 0));
+      const lookDir = scene.getCamera().getWorldDirection(new THREE.Vector3());
+      dropPos.add(lookDir.multiplyScalar(0.8));
+      droppedWeapons.dropWeapon(currentWeaponId, dropPos);
+      if (activeSlot === 'primary') {
+        equippedPrimary = '';
+        activeSlot = equippedPistol ? 'pistol' : 'knife';
+      } else if (activeSlot === 'pistol') {
+        equippedPistol = '';
+        activeSlot = equippedPrimary ? 'primary' : 'knife';
+      }
+      weaponManager.switchWeapon(activeSlot === 'primary' ? equippedPrimary : activeSlot === 'pistol' ? equippedPistol : 'knife');
+      syncWeaponHud();
+      hud.showNotification(`已丢弃 ${weaponDisplayName(currentWeaponId)}`);
+    }
+  }
+
+  // 移动端虚拟按键 E：拆弹/下包
+  if (input.consumeKeyPress('KeyE') && inputMode === 'playing') {
     const site = nearestBombSite();
     if (currentSnapshot?.bomb?.plantedAt) network.send({ type: 'defuseBomb' });
     else network.send({ type: 'plantBomb', request: { site } });

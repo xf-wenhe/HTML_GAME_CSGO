@@ -176,6 +176,39 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   
   // CT Spawn (警家箱子)
   crt(0, -2800, 128, 128, 64, 0, 'ct-box'),
+
+  // ── 6. 细节碰撞：A Pit 坑区、Palace 内部、B洞岔路 ──
+  // ✅ A Pit — A大道旁的下沉坑区（玩家可以跳进去的区域）
+  crt(-2900, 450, 64, 600, 64, 0, 'a-pit-north-wall'),    // 北墙
+  crt(-2700, 450, 64, 600, 64, 0, 'a-pit-south-wall'),    // 南墙
+  crt(-2800, 150, 400, 64, 64, 0, 'a-pit-west-wall'),      // 西墙（靠近A门）
+  // A Pit 内部阶梯 — 3级缓坡方便爬出
+  ...stairsZ(-2800, 350, 200, 200, 0, 64, 3, 'a-pit-stairs'),
+
+  // ✅ Palace — A点旁的宫殿建筑内部（A Long 与 Catwalk 之间）
+  crt(-1950, 600, 64, 400, 300, 0, 'palace-west-wall'),     // 西墙
+  crt(-1700, 600, 64, 400, 300, 0, 'palace-east-wall'),     // 东墙
+  crt(-1825, 400, 300, 64, 300, 0, 'palace-south-wall'),    // 南墙（靠A大道侧）
+  crt(-1825, 850, 300, 64, 300, 0, 'palace-north-wall'),    // 北墙（靠Catwalk侧）
+  // Palace 内部柱子（绕柱对枪经典场景）
+  crt(-1920, 500, 48, 48, 256, 0, 'palace-pillar-nw'),
+  crt(-1720, 500, 48, 48, 256, 0, 'palace-pillar-ne'),
+  crt(-1920, 720, 48, 48, 256, 0, 'palace-pillar-sw'),
+  crt(-1720, 720, 48, 48, 256, 0, 'palace-pillar-se'),
+  // Palace 窗户掩体（靠A大道一侧可透过窗户射击）
+  crt(-1830, 390, 160, 20, 120, 64, 'palace-window-south'),
+  // Palace 天花板
+  ceil(-1825, 625, 400, 500, 300, 'palace-ceiling'),
+
+  // ✅ B洞下层岔路（Lower B Tunnels fork）— 去B区 vs 去CT中路
+  crt(1200, 1800, 64, 400, 200, 0, 'b-tunnel-fork-wall'),   // 分叉墙
+  crt(1050, 2000, 64, 32, 220, 0, 'b-tunnel-fork-door-left'), // 左侧门框
+  crt(1350, 2000, 64, 32, 220, 0, 'b-tunnel-fork-door-right'), // 右侧门框
+  ceil(1200, 1800, 400, 200, 200, 'b-tunnel-fork-ceiling'),   // 岔路天花板
+
+  // B洞下层去楼梯的小走廊（Lower B → stairs junction）
+  crt(1450, 2800, 64, 400, 200, 0, 'b-lower-to-stairs-wall'),
+  ceil(1450, 2800, 400, 200, 200, 'b-lower-to-stairs-ceiling'),
 ];
 
 // ═══════════════════════════════════════════════════════════════

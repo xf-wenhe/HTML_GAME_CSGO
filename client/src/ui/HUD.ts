@@ -202,33 +202,40 @@ export class HUD {
 
   private weaponIconSVG(category: WeaponSlotId): string {
     const icons: Record<WeaponSlotId, string> = {
-      // AK-47 style: barrel + body + magazine + stock + grip
-      primary: `<svg viewBox="0 0 28 14" class="slot-svg" aria-hidden="true">
-        <rect x="0" y="5" width="18" height="3" rx="0.5"/>
-        <rect x="18" y="4" width="7" height="5" rx="0.5"/>
-        <rect x="5" y="8" width="5" height="4" rx="0.5" opacity="0.85"/>
-        <rect x="25" y="3" width="3" height="7" rx="0.5" opacity="0.75"/>
-        <rect x="1" y="4" width="2" height="2" rx="0.3" opacity="0.6"/>
+      // CS:GO AK-47: barrel + gas tube + receiver + curved mag + wooden stock
+      primary: `<svg viewBox="0 0 32 16" class="slot-svg" aria-hidden="true">
+        <rect x="1" y="6" width="17" height="2.5" rx="0.8"/>
+        <rect x="5" y="4" width="10" height="2" rx="0.6" opacity="0.7"/>
+        <rect x="12" y="4.5" width="11" height="4" rx="1"/>
+        <path d="M16 8.5 Q18 15 21 16 Q23 16 24 14.5 L23 8.5Z" opacity="0.9"/>
+        <rect x="23" y="6" width="7" height="2.5" rx="0.8" opacity="0.85"/>
+        <rect x="29" y="6" width="2" height="4.5" rx="0.6" opacity="0.7"/>
+        <rect x="8" y="6.5" width="6" height="2" rx="0.4" opacity="0.5"/>
+        <rect x="20" y="8.5" width="2.5" height="6" rx="0.8" opacity="0.85"/>
       </svg>`,
-      // Pistol: horizontal barrel + body + vertical grip
-      pistol: `<svg viewBox="0 0 22 14" class="slot-svg" aria-hidden="true">
-        <rect x="0" y="4" width="14" height="4" rx="0.5"/>
-        <rect x="14" y="3" width="6" height="6" rx="0.5"/>
-        <rect x="4" y="8" width="4" height="6" rx="0.5" opacity="0.85"/>
-        <rect x="0" y="5" width="3" height="2" rx="0.3" opacity="0.5"/>
+      // CS:GO USP/Deagle pistol: barrel + slide + frame + grip
+      pistol: `<svg viewBox="0 0 24 16" class="slot-svg" aria-hidden="true">
+        <rect x="1" y="5" width="14" height="2.5" rx="0.7"/>
+        <rect x="14" y="3.5" width="7" height="4" rx="1"/>
+        <rect x="18" y="7.5" width="2" height="7.5" rx="0.6" opacity="0.85"/>
+        <path d="M18 7.5 Q19 13 21 14 Q22 14 23 13 L23 7.5Z" opacity="0.7"/>
       </svg>`,
-      // Knife: blade + guard + handle
-      knife: `<svg viewBox="0 0 22 10" class="slot-svg" aria-hidden="true">
-        <polygon points="0,3 15,1 16,5 15,9 0,7"/>
-        <rect x="14" y="2" width="2" height="6" rx="0.3"/>
-        <rect x="16" y="3" width="6" height="4" rx="0.5" opacity="0.8"/>
+      // CS:GO Knife: blade + guard + textured handle
+      knife: `<svg viewBox="0 0 22 12" class="slot-svg" aria-hidden="true">
+        <polygon points="1,4 15,2 17,6 15,10 1,8" opacity="0.9"/>
+        <rect x="15" y="3" width="2" height="6" rx="0.4" opacity="0.6"/>
+        <rect x="17" y="3.5" width="5" height="5" rx="1.5" opacity="0.7"/>
       </svg>`,
-      // Grenade: round body + safety lever + pin ring
-      grenade: `<svg viewBox="0 0 12 18" class="slot-svg" aria-hidden="true">
-        <ellipse cx="6" cy="12" rx="5" ry="5"/>
-        <rect x="4" y="2" width="4" height="6" rx="0.5"/>
-        <rect x="2" y="1" width="8" height="2" rx="1" opacity="0.7"/>
-        <rect x="5" y="0" width="2" height="3" rx="0.5" opacity="0.85"/>
+      // CS:GO HE Grenade: pineapple body + fuse + pin ring
+      grenade: `<svg viewBox="0 0 14 18" class="slot-svg" aria-hidden="true">
+        <ellipse cx="7" cy="11" rx="5.5" ry="6" opacity="0.95"/>
+        <line x1="3" y1="9" x2="4.5" y2="11" stroke="currentColor" stroke-width="0.4" opacity="0.3"/>
+        <line x1="11" y1="9" x2="9.5" y2="11" stroke="currentColor" stroke-width="0.4" opacity="0.3"/>
+        <line x1="3" y1="12" x2="4.5" y2="11" stroke="currentColor" stroke-width="0.4" opacity="0.3"/>
+        <line x1="11" y1="12" x2="9.5" y2="11" stroke="currentColor" stroke-width="0.4" opacity="0.3"/>
+        <rect x="5" y="2" width="4" height="5" rx="0.8"/>
+        <rect x="3" y="1" width="8" height="2" rx="1" opacity="0.7"/>
+        <rect x="6" y="0" width="2" height="2.5" rx="0.6" opacity="0.8"/>
       </svg>`,
     };
     return icons[category];
@@ -341,7 +348,7 @@ export class HUD {
         <div class="touch-stick-base" aria-label="移动摇杆">
           <div class="touch-stick-knob"></div>
         </div>
-        <div class="touch-action-cluster">
+       <div class="touch-action-cluster">
           <button class="touch-btn touch-btn-small" type="button" data-touch-key="Digit1" data-touch-mode="tap" aria-label="主武器">1</button>
           <button class="touch-btn touch-btn-small" type="button" data-touch-key="Digit2" data-touch-mode="tap" aria-label="手枪">2</button>
           <button class="touch-btn touch-btn-small" type="button" data-touch-key="Digit3" data-touch-mode="tap" aria-label="刀">3</button>
@@ -350,7 +357,8 @@ export class HUD {
           <button class="touch-btn" type="button" data-touch-key="MouseRight" aria-label="副攻击">ALT</button>
           <button class="touch-btn" type="button" data-touch-key="Space" data-touch-mode="tap" aria-label="跳跃">JUMP</button>
           <button class="touch-btn" type="button" data-touch-key="KeyR" data-touch-mode="tap" aria-label="换弹">R</button>
-          <button class="touch-btn" type="button" data-touch-key="KeyG" data-touch-mode="tap" aria-label="互动">G</button>
+          <button class="touch-btn" type="button" data-touch-key="KeyG" data-touch-mode="tap" aria-label="丢弃/拾取">G 丢弃</button>
+          <button class="touch-btn" type="button" data-touch-key="KeyE" data-touch-mode="tap" aria-label="拆弹/互动">E 拆弹</button>
           <button class="touch-btn" type="button" data-touch-key="KeyB" data-touch-mode="tap" aria-label="购买">B</button>
           <button class="touch-btn" type="button" data-touch-key="ControlLeft" aria-label="蹲下">C</button>
         </div>
@@ -402,6 +410,9 @@ export class HUD {
         const weaponId = button.dataset.weapon as WeaponId | undefined;
         if (weaponId) this.buyHandler?.({ weaponId });
         if (button.dataset.armor) this.buyHandler?.({ armor: true });
+        // 购买反馈 — 按钮闪金
+        button.classList.add('buy-success-flash');
+        setTimeout(() => button.classList.remove('buy-success-flash'), 500);
       });
     });
     hud.querySelector<HTMLButtonElement>('.resume-button')?.addEventListener('click', () => this.resumeHandler?.());
@@ -412,14 +423,68 @@ export class HUD {
 
   private weaponSvg(type: WeaponSvgType): string {
     const svgs: Record<WeaponSvgType, string> = {
-      'pistol': `<svg viewBox="0 0 48 24" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="8" width="28" height="7" rx="2" fill="currentColor"/><rect x="30" y="6" width="14" height="9" rx="2" fill="currentColor"/><rect x="8" y="15" width="7" height="8" rx="1" fill="currentColor" opacity="0.8"/><rect x="2" y="10" width="4" height="2" rx="1" fill="currentColor" opacity="0.5"/></svg>`,
-      'pistol-heavy': `<svg viewBox="0 0 48 24" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="24" height="9" rx="2" fill="currentColor"/><rect x="26" y="5" width="16" height="11" rx="2" fill="currentColor"/><rect x="7" y="16" width="9" height="7" rx="1" fill="currentColor" opacity="0.8"/><rect x="2" y="8" width="6" height="3" rx="1" fill="currentColor" opacity="0.4"/></svg>`,
-      'smg': `<svg viewBox="0 0 56 22" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="36" height="7" rx="2" fill="currentColor"/><rect x="38" y="5" width="14" height="9" rx="2" fill="currentColor"/><rect x="14" y="14" width="6" height="7" rx="1" fill="currentColor" opacity="0.8"/><rect x="22" y="14" width="4" height="4" rx="1" fill="currentColor" opacity="0.6"/></svg>`,
-      'rifle': `<svg viewBox="0 0 64 20" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="46" height="6" rx="2" fill="currentColor"/><rect x="48" y="5" width="13" height="8" rx="2" fill="currentColor"/><rect x="18" y="13" width="7" height="6" rx="1" fill="currentColor" opacity="0.8"/><rect x="30" y="13" width="5" height="4" rx="1" fill="currentColor" opacity="0.6"/><rect x="2" y="8" width="3" height="2" rx="1" fill="currentColor" opacity="0.4"/></svg>`,
-      'sniper': `<svg viewBox="0 0 72 18" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="56" height="5" rx="1.5" fill="currentColor"/><rect x="58" y="5" width="12" height="8" rx="2" fill="currentColor"/><rect x="20" y="12" width="8" height="5" rx="1" fill="currentColor" opacity="0.8"/><circle cx="44" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.9"/></svg>`,
-      'shotgun': `<svg viewBox="0 0 56 20" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="8" width="38" height="7" rx="2" fill="currentColor"/><rect x="40" y="6" width="12" height="8" rx="2" fill="currentColor"/><rect x="14" y="15" width="8" height="5" rx="1" fill="currentColor" opacity="0.8"/><rect x="2" y="8" width="10" height="4" rx="1" fill="currentColor" opacity="0.5"/></svg>`,
-      'lmg': `<svg viewBox="0 0 68 22" class="weapon-preview-svg" aria-hidden="true"><rect x="2" y="7" width="50" height="8" rx="2" fill="currentColor"/><rect x="52" y="5" width="14" height="9" rx="2" fill="currentColor"/><rect x="16" y="15" width="9" height="6" rx="1" fill="currentColor" opacity="0.8"/><rect x="30" y="15" width="12" height="5" rx="1" fill="currentColor" opacity="0.6"/><rect x="2" y="8" width="4" height="4" rx="1" fill="currentColor" opacity="0.4"/></svg>`,
-      'knife': `<svg viewBox="0 0 48 18" class="weapon-preview-svg" aria-hidden="true"><polygon points="2,8 36,4 38,9 36,14 2,10" fill="currentColor"/><rect x="36" y="5" width="10" height="8" rx="1" fill="currentColor" opacity="0.7"/></svg>`,
+      'pistol': `<svg viewBox="0 0 52 26" class="weapon-preview-svg" aria-hidden="true">
+        <rect x="1" y="9" width="28" height="6" rx="1.5" fill="currentColor"/>
+        <rect x="1" y="7" width="6" height="3" rx="1" opacity="0.5"/>
+        <rect x="28" y="6" width="14" height="9" rx="2" fill="currentColor"/>
+        <rect x="8" y="15" width="6" height="10" rx="1.5" opacity="0.8"/>
+        <path d="M36 15 Q38 21 41 22 Q44 22 46 19 L46 15Z" opacity="0.8"/>
+        <rect x="38" y="15" width="2" height="10" rx="0.6" opacity="0.7"/>
+      </svg>`,
+      'pistol-heavy': `<svg viewBox="0 0 56 28" class="weapon-preview-svg" aria-hidden="true">
+        <rect x="1" y="10" width="32" height="7" rx="2" fill="currentColor"/>
+        <rect x="6" y="8" width="4" height="3" rx="1" opacity="0.5"/>
+        <rect x="32" y="7" width="16" height="11" rx="2" fill="currentColor"/>
+        <rect x="10" y="17" width="8" height="10" rx="1.5" opacity="0.8"/>
+        <path d="M42 18 Q44 24 48 25 Q51 25 53 21 L53 18Z" opacity="0.8"/>
+        <rect x="44" y="18" width="2.5" height="10" rx="0.8" opacity="0.7"/>
+      </svg>`,
+      'smg': `<svg viewBox="0 0 56 24" class="weapon-preview-svg" aria-hidden="true">
+        <rect x="1" y="9" width="36" height="6" rx="1.5" fill="currentColor"/>
+        <rect x="10" y="7" width="16" height="2" rx="0.8" opacity="0.5"/>
+        <rect x="36" y="7" width="14" height="9" rx="2" fill="currentColor"/>
+        <rect x="20" y="15" width="5" height="8" rx="1" opacity="0.8"/>
+        <path d="M42 16 Q44 22 47 23 Q50 23 52 20 L52 16Z" opacity="0.8"/>
+        <rect x="46" y="16" width="2" height="8" rx="0.6" opacity="0.7"/>
+      </svg>`,
+      'rifle': `<svg viewBox="0 0 66 22" class="weapon-preview-svg" aria-hidden="true">
+        <rect x="1" y="9" width="44" height="5" rx="1.5" fill="currentColor"/>
+        <rect x="8" y="7" width="24" height="2" rx="0.6" opacity="0.6"/>
+        <rect x="44" y="7" width="14" height="9" rx="2" fill="currentColor"/>
+        <path d="M26 14 Q30 19 34 20 Q38 20 40 17 L40 14Z" opacity="0.9"/>
+        <rect x="34" y="14" width="3" height="7" rx="1" opacity="0.85"/>
+        <rect x="58" y="8" width="6" height="7" rx="1.5" opacity="0.75"/>
+      </svg>`,
+      'sniper': `<svg viewBox="0 0 72 20" class="weapon-preview-svg" aria-hidden="true">
+        <rect x="1" y="9" width="52" height="4" rx="1.2" fill="currentColor"/>
+        <rect x="2" y="7" width="6" height="6" rx="1" opacity="0.6"/>
+        <rect x="28" y="4" width="18" height="4" rx="1.5" opacity="0.8"/>
+        <ellipse cx="37" cy="4" rx="4" ry="2" opacity="0.5"/>
+        <rect x="52" y="7" width="12" height="7" rx="2" fill="currentColor"/>
+        <rect x="44" y="13" width="4" height="6" rx="1" opacity="0.8"/>
+        <rect x="64" y="8" width="6" height="5" rx="1.5" opacity="0.75"/>
+      </svg>`,
+      'shotgun': `<svg viewBox="0 0 58 22" class="weapon-preview-svg" aria-hidden="true">
+        <rect x="1" y="9" width="32" height="6" rx="2" fill="currentColor"/>
+        <rect x="8" y="15" width="18" height="2" rx="0.6" opacity="0.5"/>
+        <rect x="32" y="7" width="14" height="9" rx="2" fill="currentColor"/>
+        <rect x="18" y="15" width="6" height="6" rx="1" opacity="0.8"/>
+        <path d="M38 16 Q40 21 43 22 Q46 22 48 19 L48 16Z" opacity="0.8"/>
+        <rect x="42" y="16" width="2.5" height="6" rx="0.8" opacity="0.7"/>
+      </svg>`,
+      'lmg': `<svg viewBox="0 0 70 24" class="weapon-preview-svg" aria-hidden="true">
+        <rect x="1" y="9" width="48" height="6" rx="1.5" fill="currentColor"/>
+        <rect x="14" y="15" width="28" height="2" rx="0.6" opacity="0.5"/>
+        <rect x="48" y="7" width="14" height="9" rx="2" fill="currentColor"/>
+        <rect x="26" y="15" width="8" height="8" rx="1" opacity="0.8"/>
+        <path d="M54 16 Q56 22 59 23 Q62 23 64 20 L64 16Z" opacity="0.8"/>
+        <rect x="56" y="16" width="2.5" height="8" rx="0.8" opacity="0.7"/>
+      </svg>`,
+      'knife': `<svg viewBox="0 0 48 20" class="weapon-preview-svg" aria-hidden="true">
+        <polygon points="1,8 30,4 34,10 30,16 1,12" opacity="0.9"/>
+        <rect x="30" y="6" width="3" height="8" rx="0.5" opacity="0.6"/>
+        <rect x="33" y="7" width="10" height="6" rx="2" opacity="0.75"/>
+      </svg>`,
     };
     return svgs[type] ?? '';
   }
@@ -446,10 +511,9 @@ export class HUD {
     // 原有的 SVG 作为备用
     const svg = item.svgType ? this.weaponSvg(item.svgType) : '';
     
-    // 【新增】构建真实武器贴图的 img 标签
-    // 使用 onerror 机制：如果找不到图片，自动隐藏并显示原本的 SVG
+    // 【增强】构建真实武器贴图的 img 标签，带 CS:GO 风格边框
     const imgIcon = item.weaponId
-      ? `<img src="/assets/icons/weapons/${item.weaponId}.png" class="weapon-preview-img" alt="${this.escapeHtml(item.label)}" onerror="this.src='/assets/icons/weapons/${item.weaponId}.svg'; this.onerror=function(){this.style.display='none'; this.nextElementSibling.style.display='flex';};" />`
+      ? `<img src="/assets/icons/weapons-png/${item.weaponId}.png" class="weapon-preview-img" alt="${this.escapeHtml(item.label)}" loading="lazy" onerror="this.style.display='none'; this.parentElement.querySelector('.weapon-preview-fallback').style.display='flex';" />`
       : '';
 
     const damageBar = item.damage
@@ -508,13 +572,19 @@ export class HUD {
       this.ammoSeparator.textContent = '';
       this.ammoReserve.textContent = '';
       this.ammoCurrent.classList.remove('ammo-low');
+      this.ammoCurrent.parentElement?.classList.remove('ammo-critical');
       return;
     }
     this.ammoSeparator.textContent = '|';
     this.ammoCurrent.textContent = current.toString();
     this.ammoReserve.textContent = reserve.toString();
 
-    if (current <= max * 0.2) {
+    // 低弹量警告（弹匣 < 20% 或剩余 < 5）
+    const isLow = current <= max * 0.2 || (current <= 5 && reserve > 0);
+    const isCritical = current <= 2 && reserve > 0;
+    const ammoContainer = this.ammoCurrent.parentElement;
+
+    if (isLow) {
       this.ammoCurrent.classList.add('ammo-low');
       if (!this.ammoCurrent.dataset.lowAnnounced) {
         this.announceForScreenReader('弹药不足');
@@ -523,6 +593,11 @@ export class HUD {
     } else {
       this.ammoCurrent.classList.remove('ammo-low');
       delete this.ammoCurrent.dataset.lowAnnounced;
+    }
+
+    // 临界态 — 容器边框呼吸闪烁
+    if (ammoContainer) {
+      ammoContainer.classList.toggle('ammo-critical', isCritical);
     }
   }
 
@@ -888,7 +963,13 @@ export class HUD {
     this.weaponSlots.querySelectorAll<HTMLElement>('.weapon-slot').forEach(slot => {
       const slotId = slot.dataset.slot as WeaponSlotId | undefined;
       if (!slotId) return;
+      const wasActive = slot.classList.contains('active');
       slot.classList.toggle('active', slotId === state.activeSlot);
+      // 武器槽切换动画
+      if (!wasActive && slotId === state.activeSlot) {
+        slot.classList.add('slot-switched');
+        setTimeout(() => slot.classList.remove('slot-switched'), 300);
+      }
       const name = slot.querySelector('.slot-name');
       if (name) name.textContent = names[slotId];
     });

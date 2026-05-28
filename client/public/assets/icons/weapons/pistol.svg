@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60"><g fill="white"><rect x="10" y="22" width="65" height="10" rx="2"/><rect x="30" y="14" width="45" height="8" rx="2"/><rect x="70" y="32" width="16" height="22" rx="3" transform="skewX(-5)"/><path d="M65 32 Q72 38 72 44 L66 44 Q66 40 60 36Z"/><rect x="12" y="18" width="4" height="4" rx="1"/><rect x="60" y="14" width="6" height="3" rx="1"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 55">
+  <defs><linearGradient id="glock-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F0C060"/><stop offset="100%" stop-color="#D4942A"/></linearGradient></defs>
+  <g fill="url(#glock-grad)">
+    <rect x="4" y="26" width="54" height="8" rx="2"/>
+    <rect x="58" y="22" width="30" height="14" rx="3"/>
+    <rect x="72" y="36" width="8" height="14" rx="1.5"/>
+    <rect x="4" y="18" width="6" height="8" rx="1.5" opacity="0.6"/>
+    <path d="M72 36 Q74 42 78 44 Q82 44 84 38 L84 36Z" opacity="0.8"/>
+    <rect x="80" y="36" width="6" height="14" rx="2"/>
+  </g>
+</svg>

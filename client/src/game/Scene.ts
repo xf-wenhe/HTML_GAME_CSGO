@@ -24,8 +24,10 @@ export class Scene {
   // 性能优化：距离剔除
   private cullingDistance = 100; // 超过这个距离的对象将被剔除
   private lodObjects: Map<THREE.Object3D, 'high' | 'low' | 'hidden'> = new Map();
+  private handleResizeBound: (() => void) | null = null;
 
   constructor() {
+    this.handleResizeBound = this.handleResize.bind(this);
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x5b8cbf);
     this.scene.fog = new THREE.Fog(0x5b8cbf, 60, 160);
@@ -52,12 +54,12 @@ export class Scene {
       this.fallbackCanvas = this.createWebGLErrorCanvas(error);
     }
 
-    // 【修改 2】增强环境光，色调改为温暖的沙漠白
-    const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.85); 
+    // 降低环境光——防止敌人材质被洗白，保持CS:GO暗沉氛围
+    const ambientLight = new THREE.AmbientLight(0xfff0e0, 0.45); 
     this.scene.add(ambientLight);
 
     // 【修改 3】增强主光源（太阳），并调整照射角度
-    const directionalLight = new THREE.DirectionalLight(0xffeedd, 3.2); 
+    const directionalLight = new THREE.DirectionalLight(0xffeedd, 2.6); 
     directionalLight.position.set(-25, 40, 20); 
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
@@ -72,12 +74,12 @@ export class Scene {
     this.scene.add(directionalLight);
 
     // 【修改 4】天光反射，模拟蓝天对暗部的补光，以及沙地对墙壁的反光
-    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x8f7a5a, 1.2);
+    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x6a5a3a, 0.7);
     this.scene.add(hemiLight);
 
     this.setArena(this.currentMapId);
 
-    window.addEventListener('resize', this.handleResize.bind(this));
+    window.addEventListener('resize', this.handleResizeBound!);
   }
 
   private handleResize(): void {
@@ -428,7 +430,7 @@ export class Scene {
 
   dispose(): void {
     this.stopRenderLoop();
-    window.removeEventListener('resize', this.handleResize.bind(this));
+    window.removeEventListener('resize', this.handleResizeBound!);
     if (this.skyDome) {
       this.scene.remove(this.skyDome);
       this.skyDome.geometry.dispose();

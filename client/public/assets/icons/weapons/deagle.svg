@@ -1,1 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 65"><g fill="white"><rect x="8" y="24" width="70" height="11" rx="2"/><rect x="28" y="14" width="50" height="10" rx="2"/><rect x="76" y="35" width="19" height="24" rx="3" transform="skewX(-6)"/><path d="M70 35 Q78 42 78 50 L71 50 Q71 44 66 40Z"/><rect x="10" y="24" width="3" height="11" rx="1" opacity="0.5"/><rect x="15" y="24" width="3" height="11" rx="1" opacity="0.5"/><rect x="20" y="24" width="3" height="11" rx="1" opacity="0.5"/><rect x="10" y="19" width="5" height="5" rx="1"/><rect x="66" y="14" width="7" height="4" rx="1"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 65">
+  <defs>
+    <linearGradient id="de-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F0C060"/>
+      <stop offset="100%" stop-color="#D4942A"/>
+    </linearGradient>
+  </defs>
+  <!-- Desert Eagle: oversized pistol, distinctive barrel, heavy frame -->
+  <g fill="url(#de-grad)">
+    <!-- Barrel (long for a pistol) -->
+    <rect x="4" y="26" width="72" height="10" rx="2"/>
+    <!-- Slide serrations -->
+    <rect x="30" y="28" width="40" height="6" rx="1" opacity="0.5"/>
+    <!-- Barrel porting -->
+    <rect x="68" y="16" width="8" height="14" rx="2" opacity="0.7"/>
+    <!-- Receiver / frame -->
+    <rect x="74" y="24" width="36" height="16" rx="3"/>
+    <!-- Hammer -->
+    <rect x="88" y="14" width="6" height="10" rx="1.5" opacity="0.8"/>
+    <!-- Magazine well angle -->
+    <path d="M100 40 L110 40 L122 55 L108 55Z" opacity="0.85"/>
+    <!-- Trigger guard -->
+    <path d="M94 40 Q96 50 100 52 Q104 52 106 46 L106 40Z" opacity="0.9"/>
+    <!-- Grip -->
+    <rect x="104" y="40" width="12" height="22" rx="3" opacity="0.8"/>
+    <!-- Trigger -->
+    <rect x="96" y="42" width="4" height="8" rx="1.5" opacity="0.5"/>
+  </g>
+</svg>

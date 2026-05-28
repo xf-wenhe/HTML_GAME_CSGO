@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <circle cx="24" cy="24" r="22" fill="#4B69FF" opacity="0.15"/>
+  <circle cx="24" cy="24" r="22" fill="none" stroke="#4B69FF" stroke-width="2.5"/>
+  <!-- Shield shape -->
+  <path d="M24 8 L36 14 L36 24 C36 34 24 42 24 42 C24 42 12 34 12 24 L12 14Z" fill="#4B69FF" opacity="0.3" stroke="#4B69FF" stroke-width="1.5"/>
+  <!-- CT text -->
+  <text x="24" y="30" text-anchor="middle" font-family="Rajdhani, sans-serif" font-weight="700" font-size="14" fill="#4B69FF" letter-spacing="2">CT</text>
+</svg>

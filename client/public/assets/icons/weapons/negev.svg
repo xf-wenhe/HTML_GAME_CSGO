@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 75"><g fill="white"><rect x="4" y="30" width="100" height="10" rx="2"/><rect x="10" y="26" width="56" height="6" rx="1" opacity="0.7"/><rect x="70" y="22" width="96" height="20" rx="2"/><rect x="90" y="42" width="28" height="28" rx="3"/><line x1="16" y1="40" x2="8" y2="62" stroke="white" stroke-width="3.5" stroke-linecap="round"/><line x1="28" y1="40" x2="36" y2="62" stroke="white" stroke-width="3.5" stroke-linecap="round"/><rect x="160" y="24" width="46" height="12" rx="3"/><rect x="196" y="24" width="10" height="26" rx="2"/><rect x="152" y="42" width="14" height="22" rx="3" transform="skewX(-5)"/><rect x="6" y="25" width="5" height="5" rx="1"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 65">
+  <defs><linearGradient id="neg-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F0C060"/><stop offset="100%" stop-color="#D4942A"/></linearGradient></defs>
+  <g fill="url(#neg-grad)">
+    <rect x="4" y="28" width="96" height="10" rx="2.5"/>
+    <rect x="100" y="24" width="46" height="16" rx="3"/>
+    <rect x="60" y="38" width="64" height="5" rx="1.5" opacity="0.7"/>
+    <rect x="146" y="26" width="42" height="10" rx="4"/>
+    <rect x="184" y="26" width="7" height="16" rx="2"/>
+    <path d="M124 40 Q126 46 130 48 Q134 48 136 44 L136 40Z" opacity="0.85"/>
+    <rect x="132" y="40" width="8" height="16" rx="2.5"/>
+  </g>
+</svg>

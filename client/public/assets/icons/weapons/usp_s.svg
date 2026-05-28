@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 60"><g fill="white"><rect x="4" y="24" width="22" height="8" rx="3"/><rect x="24" y="22" width="55" height="12" rx="2"/><rect x="40" y="14" width="40" height="8" rx="2"/><rect x="72" y="34" width="16" height="20" rx="3" transform="skewX(-5)"/><path d="M66 34 Q73 40 73 46 L67 46 Q67 42 62 38Z"/><rect x="26" y="18" width="4" height="4" rx="1"/><rect x="62" y="14" width="6" height="3" rx="1"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 55">
+  <defs><linearGradient id="usp-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F0C060"/><stop offset="100%" stop-color="#D4942A"/></linearGradient></defs>
+  <g fill="url(#usp-grad)">
+    <rect x="4" y="26" width="58" height="7" rx="2"/>
+    <rect x="4" y="18" width="12" height="10" rx="2" opacity="0.75"/>
+    <rect x="62" y="22" width="32" height="14" rx="3"/>
+    <rect x="78" y="36" width="8" height="14" rx="1.5"/>
+    <path d="M78 36 Q80 42 84 44 Q88 44 90 38 L90 36Z" opacity="0.8"/>
+    <rect x="86" y="36" width="6" height="14" rx="2"/>
+  </g>
+</svg>

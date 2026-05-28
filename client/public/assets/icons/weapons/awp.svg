@@ -1,1 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 70"><g fill="white"><rect x="4" y="29" width="115" height="10" rx="2"/><rect x="4" y="27" width="10" height="14" rx="1" opacity="0.7"/><rect x="80" y="21" width="90" height="20" rx="2"/><rect x="96" y="12" width="62" height="9" rx="3"/><rect x="116" y="8" width="22" height="14" rx="2"/><rect x="112" y="41" width="11" height="24" rx="2"/><rect x="166" y="23" width="56" height="10" rx="3"/><rect x="212" y="23" width="10" height="24" rx="3"/><rect x="166" y="34" width="16" height="14" rx="3"/><rect x="158" y="41" width="13" height="22" rx="3" transform="skewX(-5)"/><rect x="6" y="24" width="5" height="5" rx="1"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 70">
+  <defs>
+    <linearGradient id="awp-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F0C060"/>
+      <stop offset="100%" stop-color="#D4942A"/>
+    </linearGradient>
+  </defs>
+  <!-- AWP: long barrel, bipod, scope, bolt-action -->
+  <g fill="url(#awp-grad)">
+    <!-- Long barrel -->
+    <rect x="4" y="30" width="110" height="9" rx="2"/>
+    <!-- Bipod legs -->
+    <rect x="50" y="39" width="3" height="20" rx="1" opacity="0.7"/>
+    <rect x="64" y="39" width="3" height="20" rx="1" opacity="0.7"/>
+    <!-- Muzzle brake -->
+    <rect x="112" y="28" width="8" height="13" rx="2" opacity="0.85"/>
+    <!-- Scope mount -->
+    <rect x="76" y="16" width="40" height="14" rx="3"/>
+    <!-- Scope lens -->
+    <ellipse cx="96" cy="16" rx="8" ry="4" opacity="0.6"/>
+    <!-- Receiver -->
+    <rect x="120" y="24" width="50" height="18" rx="3"/>
+    <!-- Bolt handle -->
+    <rect x="134" y="12" width="6" height="14" rx="2" opacity="0.8"/>
+    <!-- Magazine -->
+    <rect x="140" y="42" width="10" height="16" rx="2"/>
+    <!-- Stock -->
+    <rect x="170" y="26" width="56" height="12" rx="4"/>
+    <rect x="220" y="26" width="8" height="22" rx="2.5"/>
+    <!-- Trigger guard -->
+    <path d="M150 42 Q152 48 156 50 Q160 50 162 46 L162 42Z" opacity="0.85"/>
+    <!-- Pistol grip -->
+    <rect x="158" y="42" width="10" height="22" rx="3"/>
+  </g>
+</svg>

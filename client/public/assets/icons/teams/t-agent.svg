@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160">
+  <defs>
+    <linearGradient id="t-body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF4655"/>
+      <stop offset="100%" stop-color="#BF2B33"/>
+    </linearGradient>
+  </defs>
+  <!-- T Agent Silhouette - Terrorist -->
+  <g opacity="0.25">
+    <!-- Balaclava/head -->
+    <ellipse cx="60" cy="30" rx="16" ry="15"/>
+    <!-- Bandana -->
+    <path d="M48 28 L72 28 L74 34 L46 34Z" opacity="0.4"/>
+    <!-- Body/tactical vest -->
+    <rect x="40" y="46" width="40" height="52" rx="5"/>
+    <!-- Arms -->
+    <rect x="28" y="50" width="14" height="42" rx="5"/>
+    <rect x="78" y="50" width="14" height="42" rx="5"/>
+    <!-- Legs -->
+    <rect x="44" y="98" width="15" height="50" rx="4"/>
+    <rect x="61" y="98" width="15" height="50" rx="4"/>
+    <!-- Boots -->
+    <rect x="42" y="142" width="17" height="9" rx="3"/>
+    <rect x="61" y="142" width="17" height="9" rx="3"/>
+    <!-- Weapon -->
+    <rect x="66" y="66" width="38" height="7" rx="2" opacity="0.6"/>
+  </g>
+  <!-- Outline -->
+  <g stroke="#FF4655" stroke-width="2.5" fill="none" opacity="0.6">
+    <ellipse cx="60" cy="30" rx="16" ry="15"/>
+    <rect x="40" y="46" width="40" height="52" rx="5"/>
+    <rect x="28" y="50" width="14" height="42" rx="5"/>
+    <rect x="78" y="50" width="14" height="42" rx="5"/>
+    <rect x="44" y="98" width="15" height="50" rx="4"/>
+    <rect x="61" y="98" width="15" height="50" rx="4"/>
+  </g>
+</svg>

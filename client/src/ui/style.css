@@ -98,10 +98,22 @@ body {
 }
 
 #app {
+  position: relative;
   width: 100vw;
   width: 100dvw;
   height: 100vh;
   height: 100dvh;
+  overflow: hidden;
+}
+
+/* Ensure canvas fills the viewport and stays behind UI layers */
+#app > canvas {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
 :focus-visible {
@@ -565,17 +577,17 @@ body {
   background:
     linear-gradient(90deg, transparent calc(50% - 1px), rgba(0, 0, 0, 0.82) calc(50% - 1px), rgba(0, 0, 0, 0.82) calc(50% + 1px), transparent calc(50% + 1px)),
     linear-gradient(0deg, transparent calc(50% - 1px), rgba(0, 0, 0, 0.82) calc(50% - 1px), rgba(0, 0, 0, 0.82) calc(50% + 1px), transparent calc(50% + 1px)),
-    radial-gradient(circle at center, transparent 0 31vh, rgba(0, 0, 0, 0.96) 31.4vh 100%);
+    radial-gradient(circle at center, transparent 0 31dvh, rgba(0, 0, 0, 0.96) 31.4dvh 100%);
 }
 
 .scope-overlay::before,
 .scope-overlay::after {
   content: '';
   position: fixed;
-  left: calc(50% - 31vh);
-  top: calc(50% - 31vh);
-  width: 62vh;
-  height: 62vh;
+  left: calc(50% - 31dvh);
+  top: calc(50% - 31dvh);
+  width: 62dvh;
+  height: 62dvh;
   border: 3px solid rgba(0, 0, 0, 0.92);
   border-radius: 50%;
   box-shadow: inset 0 0 34px rgba(0, 0, 0, 0.55);
@@ -1083,19 +1095,45 @@ body {
   cursor: not-allowed;
 }
 
-.buy-item-preview {
-  flex-shrink: 0;
-  width: 44px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-}
-
 .weapon-preview-svg {
   width: 44px;
   height: 22px;
+  color: var(--csgo-gold);
+}
+
+.weapon-preview-img {
+  width: 52px;
+  height: 24px;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0px 3px 2px rgba(0, 0, 0, 0.8)) drop-shadow(0px 0px 2px rgba(232, 201, 106, 0.3));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+/* 鼠标悬停时武器贴图微微放大，CS:GO 经典交互 */
+.buy-item:hover:not(:disabled) .weapon-preview-img {
+  transform: scale(1.1);
+}
+
+.weapon-preview-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 22px;
+}
+
+.buy-item-preview {
+  flex-shrink: 0;
+  width: 56px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(232, 201, 106, 0.12);
+  border-radius: 1px;
 }
 
 .buy-item-info {
@@ -1258,26 +1296,48 @@ body {
 }
 
 .menu-button {
-  min-height: 48px;
-  min-width: 220px;
+  min-height: 52px;
+  min-width: 260px;
   padding: 0 var(--spacing-xl);
   font-size: 16px;
   font-weight: 700;
   font-family: 'Rajdhani', sans-serif;
   letter-spacing: 2px;
   text-transform: uppercase;
-  background: rgba(27, 40, 56, 0.9);
-  border: 1px solid rgba(75, 105, 255, 0.3);
+  background: rgba(20, 30, 44, 0.9);
+  border: 1px solid rgba(75, 105, 255, 0.25);
   border-radius: 0;
   color: var(--text-primary);
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: all var(--transition-fast);
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.menu-button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--csgo-gold);
+  transform: scaleY(0);
+  transition: transform var(--transition-fast);
+}
+
+.menu-button:hover::before {
+  transform: scaleY(1);
 }
 
 .menu-button:hover {
-  background: rgba(75, 105, 255, 0.2);
+  background: rgba(75, 105, 255, 0.18);
   border-color: var(--ct-blue);
+  padding-left: calc(var(--spacing-xl) + 4px);
 }
 
 .menu-button:active {
@@ -1289,6 +1349,41 @@ body {
   outline-offset: 2px;
 }
 
+.menu-btn-icon {
+  font-size: 18px;
+  opacity: 0.7;
+}
+
+.menu-btn-hint {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  position: absolute;
+  right: 16px;
+  opacity: 0.6;
+}
+
+/* Menu button color variants */
+.menu-button-solo { border-left: 3px solid rgba(34, 197, 94, 0.4); }
+.menu-button-solo:hover { border-left-color: #22c55e; }
+.menu-button-tdm { border-left: 3px solid rgba(245, 158, 11, 0.4); }
+.menu-button-tdm:hover { border-left-color: #f59e0b; }
+.menu-button-defusal { border-left: 3px solid rgba(239, 68, 68, 0.4); }
+.menu-button-defusal:hover { border-left-color: #ef4444; }
+
+/* Difficulty color coding */
+.diff-easy { border-color: rgba(34, 197, 94, 0.3); }
+.diff-easy.active, .diff-easy:hover { background: rgba(34, 197, 94, 0.18); border-color: #22c55e; color: #22c55e; }
+.diff-normal { border-color: rgba(245, 158, 11, 0.3); }
+.diff-normal.active, .diff-normal:hover { background: rgba(245, 158, 11, 0.18); border-color: #f59e0b; color: #f59e0b; }
+.diff-hard { border-color: rgba(239, 68, 68, 0.3); }
+.diff-hard.active, .diff-hard:hover { background: rgba(239, 68, 68, 0.18); border-color: #ef4444; color: #ef4444; }
+.diff-expert { border-color: rgba(168, 85, 247, 0.3); }
+.diff-expert.active, .diff-expert:hover { background: rgba(168, 85, 247, 0.18); border-color: #a855f7; color: #a855f7; }
+
 .difficulty-panel {
   display: flex;
   align-items: center;
@@ -1299,6 +1394,14 @@ body {
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 600;
+}
+
+.diff-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-tertiary);
+  margin-right: 4px;
 }
 
 .difficulty-option {
@@ -1763,14 +1866,121 @@ body {
   0%, 100% { text-shadow: 0 0 12px rgba(255,154,0,0.3), 0 0 32px rgba(255,154,0,0.1); }
   50% { text-shadow: 0 0 18px rgba(255,154,0,0.5), 0 0 48px rgba(255,154,0,0.2); }
 }
+
+/* === Enhanced Logo Section === */
+.menu-logo-wrap {
+  margin-bottom: var(--spacing-lg);
+}
+
 .menu-logo {
   font-family: Rajdhani, sans-serif;
   font-weight: 700;
-  font-size: 52px;
-  letter-spacing: 0.08em;
+  font-size: 56px;
+  letter-spacing: 12px;
   text-transform: uppercase;
-  color: var(--text-primary);
+  color: #dce8f0;
   animation: logo-glow 3s ease-in-out infinite;
+  text-shadow: 0 2px 16px rgba(0,0,0,0.6);
+  line-height: 1;
+}
+
+.menu-logo-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.logo-line {
+  display: block;
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--csgo-gold), transparent);
+}
+
+.logo-diamond {
+  color: var(--csgo-gold);
+  font-size: 8px;
+  opacity: 0.75;
+}
+
+.menu-subtitle {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 8px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+}
+
+/* === Agent Silhouettes === */
+.menu-agents {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.menu-agent {
+  position: absolute;
+  bottom: 0;
+  opacity: 0.08;
+  transition: opacity 0.3s;
+}
+
+.menu-agent-ct {
+  left: 5%;
+  width: min(200px, 20vw);
+}
+
+.menu-agent-t {
+  right: 5%;
+  width: min(200px, 20vw);
+}
+
+.agent-silhouette {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0 20px rgba(75, 105, 255, 0.3));
+}
+
+.menu-agent-t .agent-silhouette {
+  filter: drop-shadow(0 0 20px rgba(232, 201, 106, 0.3));
+}
+
+.agent-label {
+  display: block;
+  text-align: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: var(--ct-blue);
+  text-transform: uppercase;
+  margin-top: 8px;
+  opacity: 0.5;
+}
+
+.menu-agent-t .agent-label {
+  color: var(--csgo-gold);
+}
+
+/* === Map Panel Enhancements === */
+.map-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 4px;
+}
+
+.map-count {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  letter-spacing: 1px;
 }
 
 /* --- Map loading overlay --- */
@@ -1966,7 +2176,174 @@ body {
   background-color: var(--surface-1);
 }
 
-/* ==================== 移动端深度适配 (Mobile & Landscape) ==================== */
+/* ═══════════════════════════════════════════════════════════════
+   ✨ UI全面大气优化 — Glassmorphism · 微交互 · 动画增强
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 增强毛玻璃面板 ── */
+.hud-top-right-panel {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(10, 14, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.3s ease;
+}
+
+/* 购买菜单分类卡 — 轻量毛玻璃 hover */
+.buy-category {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.buy-category:hover {
+  border-color: rgba(232, 201, 106, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(232, 201, 106, 0.05);
+}
+
+/* ── 购买按钮微交互 ── */
+
+/* 按钮按下回弹 */
+.buy-menu button:active:not(:disabled) {
+  transform: scale(0.96);
+  transition: transform 0.06s ease;
+}
+
+/* 购买成功闪金反馈 (需要 JS 动态添加 class) */
+.buy-item.buy-success-flash {
+  animation: buy-flash 0.5s ease-out;
+}
+@keyframes buy-flash {
+  0%   { background: rgba(232, 201, 106, 0.25); box-shadow: 0 0 16px rgba(232, 201, 106, 0.4); }
+  100% { background: rgba(232, 201, 106, 0); box-shadow: 0 0 0px rgba(232, 201, 106, 0); }
+}
+
+/* 购买按钮 hover 微光扫过 */
+.buy-menu button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 45%, transparent 50%);
+  transform: translateX(-100%);
+  transition: transform 0.5s ease;
+  pointer-events: none;
+}
+.buy-menu button:hover::after {
+  transform: translateX(100%);
+}
+
+/* ── 弹药不足警告增强 ── */
+
+/* 弹匣低 → 红色脉冲 + 边框闪烁 */
+.ammo-low {
+  color: var(--danger) !important;
+  animation: ammo-pulse 0.4s ease-in-out infinite;
+  text-shadow: 0 0 6px rgba(255, 70, 85, 0.6);
+}
+@keyframes ammo-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.06); opacity: 0.8; }
+}
+
+/* 弹药容器整体低弹量态 — 红色边框呼吸 */
+.ammo-container.ammo-critical {
+  border-color: rgba(255, 70, 85, 0.5);
+  animation: ammo-border-breathe 0.8s ease-in-out infinite;
+}
+@keyframes ammo-border-breathe {
+  0%, 100% { border-color: rgba(255, 70, 85, 0.3); }
+  50%      { border-color: rgba(255, 70, 85, 0.7); }
+}
+
+/* ── HUD 面板入场/退场过渡 ── */
+
+/* 购买菜单打开时从底部滑入 */
+.buy-menu:not(.hidden) {
+  animation: buy-menu-in 200ms ease-out;
+}
+@keyframes buy-menu-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* 记分板淡入 */
+.scoreboard:not(.hidden) {
+  animation: scoreboard-in 180ms ease-out;
+}
+@keyframes scoreboard-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── 武器槽切换提示 ── */
+
+/* 当切换到新武器槽时短暂高亮 */
+.weapon-slot.slot-switched {
+  animation: slot-switch 0.3s ease-out;
+}
+@keyframes slot-switch {
+  0%   { background: rgba(232, 201, 106, 0.2); box-shadow: 0 0 12px rgba(232,201,106,0.3); }
+  100% { background: transparent; box-shadow: none; }
+}
+
+/* ── 拾取武器通知动画增强 ── */
+.notification-item.weapon-pickup {
+  border-color: var(--csgo-gold);
+  color: var(--csgo-gold);
+  animation: notify-in 200ms ease-out;
+}
+
+/* ── 击杀提示增强 — 爆头高亮 ── */
+.kill-feed-headshot {
+  background: rgba(255, 70, 85, 0.2);
+  padding: 0 4px;
+  border-radius: 1px;
+  animation: headshot-pop 300ms ease-out;
+}
+@keyframes headshot-pop {
+  0%   { transform: scale(1.3); background: rgba(255, 70, 85, 0.5); }
+  100% { transform: scale(1); background: rgba(255, 70, 85, 0.2); }
+}
+
+/* ── 受伤红色暗角增强 ── */
+.hud.low-health::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 70;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(255, 20, 30, 0.15) 100%);
+  animation: blood-pulse 0.75s ease-in-out infinite;
+}
+
+/* ── 小地图毛玻璃外圈 ── */
+.radar-container {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  background: rgba(10, 14, 20, 0.7);
+  border: 1px solid rgba(100, 140, 200, 0.35);
+  border-radius: 2px;
+  transition: border-color 0.3s ease;
+}
+.radar-container:hover {
+  border-color: rgba(100, 140, 200, 0.55);
+}
+
+/* ── 比分条悬停微交互 ── */
+.round-strip {
+  transition: background 0.3s ease;
+}
+
+/* 分数变化闪烁 (JS 给 .score-ct / .score-t 添加 .score-changed) */
+.score-ct.score-changed,
+.score-t.score-changed {
+  animation: score-pop 0.4s ease-out;
+}
+@keyframes score-pop {
+  0%   { transform: scale(1.3); color: var(--csgo-gold); }
+  100% { transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   手机横向适配 (Mobile Landscape) ══════════════════════════════ */
 
 /* 1. 异形屏安全区域 (Safe Area Insets) - 防止UI被刘海、摄像头打孔遮挡 */
 .hud-top-left {
@@ -2212,7 +2589,7 @@ body {
 }
 
 /* 4. 强制横屏提示 (拦截竖屏用户) */
-@media (max-aspect-ratio: 1/1) {
+@media (max-aspect-ratio: 0.55/1) {
   #app::after {
     content: "请旋转手机\A在横屏下进行游戏\A\A Please rotate device";
     white-space: pre;
@@ -2241,34 +2618,3 @@ body {
   }
 }
 
-/* ==================== 真实武器贴图 UI 适配 ==================== */
-.buy-item-preview {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 45px; /* 给图片留出足够的高度 */
-  margin-bottom: 6px;
-  width: 100%;
-}
-
-.weapon-preview-img {
-  max-width: 90%;
-  max-height: 100%;
-  object-fit: contain;
-  /* 增加经典的 CS:GO 武器轮廓阴影，让枪械在暗背景下立体且清晰 */
-  filter: drop-shadow(0px 3px 2px rgba(0, 0, 0, 0.8)) drop-shadow(0px 0px 1px rgba(255, 255, 255, 0.15));
-  transition: transform 0.2s ease;
-}
-
-/* 鼠标悬停时枪械贴图微微放大 */
-.buy-item:hover:not(:disabled) .weapon-preview-img {
-  transform: scale(1.1);
-}
-
-.weapon-preview-fallback {
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-}

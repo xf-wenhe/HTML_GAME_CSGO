@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60"><g fill="white"><rect x="10" y="22" width="62" height="11" rx="2"/><rect x="28" y="14" width="44" height="8" rx="2"/><rect x="68" y="33" width="17" height="21" rx="3" transform="skewX(-4)"/><path d="M64 33 Q71 39 71 45 L65 45 Q65 41 60 37Z"/><rect x="12" y="18" width="4" height="4" rx="1"/><rect x="59" y="14" width="7" height="3" rx="1"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 55">
+  <defs><linearGradient id="p2k-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F0C060"/><stop offset="100%" stop-color="#D4942A"/></linearGradient></defs>
+  <g fill="url(#p2k-grad)">
+    <rect x="4" y="26" width="56" height="8" rx="2"/>
+    <rect x="60" y="22" width="32" height="14" rx="3"/>
+    <rect x="76" y="36" width="8" height="14" rx="1.5"/>
+    <path d="M76 36 Q78 42 82 44 Q86 44 88 38 L88 36Z" opacity="0.8"/>
+    <rect x="84" y="36" width="6" height="14" rx="2"/>
+  </g>
+</svg>
