@@ -442,14 +442,27 @@ export class HUD {
       item.unavailable ? 'data-unavailable="true"' : ''
     ].filter(Boolean).join(' ');
     const disabled = item.unavailable ? ' disabled' : '';
+    
+    // 原有的 SVG 作为备用
     const svg = item.svgType ? this.weaponSvg(item.svgType) : '';
+    
+    // 【新增】构建真实武器贴图的 img 标签
+    // 使用 onerror 机制：如果找不到图片，自动隐藏并显示原本的 SVG
+    const imgIcon = item.weaponId
+      ? `<img src="/assets/icons/weapons/${item.weaponId}.png" class="weapon-preview-img" alt="${this.escapeHtml(item.label)}" onerror="this.src='/assets/icons/weapons/${item.weaponId}.svg'; this.onerror=function(){this.style.display='none'; this.nextElementSibling.style.display='flex';};" />`
+      : '';
+
     const damageBar = item.damage
       ? `<div class="buy-item-damage-bar" aria-label="伤害 ${item.damage}"><div class="buy-item-damage-fill" style="width:${Math.min(100, Math.round(item.damage / 1.2))}%"></div></div>`
       : '';
     const damageLabel = item.damage ? `<span class="buy-item-damage">${item.damage}</span>` : '';
+    
     return `
       <button class="buy-item" type="button" ${dataAttributes}${disabled} title="${this.escapeHtml(item.hint)}">
-        <div class="buy-item-preview">${svg}</div>
+        <div class="buy-item-preview">
+          ${imgIcon}
+          <div class="weapon-preview-fallback" style="${item.weaponId ? 'display:none;' : 'display:flex;'}">${svg}</div>
+        </div>
         <div class="buy-item-info">
           <span class="buy-item-name">${this.escapeHtml(item.label)}</span>
           <span class="buy-item-price">$${item.price}</span>

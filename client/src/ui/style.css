@@ -1965,3 +1965,310 @@ body {
 :fullscreen, ::backdrop {
   background-color: var(--surface-1);
 }
+
+/* ==================== 移动端深度适配 (Mobile & Landscape) ==================== */
+
+/* 1. 异形屏安全区域 (Safe Area Insets) - 防止UI被刘海、摄像头打孔遮挡 */
+.hud-top-left {
+  left: max(var(--spacing-lg), env(safe-area-inset-left));
+  top: max(var(--spacing-lg), env(safe-area-inset-top));
+}
+.hud-top-right {
+  right: max(var(--spacing-lg), env(safe-area-inset-right));
+  top: max(var(--spacing-lg), env(safe-area-inset-top));
+}
+.hud-bottom-left {
+  left: max(var(--spacing-lg), env(safe-area-inset-left));
+  bottom: max(var(--spacing-lg), env(safe-area-inset-bottom));
+}
+.hud-bottom-right {
+  right: max(var(--spacing-lg), env(safe-area-inset-right));
+  bottom: max(var(--spacing-lg), env(safe-area-inset-bottom));
+}
+.hud-bottom {
+  bottom: max(80px, calc(80px + env(safe-area-inset-bottom)));
+}
+
+/* 2. 横屏游戏极度紧凑适配 (主要针对手机) */
+@media (max-width: 932px) and (orientation: landscape) {
+  /* HUD 雷达缩小 */
+  .radar-container { 
+    width: 110px; 
+    height: 110px; 
+  }
+  .radar-canvas { 
+    width: 110px; 
+    height: 110px; 
+  }
+
+  /* 状态栏 (血量/子弹) 缩小，防止与触摸摇杆/开火键重叠 */
+  .health-value { font-size: 38px; }
+  .armor-value { font-size: 22px; }
+  .ammo-current { font-size: 42px; }
+  .ammo-reserve { font-size: 20px; }
+  .vitals-display, .ammo-container {
+    padding: 4px 10px 6px;
+  }
+  .vitals-icon, .ammo-separator { font-size: 14px; }
+  
+  /* 武器栏缩小并双排显示 */
+  .weapon-slots {
+    grid-template-columns: repeat(2, minmax(80px, 1fr));
+    width: 220px;
+  }
+
+  /* 购买菜单自适应缩放 (利用手机满宽) */
+  .buy-menu {
+    grid-template-columns: repeat(3, 1fr);
+    width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px);
+    bottom: max(16px, env(safe-area-inset-bottom));
+    max-height: 85vh;
+  }
+  .buy-category { padding: 6px; }
+  .buy-menu button { min-height: 42px; padding: 4px; }
+  .weapon-preview-svg { width: 32px; height: 16px; }
+  .buy-item-name, .buy-item-price { font-size: 9px; }
+
+  /* 缩小击杀提示，防止挡住准星 */
+  .kill-feed-live { width: 200px; }
+  .kill-feed-row { font-size: 10px; padding: 2px 4px; min-height: 16px; }
+
+  /* 回合比分板缩放 */
+  .round-strip { min-width: 220px; }
+  .timer-text { font-size: 20px; min-width: 40px; }
+  .team-score { font-size: 22px; padding: 2px 8px; }
+
+  /* 1. 主菜单整体变宽，改为双栏网格 */
+  .menu-content {
+    width: max(94vw, calc(100vw - 40px)) !important;
+    max-height: 96dvh !important;
+    padding: 12px 20px !important;
+    border-radius: 6px !important;
+    
+    display: grid !important;
+    grid-template-columns: 1fr 1.2fr !important; /* 左栏1份宽，右栏1.2份宽 */
+    grid-template-rows: auto auto 1fr !important;
+    gap: 8px 20px !important;
+    text-align: left !important;
+    align-items: start !important;
+  }
+
+  /* 2. 左栏元素：标志与身份 */
+  .menu-logo {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    font-size: 26px !important; /* 大幅缩小标题字体 */
+    margin-bottom: 0 !important;
+    text-align: left !important;
+    letter-spacing: 2px !important;
+  }
+
+  .profile-panel {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    margin: 2px 0 !important;
+    justify-content: flex-start !important;
+    font-size: 12px !important;
+  }
+  
+  .profile-name-input {
+    width: 140px !important;
+    height: 28px !important;
+    font-size: 13px !important;
+  }
+
+  /* 3. 左栏核心：游戏模式按钮纵向靠左排齐 */
+  .menu-buttons {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+    gap: 6px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .menu-button {
+    min-width: 100% !important;
+    min-height: 38px !important; /* 减矮按钮，符合手指触控即可 */
+    font-size: 13px !important;
+    letter-spacing: 1px !important;
+    padding: 0 12px !important;
+    text-align: left !important;
+  }
+
+  /* 4. 右栏元素：NPC 难度选择移至右上角 */
+  .difficulty-panel {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    margin: 0 !important;
+    justify-content: flex-start !important;
+    font-size: 12px !important;
+    gap: 4px !important;
+  }
+
+  .difficulty-option {
+    height: 26px !important;
+    min-width: 46px !important;
+    font-size: 11px !important;
+    padding: 0 !important;
+  }
+
+  /* 5. 右栏核心：地图网格紧凑化并支持独立局部滚动 */
+  .map-panel {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    margin: 0 !important;
+    align-items: flex-start !important;
+    font-size: 12px !important;
+  }
+
+  .map-grid {
+    grid-template-columns: repeat(2, 1fr) !important; /* 保持双列 */
+    width: 100% !important;
+    max-height: 95px !important; /* 极关键：限制网格高度，防止撑开整个屏幕 */
+    overflow-y: auto !important;  /* 允许在右侧区域内独立上下滑动选图 */
+    padding-right: 4px !important;
+    gap: 4px !important;
+  }
+
+  .map-option {
+    min-height: 42px !important;
+  }
+
+  .map-card-name {
+    font-size: 11px !important;
+  }
+
+  /* 隐藏副标题和炸点文字，手机横屏放不下，精简界面 */
+  .map-card-desc, 
+  .map-card-sites {
+    display: none !important;
+  }
+
+  /* 6. 右栏底部：线上房间列表 */
+  .room-browser {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+    margin: 0 !important;
+    max-height: 100px !important; /* 限制房间列表高度 */
+    overflow-y: auto !important;  /* 房间多了在内部滚动 */
+    padding: 6px !important;
+  }
+
+  .room-browser-header {
+    font-size: 11px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .room-refresh {
+    height: 22px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+  }
+
+  .room-list.empty {
+    font-size: 11px !important;
+    padding: 4px !important;
+  }
+
+  .room-row {
+    min-height: 32px !important;
+    padding: 3px 0 !important;
+  }
+
+  .room-row strong {
+    font-size: 11px !important;
+  }
+
+  .room-row span {
+    font-size: 9px !important;
+  }
+
+  .room-join, 
+  .room-spectate {
+    height: 24px !important;
+    font-size: 11px !important;
+    padding: 0 6px !important;
+  }
+
+  /* 7. 手机端直接隐藏键盘说明面板 */
+  .game-info {
+    display: none !important;
+  }
+}
+
+/* 3. 主菜单小屏幕适配 */
+@media (max-width: 800px) {
+  /* 地图选择变成 2 列 */
+  .map-grid { 
+    grid-template-columns: repeat(2, 1fr); 
+  }
+  .menu-content { 
+    padding: var(--spacing-md); 
+    width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px);
+  }
+  .game-logo-svg { 
+    width: clamp(160px, 40vw, 240px); 
+    margin-bottom: var(--spacing-md); 
+  }
+}
+
+/* 4. 强制横屏提示 (拦截竖屏用户) */
+@media (max-aspect-ratio: 1/1) {
+  #app::after {
+    content: "请旋转手机\A在横屏下进行游戏\A\A Please rotate device";
+    white-space: pre;
+    position: fixed;
+    inset: 0;
+    background: var(--surface-1);
+    color: var(--csgo-gold);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    line-height: 1.6;
+    padding: 20px;
+    /* 加入 CS:GO 标志性的暗角效果 */
+    box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+  }
+  
+  /* 竖屏时隐藏菜单和HUD，防止排版彻底崩坏 */
+  .hud, .main-menu, .touch-controls {
+    display: none !important;
+  }
+}
+
+/* ==================== 真实武器贴图 UI 适配 ==================== */
+.buy-item-preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 45px; /* 给图片留出足够的高度 */
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.weapon-preview-img {
+  max-width: 90%;
+  max-height: 100%;
+  object-fit: contain;
+  /* 增加经典的 CS:GO 武器轮廓阴影，让枪械在暗背景下立体且清晰 */
+  filter: drop-shadow(0px 3px 2px rgba(0, 0, 0, 0.8)) drop-shadow(0px 0px 1px rgba(255, 255, 255, 0.15));
+  transition: transform 0.2s ease;
+}
+
+/* 鼠标悬停时枪械贴图微微放大 */
+.buy-item:hover:not(:disabled) .weapon-preview-img {
+  transform: scale(1.1);
+}
+
+.weapon-preview-fallback {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
