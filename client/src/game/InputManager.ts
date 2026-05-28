@@ -62,10 +62,16 @@ export class InputManager {
   private setupEventListeners(): void {
     document.addEventListener('keydown', (e) => {
       this.keys.add(e.code);
-    });
+      // 拦截 Windows 常用会导致浏览器焦点丢失或滚动的按键
+      const blockedKeys = ['Space', 'Tab', 'AltLeft', 'AltRight', 'F10'];
+      if (blockedKeys.includes(e.code) || e.code.startsWith('Arrow')) {
+        e.preventDefault();
+      }
+    }, { passive: false }); // 确保 preventDefault 生效
 
     document.addEventListener('keyup', (e) => {
       this.keys.delete(e.code);
+      if (e.code === 'Tab') e.preventDefault();
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -230,8 +236,21 @@ export class InputManager {
 
   private normalizeMouseDelta(x: number, y: number): MouseDelta {
     const settings = this.mouseSettings;
-    const clampedX = Math.max(-settings.maxDeltaPerFrame, Math.min(settings.maxDeltaPerFrame, x));
-    const clampedY = Math.max(-settings.maxDeltaPerFrame, Math.min(settings.maxDeltaPerFrame, y));
+    
+    // Windows DPI 缩放补偿机制
+    // 当未获取到真正的原生输入 (rawMouseInput为false) 时，Windows DPI 放大比例会导致鼠标发飘
+    let dpiScale = 1;
+    if (this.mousePlatform === 'windows' && !this.rawMouseInput) {
+      dpiScale = window.devicePixelRatio || 1;
+    }
+
+    // 修正后的 X 和 Y
+    const adjustedX = x / dpiScale;
+    const adjustedY = y / dpiScale;
+
+    const clampedX = Math.max(-settings.maxDeltaPerFrame, Math.min(settings.maxDeltaPerFrame, adjustedX));
+    const clampedY = Math.max(-settings.maxDeltaPerFrame, Math.min(settings.maxDeltaPerFrame, adjustedY));
+    
     const scaled: MouseDelta = {
       x: clampedX * settings.baseSensitivity * settings.platformScale,
       y: clampedY * settings.baseSensitivity * settings.platformScale * (settings.invertY ? -1 : 1)

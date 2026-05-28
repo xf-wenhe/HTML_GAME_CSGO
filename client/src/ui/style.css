@@ -1939,3 +1939,29 @@ body {
   flex-direction: column; /* 调整为和暂停菜单一样的纵向两层排版，直观对齐 */
   gap: 2px;
 }
+
+/* ==================== Windows 专属适配 (滚动条与全屏优化) ==================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(10, 14, 18, 0.6);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(75, 105, 255, 0.35);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--csgo-gold);
+  box-shadow: 0 0 8px rgba(232, 201, 106, 0.4);
+}
+
+/* 解决 Windows 浏览器全屏时可能出现的白边问题 */
+:fullscreen, ::backdrop {
+  background-color: var(--surface-1);
+}

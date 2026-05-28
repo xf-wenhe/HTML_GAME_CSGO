@@ -980,6 +980,16 @@ function requestGameFocus(): void {
   hud.toggleBuyMenu(false);
   input.clearActionKeys();
   setInputMode('playing');
+  // 【新增】Windows 沉浸感体验：请求游戏获得焦点时，同步请求网页全屏
+  if (!document.fullscreenElement && !input.isTouchControlsActive()) {
+    try {
+      document.body.requestFullscreen({ navigationUI: 'hide' }).catch(err => {
+        console.warn("Windows全屏请求被拦截，继续执行鼠标锁定:", err);
+      });
+    } catch (err) {
+      // 忽略部分旧版浏览器的同步调用异常
+    }
+  }
   if (input.isTouchControlsActive()) {
     pointerLockState = 'focusedNoLock';
     lockFailureReason = null;
