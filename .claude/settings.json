@@ -47,7 +47,21 @@
       "Bash(git -C /Volumes/新/work/html add client/src/game/shaders/ScopeDistortion.ts)",
       "Bash(git -C /Volumes/新/work/html commit -m 'feat: add scope distortion shader with chromatic aberration and vignette')",
       "Bash(git -C /Volumes/新/work/html log --oneline --decorate --all)",
-      "Bash(git -C /Volumes/新/work/html show --name-only --pretty=\"format:%H %an %ad %s\" db72978)"
+      "Bash(git -C /Volumes/新/work/html show --name-only --pretty=\"format:%H %an %ad %s\" db72978)",
+      "Bash(gh repo *)",
+      "Bash(git clone *)",
+      "Bash(claude --version)",
+      "Bash(node bin/install.js --only claude-code)",
+      "Bash(node bin/install.js --list)",
+      "Bash(node bin/install.js --only claude)",
+      "Bash(claude plugin *)",
+      "Bash(npx claude-mem *)",
+      "Bash(npx -y claude-mem install)",
+      "Bash(bun --version)",
+      "Bash(xargs cat)"
+    ],
+    "additionalDirectories": [
+      "/Users/fengye/.claude/plugins/marketplaces/thedotmack/src/services"
     ]
   }
 }
