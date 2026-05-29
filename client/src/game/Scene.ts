@@ -108,7 +108,8 @@ export class Scene {
       Overpass:  { bg: 0x5a7a6a, fog: 0x6a8a78, fogNear: 48, fogFar: 125, skyTop: 0x3a5a4a, skyHorizon: 0xb0d0c0 },
       Nuke:      { bg: 0x4a5a6a, fog: 0x5a6a78, fogNear: 45, fogFar: 120, skyTop: 0x2a3a4a, skyHorizon: 0xa0b8d0 },
       Italy:     { bg: 0x6a8aaa, fog: 0x7a9ab8, fogNear: 50, fogFar: 130, skyTop: 0x4a6a90, skyHorizon: 0xc0d8f0 },
-      Warehouse: { bg: 0x4a5a6a, fog: 0x5a6878, fogNear: 40, fogFar: 110, skyTop: 0x2a3a4a, skyHorizon: 0xa0b0c0 },
+      Warehouse:    { bg: 0x4a5a6a, fog: 0x5a6878, fogNear: 40, fogFar: 110, skyTop: 0x2a3a4a, skyHorizon: 0xa0b0c0 },
+      'Blood Strike': { bg: 0x1a0a0a, fog: 0x2a1010, fogNear: 20, fogFar: 80,  skyTop: 0x100505, skyHorizon: 0x3a1010 },
     };
 
     const sky = skyColors[arena.name] ?? skyColors.Dust2;
@@ -160,8 +161,16 @@ export class Scene {
       this.addArenaObject(lamp);
     }
 
-    this.addBombSiteMarker('A', new THREE.Vector3(-24, 0.04, -27));
-    this.addBombSiteMarker('B', new THREE.Vector3(24, 0.04, -27));
+    // Dust2: place bomb markers at correct Hammer-mapped positions
+    // A site center: Hammer(-2560, z-1280) → game(-25.6, z+12.8)
+    // B site center: Hammer(2560, z-1280)  → game(25.6,  z+12.8)
+    const isD2 = arena.name === 'Dust2';
+    this.addBombSiteMarker('A', isD2
+      ? new THREE.Vector3(-25.6, 0.04,  12.8)
+      : new THREE.Vector3(-24,   0.04, -27));
+    this.addBombSiteMarker('B', isD2
+      ? new THREE.Vector3( 25.6, 0.04,  12.8)
+      : new THREE.Vector3( 24,   0.04, -27));
 
     const particleGeometry = new THREE.BufferGeometry();
     const particleCount = 80;

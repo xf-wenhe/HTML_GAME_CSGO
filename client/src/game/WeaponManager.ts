@@ -49,8 +49,9 @@ export class WeaponManager {
 
     this.muzzleFlash = new THREE.Mesh(
       new THREE.ConeGeometry(0.07, 0.26, 12),
-      new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0 })
+      new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0, depthTest: false, depthWrite: false })
     );
+    this.muzzleFlash.renderOrder = 999;
     this.muzzleFlash.rotation.x = -Math.PI / 2;
     this.muzzleFlash.position.set(0, 0.03, -0.92);
     this.weaponRoot.add(this.muzzleFlash);
@@ -236,6 +237,24 @@ export class WeaponManager {
     this.currentModel = model;
     this.weaponRoot.add(model);
     this.weaponRoot.add(this.muzzleFlash);
+
+    // 【修复武器遮挡】ViewModel 武器必须始终渲染在最上层，不受场景深度测试影响
+    // 与 CS:GO 一致：第一人称武器永远可见，不会被地板/墙壁遮挡
+    this.setViewModelRenderOrder(model);
+  }
+
+  /** 设置 ViewModel 渲染优先级：depthTest=false 确保武器不因深度测试而被遮挡 */
+  private setViewModelRenderOrder(model: THREE.Object3D): void {
+    model.traverse(child => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach(mat => {
+        mat.depthTest = false;   // 跳过深度测试，始终渲染
+        mat.depthWrite = false;  // 不写入深度缓冲，避免干扰场景
+        mat.renderOrder = 999;   // 最高渲染优先级
+        mat.needsUpdate = true;
+      });
+    });
   }
 
   private resolveWeaponAssetId(weaponId: string): string {

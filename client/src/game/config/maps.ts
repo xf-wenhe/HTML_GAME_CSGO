@@ -47,6 +47,12 @@ import {
   WAREHOUSE_BOMB_SITES,
   WAREHOUSE_CALLOUTS
 } from '../WarehouseLayout.js';
+import {
+  BLOODSTRIKE_SPAWNS,
+  BLOODSTRIKE_TDM_SPAWNS,
+  BLOODSTRIKE_BOMB_SITES,
+  BLOODSTRIKE_CALLOUTS
+} from '../BloodStrikeLayout.js';
 
 
 export interface BombSiteConfig {
@@ -176,5 +182,19 @@ export const MULTIPLAYER_MAPS: Record<MapId, MultiplayerMapConfig> = {
       { id: 'B', position: OVERPASS_BOMB_SITES.B.position, radius: OVERPASS_BOMB_SITES.B.radius }
     ],
     callouts: OVERPASS_CALLOUTS
+  },
+  bloodstrike: {
+    id: 'bloodstrike',
+    name: 'Blood Strike',
+    spawns: {
+      attackers: BLOODSTRIKE_SPAWNS.attackers,
+      defenders: BLOODSTRIKE_SPAWNS.defenders
+    },
+    tdmSpawns: BLOODSTRIKE_TDM_SPAWNS,
+    bombSites: [
+      { id: 'A', position: BLOODSTRIKE_BOMB_SITES.A.position, radius: BLOODSTRIKE_BOMB_SITES.A.radius },
+      { id: 'B', position: BLOODSTRIKE_BOMB_SITES.B.position, radius: BLOODSTRIKE_BOMB_SITES.B.radius }
+    ],
+    callouts: BLOODSTRIKE_CALLOUTS
   }
 };

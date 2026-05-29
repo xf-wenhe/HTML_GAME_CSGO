@@ -10,6 +10,11 @@ import { NUKE_COLLIDERS, NUKE_SPAWNS, NUKE_BOMB_SITES } from './NukeLayout.js';
 import { ITALY_COLLIDERS, ITALY_SPAWNS, ITALY_BOMB_SITES } from './ItalyLayout.js';
 import { WAREHOUSE_COLLIDERS, WAREHOUSE_SPAWNS, WAREHOUSE_BOMB_SITES } from './WarehouseLayout.js';
 import {
+  BLOODSTRIKE_COLLIDERS,
+  BLOODSTRIKE_TDM_SPAWNS,
+  BLOODSTRIKE_BOMB_SITES
+} from './BloodStrikeLayout.js';
+import {
   DUST2_GAME_BOUNDS,
   PLAYER_EYE_HEIGHT
 } from './constants/MapUnits.js';
@@ -34,7 +39,7 @@ export interface EnemySpawnPoint {
   type: EnemyType;
 }
 
-export type SurfaceMaterial = 'sand' | 'stone' | 'concrete' | 'metal' | 'wood' | 'rubber' | 'cobblestone' | 'tile' | 'glass';
+export type SurfaceMaterial = 'sand' | 'stone' | 'concrete' | 'metal' | 'wood' | 'rubber' | 'cobblestone' | 'tile' | 'glass' | 'plaster';
 
 export interface MaterialZone {
   name: string;
@@ -514,6 +519,31 @@ function buildWarehouseArena(): ArenaData {
   );
 }
 
+function buildBloodStrikeArena(): ArenaData {
+  return buildMapArena(
+    'Blood Strike',
+    BLOODSTRIKE_COLLIDERS,
+    0x8b2020,
+    new THREE.Vector3(0, PLAYER_EYE_HEIGHT, 13.44),
+    32, 32, 0,
+    [
+      box(BLOODSTRIKE_BOMB_SITES.A.position.x, BLOODSTRIKE_BOMB_SITES.A.position.y, BLOODSTRIKE_BOMB_SITES.A.position.z, 1.92, 0.04, 1.92, 0xd4a017, 'bs-a-bomb-marker', 0.1, 0.6),
+      box(BLOODSTRIKE_BOMB_SITES.B.position.x, BLOODSTRIKE_BOMB_SITES.B.position.y, BLOODSTRIKE_BOMB_SITES.B.position.z, 1.92, 0.04, 1.92, 0xd4a017, 'bs-b-bomb-marker', 0.1, 0.6),
+      box(0, 0.01, 0, 32, 0.02, 32, 0x6a1414, 'bs-blood-floor', 0.05, 0.75),
+    ],
+    [
+      materialZone('bs-concrete', 'concrete', 0, 0, 0, 32, 0.1, 32),
+      materialZone('bs-metal-center', 'metal', 0, 0, 0, 4, 0.1, 4),
+    ],
+    [
+      ...BLOODSTRIKE_TDM_SPAWNS.slice(0, 5).map((s, i) => ({
+        position: new THREE.Vector3(s.x, PLAYER_EYE_HEIGHT, s.z),
+        type: (['patrol', 'shooter', 'assault', 'patrol', 'shooter'] as const)[i]
+      }))
+    ]
+  );
+}
+
 function buildDust2Arena(): ArenaData {
   const colliderBoxes: BoxSpec[] = DUST2_COLLIDERS.map(c => {
     const n = c.name ?? '';
@@ -563,56 +593,86 @@ function buildDust2Arena(): ArenaData {
     };
   });
 
+  // Hammer→game 比例 0.01
+  const H = (v: number) => v * 0.01;
+
   const props: BoxSpec[] = [
-    // CT Window 玻璃
-    box(0, 1.28, 12.8, 1.28, 0.48, 0.25, 0x9edcff, 'dust2-ct-window-glass', 0.03, 0.06, 0.3),
-    // B Window 玻璃
-    box(19.2, 1.28, 12.16, 0.96, 0.32, 0.25, 0x9edcff, 'dust2-b-window-glass', 0.03, 0.06, 0.3),
-    // A Site 包点地面标记
-    box(-25.6, 0.16, 12.8, 3.84, 0.04, 3.84, 0xd4a017, 'dust2-a-bomb-marker', 0.1, 0.6),
-    // B Site 包点地面标记
-    box(25.6, 0.16, 12.8, 3.84, 0.04, 3.84, 0xd4a017, 'dust2-b-bomb-marker', 0.1, 0.6),
-    // 沙地地面（贴图）
-    { ...box(0, 0.01, -10.24, 81.92, 0.02, 102.4, 0xffffff, 'dust2-sand-floor', 0.04, 0.88), textureKey: 'sand' as const },
+    // ── 大面积沙地地面 ──
+    { ...box(0, 0.01, H(1536), H(8192), 0.02, H(10240), 0xffffff, 'dust2-sand-floor', 0.04, 0.88), textureKey: 'sand' as const },
+
+    // ── A Site 包点地面标记（Hammer A site center: -2560, z -1280）──
+    box(H(-2560), 0.02, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-a-bomb-marker', 0.1, 0.6),
+
+    // ── B Site 包点地面标记（Hammer B site center: 2560, z -1280）──
+    box(H(2560), 0.02, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-b-bomb-marker', 0.1, 0.6),
+
+    // ── A Site 地面（混凝土色调）──
+    { ...box(H(-2688), 0.01, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-a-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
+
+    // ── B Site 地面（混凝土色调）──
+    { ...box(H(2560), 0.01, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-b-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
+
+    // ── CT 家地面（石板）──
+    { ...box(0, 0.01, H(3328), H(2048), 0.02, H(768), 0xa09880, 'dust2-ct-spawn-floor', 0.05, 0.85), textureKey: 'concrete' as const },
 
     // ── 木门视觉模型 ──
-    // A Long Doors
-    { ...box(-26.88, 1.28, -20.48, 0.92, 2.56, 0.10, 0xffffff, 'dust2-a-doors-left', 0.08, 0.88), textureKey: 'wood' as const },
-    { ...box(-26.88, 1.28, -19.52, 0.92, 2.56, 0.10, 0xffffff, 'dust2-a-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
-    // Mid Doors
-    { ...box(-0.48, 1.28, -20.48, 0.92, 2.56, 0.10, 0xffffff, 'dust2-mid-doors-left', 0.08, 0.88), textureKey: 'wood' as const },
-    { ...box(0.48, 1.28, -20.48, 0.92, 2.56, 0.10, 0xffffff, 'dust2-mid-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
-    // B Doors
-    { ...box(18.40, 0.96, 15.36, 0.62, 1.92, 0.10, 0xffffff, 'dust2-b-doors-left', 0.08, 0.88), textureKey: 'wood' as const },
-    { ...box(19.12, 0.96, 15.36, 0.62, 1.92, 0.10, 0xffffff, 'dust2-b-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
+    // A Long Doors（Hammer z≈1920, x≈-3584）
+    { ...box(H(-3712), 1.28, H(-1920), 0.10, 2.56, H(192), 0xffffff, 'dust2-a-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
+    { ...box(H(-3456), 1.28, H(-1920), 0.10, 2.56, H(192), 0xffffff, 'dust2-a-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
+    // Mid Doors（Hammer z≈2048, x≈0）
+    { ...box(H(-64),  1.28, H(-2048), 0.10, 2.56, H(192), 0xffffff, 'dust2-mid-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
+    { ...box(H( 64),  1.28, H(-2048), 0.10, 2.56, H(192), 0xffffff, 'dust2-mid-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
+    // B Doors（Hammer z≈-1536, x≈1920）
+    { ...box(H(1920), 1.28, H(1536), H(128), 1.92, 0.10, 0xffffff, 'dust2-b-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
+
+    // ── CT Window 玻璃 ──
+    box(0, 1.92, H(1216), H(128), 0.48, H(32), 0x9edcff, 'dust2-ct-window-glass', 0.03, 0.06, 0.3),
+
+    // ── B Window 玻璃 ──
+    box(H(1920), 1.92, H(1152), H(96), 0.48, H(32), 0x9edcff, 'dust2-b-window-glass', 0.03, 0.06, 0.3),
+
+    // ── T Spawn 顶棚（部分遮蔽阳光）──
+    box(0, H(288), H(-6144), H(2048), 0.32, H(768), 0x3a3020, 'dust2-t-spawn-roof', 0.3, 0.7),
+
+    // ── B Tunnels 下层顶棚 ──
+    box(H(3264), H(264), H(-3072), H(576), 0.32, H(6144), 0x3a3020, 'dust2-b-tunnel-roof', 0.3, 0.7),
+
+    // ── Upper Tunnels 顶棚 ──
+    box(H(3072), H(264), H(512), H(320), 0.32, H(1536), 0x3a3020, 'dust2-upper-tunnel-roof', 0.3, 0.7),
+
+    // ── A Long 顶棚 ──
+    box(H(-3584), H(264), H(-3072), H(576), 0.32, H(6144), 0x3a3020, 'dust2-a-long-roof', 0.3, 0.7),
+
+    // ── Palace 天花板视觉 ──
+    { ...box(H(-2560), H(296), H(-3840), H(1280), 0.32, H(1536), 0xc8b898, 'dust2-palace-ceil-visual', 0.04, 0.86), textureKey: 'plaster' as const },
   ];
 
   return {
     name: 'Dust2',
-    playerSpawn: new THREE.Vector3(0, PLAYER_EYE_HEIGHT, 33.28),
+    playerSpawn: new THREE.Vector3(0, PLAYER_EYE_HEIGHT, H(-6144)),
     bounds: {
       width: DUST2_GAME_BOUNDS.width,
       depth: DUST2_GAME_BOUNDS.depth,
       centerZ: DUST2_GAME_BOUNDS.centerZ
     },
     enemySpawns: [
-      { position: new THREE.Vector3(-25.6, PLAYER_EYE_HEIGHT, 12.8), type: 'shooter' },
-      { position: new THREE.Vector3(25.6, PLAYER_EYE_HEIGHT, 12.8), type: 'shooter' },
-      { position: new THREE.Vector3(-33.28, PLAYER_EYE_HEIGHT, -4), type: 'patrol' },
-      { position: new THREE.Vector3(33.28, PLAYER_EYE_HEIGHT, -14.08), type: 'assault' },
-      { position: new THREE.Vector3(0, PLAYER_EYE_HEIGHT, 0), type: 'shooter' },
-      { position: new THREE.Vector3(0, PLAYER_EYE_HEIGHT, 20.48), type: 'patrol' },
-      { position: new THREE.Vector3(-15.36, PLAYER_EYE_HEIGHT, -12.8), type: 'assault' },
-      { position: new THREE.Vector3(15.36, PLAYER_EYE_HEIGHT, -12.8), type: 'assault' },
+      { position: new THREE.Vector3(H(-2560), PLAYER_EYE_HEIGHT, H(1280)),  type: 'shooter' },
+      { position: new THREE.Vector3(H( 2560), PLAYER_EYE_HEIGHT, H(1280)),  type: 'shooter' },
+      { position: new THREE.Vector3(H(-3520), PLAYER_EYE_HEIGHT, H(-3072)), type: 'patrol'  },
+      { position: new THREE.Vector3(H( 3328), PLAYER_EYE_HEIGHT, H(-2560)), type: 'assault' },
+      { position: new THREE.Vector3(H(    0), PLAYER_EYE_HEIGHT, H(-1024)), type: 'shooter' },
+      { position: new THREE.Vector3(H(    0), PLAYER_EYE_HEIGHT, H(-2048)), type: 'patrol'  },
+      { position: new THREE.Vector3(H(-1536), PLAYER_EYE_HEIGHT, H( 1216)), type: 'assault' },
+      { position: new THREE.Vector3(H( 1536), PLAYER_EYE_HEIGHT, H( 1216)), type: 'assault' },
     ],
     colliders: colliderBoxes,
     props,
     materialZones: [
-      materialZone('dust2-sand', 'sand', 0, 0, -10.24, 81.92, 0.1, 102.4),
-      materialZone('dust2-concrete-a', 'concrete', -25.6, 0.01, -12.8, 10.24, 0.1, 12.8),
-      materialZone('dust2-concrete-b', 'concrete', 25.6, 0.01, -12.8, 10.24, 0.1, 12.8),
-      materialZone('dust2-metal-cat', 'metal', -15.36, 1.28, -12.8, 10.24, 0.1, 12.8),
-      materialZone('dust2-concrete-ct', 'concrete', 0, 0.01, -35.84, 10.24, 0.1, 7.68),
+      materialZone('dust2-sand',        'sand',     H(  0), 0, H(-1536), H(8192), 0.1, H(10240)),
+      materialZone('dust2-concrete-a',  'concrete', H(-2688), 0.01, H(1280), H(1792), 0.1, H(1664)),
+      materialZone('dust2-concrete-b',  'concrete', H( 2560), 0.01, H(1280), H(1792), 0.1, H(1664)),
+      materialZone('dust2-plaster-cat', 'plaster',  H(-1536), 1.28, H(1216), H(384),  0.1, H(1152)),
+      materialZone('dust2-concrete-ct', 'concrete', H(0),     0.01, H(3328), H(2048), 0.1, H(768)),
     ]
   };
 }
@@ -625,5 +685,6 @@ export const ARENA_MAPS: Record<MapId, ArenaData> = {
   inferno: buildInfernoArena(),
   nuke: buildNukeArena(),
   train: buildTrainArena(),
-  overpass: buildOverpassArena()
+  overpass: buildOverpassArena(),
+  bloodstrike: buildBloodStrikeArena()
 };

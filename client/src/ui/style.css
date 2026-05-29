@@ -1507,6 +1507,39 @@ body {
   text-transform: uppercase;
 }
 
+.map-tdm-badge {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #c0282a;
+  border: 1px solid rgba(192, 40, 42, 0.5);
+  background: rgba(192, 40, 42, 0.12);
+  padding: 1px 4px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.map-option.tdm-only-map {
+  border-color: rgba(192, 40, 42, 0.35);
+}
+
+.map-option.tdm-only-map .map-accent-bar {
+  background: #c0282a !important;
+}
+
+.map-option.tdm-only-map .map-card-sites {
+  color: #c0282a;
+}
+
+.map-option.tdm-only-map:not([style*="display: none"]):hover,
+.map-option.tdm-only-map.active {
+  border-color: #c0282a;
+  background: rgba(192, 40, 42, 0.15);
+}
+
 .map-option.active,
 .map-option:hover {
   border-color: var(--ct-blue);

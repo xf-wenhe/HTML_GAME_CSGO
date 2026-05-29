@@ -1,14 +1,15 @@
 import type { MapId, RoomListItem } from '../game/types.js';
 
-const MAP_OPTIONS: Array<{ id: MapId; label: string; desc: string; accent: string; sites: string }> = [
-  { id: 'dust2',     label: 'Dust2',    desc: '中东沙漠 · 经典三路',       accent: '#d4a45a', sites: 'A·B' },
-  { id: 'mirage',    label: 'Mirage',   desc: '中东市集 · 中路对决',       accent: '#c4a96b', sites: 'A·B' },
-  { id: 'inferno',   label: 'Inferno',  desc: '欧洲小镇 · 香蕉走廊',       accent: '#b08c58', sites: 'A·B' },
-  { id: 'nuke',      label: 'Nuke',     desc: '核电设施 · 双层结构',       accent: '#5c8aa8', sites: 'A·B' },
-  { id: 'train',     label: 'Train',    desc: '铁路货场 · 火车掩体',       accent: '#6a6872', sites: 'A·B' },
-  { id: 'overpass',  label: 'Overpass', desc: '公园隧道 · 立交桥',         accent: '#6d8060', sites: 'A·B' },
-  { id: 'warehouse', label: 'Warehouse',desc: '工业仓库 · 近身混战',       accent: '#8a7a60', sites: 'A·B' },
-  { id: 'italy',     label: 'Italy',    desc: '意大利小镇 · 多层建筑',     accent: '#c8926a', sites: 'A·B' },
+const MAP_OPTIONS: Array<{ id: MapId; label: string; desc: string; accent: string; sites: string; tdmOnly?: boolean }> = [
+  { id: 'dust2',       label: 'Dust2',        desc: '中东沙漠 · 经典三路',       accent: '#d4a45a', sites: 'A·B' },
+  { id: 'mirage',      label: 'Mirage',       desc: '中东市集 · 中路对决',       accent: '#c4a96b', sites: 'A·B' },
+  { id: 'inferno',     label: 'Inferno',      desc: '欧洲小镇 · 香蕉走廊',       accent: '#b08c58', sites: 'A·B' },
+  { id: 'nuke',        label: 'Nuke',         desc: '核电设施 · 双层结构',       accent: '#5c8aa8', sites: 'A·B' },
+  { id: 'train',       label: 'Train',        desc: '铁路货场 · 火车掩体',       accent: '#6a6872', sites: 'A·B' },
+  { id: 'overpass',    label: 'Overpass',     desc: '公园隧道 · 立交桥',         accent: '#6d8060', sites: 'A·B' },
+  { id: 'warehouse',   label: 'Warehouse',    desc: '工业仓库 · 近身混战',       accent: '#8a7a60', sites: 'A·B' },
+  { id: 'italy',       label: 'Italy',        desc: '意大利小镇 · 多层建筑',     accent: '#c8926a', sites: 'A·B' },
+  { id: 'bloodstrike', label: 'Blood Strike', desc: '经典死斗 · 十字走廊混战',   accent: '#c0282a', sites: '死斗', tdmOnly: true },
 ];
 
 export class MainMenu {
@@ -17,6 +18,7 @@ export class MainMenu {
   private buttons: Map<string, HTMLButtonElement> = new Map();
   private difficulty: 'easy' | 'normal' | 'hard' | 'expert' = 'normal';
   private mapId: MapId = 'dust2';
+  private selectedMode: 'solo' | 'tdm' | 'defusal' = 'tdm';
 
   constructor() {
     this.element = this.createElement();
@@ -124,12 +126,12 @@ export class MainMenu {
     menu.setAttribute('aria-label', '锻点行动 - 主菜单');
     menu.setAttribute('aria-modal', 'true');
     const mapButtons = MAP_OPTIONS.map(m =>
-      `<button class="map-option${m.id === 'dust2' ? ' active' : ''}" data-map="${m.id}" type="button" title="${m.desc}">
+      `<button class="map-option${m.id === 'dust2' ? ' active' : ''}${m.tdmOnly ? ' tdm-only-map' : ''}" data-map="${m.id}" data-tdm-only="${m.tdmOnly ? '1' : '0'}" type="button" title="${m.desc}">
         <span class="map-accent-bar" style="background:${m.accent}"></span>
         <span class="map-card-body">
-          <span class="map-card-name">${m.label}</span>
+          <span class="map-card-name">${m.label}${m.tdmOnly ? ' <span class="map-tdm-badge">死斗专属</span>' : ''}</span>
           <span class="map-card-desc">${m.desc}</span>
-          <span class="map-card-sites">炸点 ${m.sites} · 5v5</span>
+          <span class="map-card-sites">${m.tdmOnly ? '团队死斗' : '炸点 ' + m.sites + ' · 5v5'}</span>
         </span>
       </button>`
     ).join('');
@@ -219,6 +221,10 @@ export class MainMenu {
       htmlButton.addEventListener('click', (e) => {
         const action = (e.currentTarget as HTMLElement).getAttribute('data-action');
         if (action) {
+          if (action === 'solo' || action === 'tdm' || action === 'defusal') {
+            this.selectedMode = action as 'solo' | 'tdm' | 'defusal';
+            this.updateMapVisibility();
+          }
           this.emit(action);
         }
       });
@@ -242,6 +248,8 @@ export class MainMenu {
       button.addEventListener('click', () => {
         const selected = button.dataset.map as MapId | undefined;
         if (!selected) return;
+        const isTdmOnly = button.dataset.tdmOnly === '1';
+        if (isTdmOnly && this.selectedMode !== 'tdm') return;
         this.mapId = selected;
         this.element.querySelectorAll('.map-option').forEach(item => item.classList.toggle('active', item === button));
       });
@@ -346,6 +354,27 @@ export class MainMenu {
       localStorage.setItem('fps-game-profile-name', this.getPlayerName());
     } catch {
       /* ignore */
+    }
+  }
+
+  private updateMapVisibility(): void {
+    const isTdm = this.selectedMode === 'tdm';
+    this.element.querySelectorAll<HTMLButtonElement>('.map-option').forEach(button => {
+      const tdmOnly = button.dataset.tdmOnly === '1';
+      if (tdmOnly) {
+        button.style.display = isTdm ? '' : 'none';
+        if (!isTdm && this.mapId === (button.dataset.map as MapId)) {
+          this.mapId = 'dust2';
+          this.element.querySelectorAll<HTMLButtonElement>('.map-option').forEach(b => {
+            b.classList.toggle('active', b.dataset.map === 'dust2');
+          });
+        }
+      }
+    });
+    const countEl = this.element.querySelector('.map-count');
+    if (countEl) {
+      const visible = MAP_OPTIONS.filter(m => !m.tdmOnly || isTdm).length;
+      countEl.textContent = `${visible} 张地图`;
     }
   }
 

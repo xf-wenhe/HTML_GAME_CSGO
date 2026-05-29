@@ -16,7 +16,7 @@ export type WeaponId =
   | 'knife'
   | 'sidearm' | 'heavy_pistol' | 'vandal' | 'sentinel' | 'operator' | 'specter' | 'bulldog'
   | 'rifle' | 'sniper' | 'shotgun' | 'smg' | 'defender_rifle';
-export type MapId = 'dust2' | 'warehouse' | 'italy' | 'mirage' | 'inferno' | 'nuke' | 'train' | 'overpass';
+export type MapId = 'dust2' | 'warehouse' | 'italy' | 'mirage' | 'inferno' | 'nuke' | 'train' | 'overpass' | 'bloodstrike';
 export type BuyCategory = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee';
 export type GrenadeId = 'he' | 'flashbang' | 'smoke' | 'incendiary' | 'decoy';
 export type HitRegion = 'head' | 'body';

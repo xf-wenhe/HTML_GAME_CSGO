@@ -673,158 +673,129 @@ function endGame(): void {
 }
 
 function gameLoop(now: number) {
-  const dt = Math.min((now - lastFrameTime) / 1000, 0.033);
-  lastFrameTime = now;
+  // 【修复闪退】顶层 try/catch 防止未捕获异常导致游戏循环退出
+  try {
+    const dt = Math.min((now - lastFrameTime) / 1000, 0.033);
+    lastFrameTime = now;
 
-  if (!gameRunning || inputMode === 'paused' || inputMode === 'gameOver') {
-    scene.render();
-    requestAnimationFrame(gameLoop);
-    return;
-  }
-  handleVirtualActions();
-
-  if (player && !isSpectating && canMove(inputMode) && hasGameplayFocus()) {
-    player.update(dt);
-    audioFeedback.playFootstep({
-      moving: player.isMoving(),
-      walking: input.isKeyPressed('ShiftLeft') || input.isKeyPressed('ShiftRight'),
-      crouched: player.isCrouched(),
-      grounded: player.isGrounded()
-    }, now);
-    if (!wasGrounded && player.isGrounded()) audioFeedback.playLand(player.getLastLandingSpeed());
-    wasGrounded = player.isGrounded();
-  } else {
-    input.getMouseDelta();
-  }
-  physics.step(dt);
-  weaponManager.update(now, dt, player?.isMoving() ?? false);
-  weaponManager.consumeFeedbackEvents().forEach(event => {
-    audioFeedback.playWeapon(event.type, event.weaponId);
-  });
-
-  impactDecalManager.update(now);
-  tracerSystem.update(now);
-  shellCasingManager.update(dt);
-  screenShake.update(dt);
-
-  const playerPos = player?.getPosition() || new THREE.Vector3(0, 0, 0);
-  updateRadarPanel();
-  updateWeaponAimState();
-  updateAimFov(dt);
-  nearbyDrop = player ? droppedWeapons.update(playerPos) : null;
-  if (nearbyDrop) {
-    hud.showNotification(`按 G 拾取 ${weaponDisplayName(nearbyDrop.weaponId)}`, 450);
-  }
-  const enemyDamage = enemyManager.update(dt, playerPos, now);
-  if (enemyDamage > 0 && player) {
-    player.takeDamage(enemyDamage, 'chest', 0.28);
-    hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
-    hud.showDamage();
-    screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
-    if (player.isDead()) {
-      survival.gameOver();
-      hud.showResults(survival.getStats(now));
-      setInputMode('gameOver');
-      gameRunning = false;
-      input.exitPointerLock();
+    if (!gameRunning || inputMode === 'paused' || inputMode === 'gameOver') {
+      scene.render();
+      requestAnimationFrame(gameLoop);
+      return;
     }
-  }
+    handleVirtualActions();
 
-  enemyManager.getAllEnemies().forEach(enemy => {
-    if (enemy.isDead() && !recordedKills.has(enemy.id)) {
-      recordedKills.add(enemy.id);
-      survival.recordKill(enemy.getPosition());
-
-      // 【新增】NPC 死亡掉落武器
-      // 这里随机掉落几把经典主战武器，让单机闯关有以战养战的快感
-      const possibleDrops = ['ak47', 'm4a4', 'awp', 'mac10', 'p90', 'deagle'];
-      const randomWeapon = possibleDrops[Math.floor(Math.random() * possibleDrops.length)];
-      
-      // 在尸体稍微偏上的位置生成武器模型，防止卡在地下
-      const dropPos = enemy.getPosition().clone().add(new THREE.Vector3(0, 0.3, 0));
-      droppedWeapons.dropWeapon(randomWeapon, dropPos);
-    }
-  });
-
-  if (currentMode === 'solo' && gameRunning) {
-    hud.updateSurvival(survival.update(dt, now));
-  } else if (currentMode === 'multiplayer' && currentSnapshot) {
-    hud.updateMatch(currentSnapshot, localPlayerId, {
-      latencyMs: networkLatencyMs,
-      inputStatus: getMouseInputStatus()
-    });
-    if (player && !isSpectating && now - lastNetworkInputAt > 50) {
-      lastNetworkInputAt = now;
-      const rotation = player.getRotation();
-      const wishdir = getWishdir();
-      const buttons = getInputButtons();
-      const cmd = prediction.generateInput(wishdir, buttons, rotation.yaw, rotation.pitch);
-      network.send({
-        type: 'playerInput',
-        input: {
-          position: vectorToPlain(player.getPosition()),
-          rotation: { x: rotation.pitch, y: rotation.yaw, z: 0 },
-          seq: cmd.seq,
-          timestamp: cmd.timestamp,
-          wishdir: cmd.wishdir,
-          buttons: cmd.buttons
-        }
-      });
-    }
-  }
-
-  const currentWeapon = weaponManager.getCurrentWeapon();
-  hud.updateAmmo(currentWeapon.currentAmmo, currentWeapon.magazineSize, currentWeapon.currentReserveAmmo);
-  hud.updateReloadProgress(currentWeapon.getReloadProgress());
-  hud.updateCrosshair(currentWeapon.getEffectiveSpread(player?.isMoving() ?? false, weaponManager.isAiming()));
-  hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[grenades.getSelected()]);
-  syncWeaponHud();
-
-  // 获取玩家面朝方向（用于闪光弹方向感知）
-  const lookDir = scene.getCamera().getWorldDirection(new THREE.Vector3());
-  const grenadeResult = grenades.update(dt, playerPos, lookDir);
-  if (grenadeResult.damage > 0 && player) {
-    player.takeDamage(grenadeResult.damage, 'chest', 0.15);
-    hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
-    hud.showDamage();
-    screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
-  }
-  // 闪光弹效果：单人模式下直接应用（多人模式由服务端同步）
-  if (grenadeResult.flash > 0 && currentMode !== 'multiplayer' && hud) {
-    hud.setFlashOverlay(grenadeResult.flash);
-  }
-
-  if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && usingGrenade && input.isKeyPressed('MouseRight') && player) {
-    input.setKeyPressed('MouseRight', false);
-    const result = grenades.throwSelected(scene.getCamera(), 'light');
-    if (result.success) {
-      hud.showNotification(`轻抛${grenades.getSelectedLabel()}`);
-      if (currentMode === 'multiplayer' && result.origin && result.velocity) {
-        network.send({ type: 'grenadeThrow', request: {
-          type: mapGrenadeId(grenades.getSelected()),
-          origin: vectorToPlain(result.origin),
-          velocity: vectorToPlain(result.velocity),
-          clientTime: now
-        }});
-      }
+    if (player && !isSpectating && canMove(inputMode) && hasGameplayFocus()) {
+      player.update(dt);
+      audioFeedback.playFootstep({
+        moving: player.isMoving(),
+        walking: input.isKeyPressed('ShiftLeft') || input.isKeyPressed('ShiftRight'),
+        crouched: player.isCrouched(),
+        grounded: player.isGrounded()
+      }, now);
+      if (!wasGrounded && player.isGrounded()) audioFeedback.playLand(player.getLastLandingSpeed());
+      wasGrounded = player.isGrounded();
     } else {
-      hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
+      input.getMouseDelta();
     }
+    physics.step(dt);
+    weaponManager.update(now, dt, player?.isMoving() ?? false);
+    weaponManager.consumeFeedbackEvents().forEach(event => {
+      audioFeedback.playWeapon(event.type, event.weaponId);
+    });
+
+    impactDecalManager.update(now);
+    tracerSystem.update(now);
+    shellCasingManager.update(dt);
+    screenShake.update(dt);
+
+    const playerPos = player?.getPosition() || new THREE.Vector3(0, 0, 0);
+    updateRadarPanel();
+    updateWeaponAimState();
+    updateAimFov(dt);
+    nearbyDrop = player ? droppedWeapons.update(playerPos) : null;
+    if (nearbyDrop) {
+      hud.showNotification(`按 G 拾取 ${weaponDisplayName(nearbyDrop.weaponId)}`, 450);
+    }
+    const enemyDamage = enemyManager.update(dt, playerPos, now);
+    if (enemyDamage > 0 && player) {
+      player.takeDamage(enemyDamage, 'chest', 0.28);
+      hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
+      hud.showDamage();
+      screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
+      if (player.isDead()) {
+        survival.gameOver();
+        hud.showResults(survival.getStats(now));
+        setInputMode('gameOver');
+        gameRunning = false;
+        input.exitPointerLock();
+      }
+    }
+
+    enemyManager.getAllEnemies().forEach(enemy => {
+      if (enemy.isDead() && !recordedKills.has(enemy.id)) {
+        recordedKills.add(enemy.id);
+        survival.recordKill(enemy.getPosition());
+
+        // 【新增】NPC 死亡掉落武器
+        const possibleDrops = ['ak47', 'm4a4', 'awp', 'mac10', 'p90', 'deagle'];
+        const randomWeapon = possibleDrops[Math.floor(Math.random() * possibleDrops.length)];
+        const dropPos = enemy.getPosition().clone().add(new THREE.Vector3(0, 0.3, 0));
+        droppedWeapons.dropWeapon(randomWeapon, dropPos);
+      }
+    });
+
+    if (currentMode === 'solo' && gameRunning) {
+      hud.updateSurvival(survival.update(dt, now));
+    } else if (currentMode === 'multiplayer' && currentSnapshot) {
+      hud.updateMatch(currentSnapshot, localPlayerId, {
+        latencyMs: networkLatencyMs,
+        inputStatus: getMouseInputStatus()
+      });
+      if (player && !isSpectating && now - lastNetworkInputAt > 50) {
+        lastNetworkInputAt = now;
+        const rotation = player.getRotation();
+        const wishdir = getWishdir();
+        const buttons = getInputButtons();
+        const cmd = prediction.generateInput(wishdir, buttons, rotation.yaw, rotation.pitch);
+        network.send({
+          type: 'playerInput',
+          input: {
+            position: vectorToPlain(player.getPosition()),
+            rotation: { x: rotation.pitch, y: rotation.yaw, z: 0 },
+            seq: cmd.seq,
+            timestamp: cmd.timestamp,
+            wishdir: cmd.wishdir,
+            buttons: cmd.buttons
+          }
+        });
+      }
+    }
+
+    const currentWeapon = weaponManager.getCurrentWeapon();
+    hud.updateAmmo(currentWeapon.currentAmmo, currentWeapon.magazineSize, currentWeapon.currentReserveAmmo);
+    hud.updateReloadProgress(currentWeapon.getReloadProgress());
+    hud.updateCrosshair(currentWeapon.getEffectiveSpread(player?.isMoving() ?? false, weaponManager.isAiming()));
+    hud.updateGrenade(grenades.getSelectedLabel(), grenades.getInventory()[grenades.getSelected()]);
     syncWeaponHud();
-  }
 
-  if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && !usingGrenade && input.isKeyPressed('MouseRight') && weaponManager.getCurrentWeapon().isMelee && player) {
-    input.setKeyPressed('MouseRight', false);
-    const result = weaponManager.shoot(scene.getCamera(), now, { heavyMelee: true });
-    if (result) applyLocalWeaponHit(result);
-  }
+    const lookDir = scene.getCamera().getWorldDirection(new THREE.Vector3());
+    const grenadeResult = grenades.update(dt, playerPos, lookDir);
+    if (grenadeResult.damage > 0 && player) {
+      player.takeDamage(grenadeResult.damage, 'chest', 0.15);
+      hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
+      hud.showDamage();
+      screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
+    }
+    if (grenadeResult.flash > 0 && currentMode !== 'multiplayer' && hud) {
+      hud.setFlashOverlay(grenadeResult.flash);
+    }
 
-  if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && input.isKeyPressed('MouseLeft') && player) {
-    if (usingGrenade) {
-      input.setKeyPressed('MouseLeft', false);
-      const result = grenades.throwSelected(scene.getCamera(), 'full');
+    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && usingGrenade && input.isKeyPressed('MouseRight') && player) {
+      input.setKeyPressed('MouseRight', false);
+      const result = grenades.throwSelected(scene.getCamera(), 'light');
       if (result.success) {
-        hud.showNotification(`投掷${grenades.getSelectedLabel()}`);
+        hud.showNotification(`轻抛${grenades.getSelectedLabel()}`);
         if (currentMode === 'multiplayer' && result.origin && result.velocity) {
           network.send({ type: 'grenadeThrow', request: {
             type: mapGrenadeId(grenades.getSelected()),
@@ -837,69 +808,101 @@ function gameLoop(now: number) {
         hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
       }
       syncWeaponHud();
-    } else {
-      const result = weaponManager.shoot(scene.getCamera(), now, { isMoving: player.isMoving() });
-    if (result) {
-      if (currentMode === 'multiplayer') {
-        network.send({
-          type: 'shoot',
-          request: {
-            origin: vectorToPlain(result.origin),
-            direction: vectorToPlain(result.direction),
-            weaponId: currentMultiplayerWeaponId(),
-            clientTime: now
+    }
+
+    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && !usingGrenade && input.isKeyPressed('MouseRight') && weaponManager.getCurrentWeapon().isMelee && player) {
+      input.setKeyPressed('MouseRight', false);
+      const result = weaponManager.shoot(scene.getCamera(), now, { heavyMelee: true });
+      if (result) applyLocalWeaponHit(result);
+    }
+
+    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && input.isKeyPressed('MouseLeft') && player) {
+      if (usingGrenade) {
+        input.setKeyPressed('MouseLeft', false);
+        const result = grenades.throwSelected(scene.getCamera(), 'full');
+        if (result.success) {
+          hud.showNotification(`投掷${grenades.getSelectedLabel()}`);
+          if (currentMode === 'multiplayer' && result.origin && result.velocity) {
+            network.send({ type: 'grenadeThrow', request: {
+              type: mapGrenadeId(grenades.getSelected()),
+              origin: vectorToPlain(result.origin),
+              velocity: vectorToPlain(result.velocity),
+              clientTime: now
+            }});
           }
-        });
-      }
-      const hitscanResult: RaycastResult & { damage: number } = result.isMelee
-        ? { hit: false, damage: 0 }
-        : projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
+        } else {
+          hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
+        }
+        syncWeaponHud();
+      } else {
+        const result = weaponManager.shoot(scene.getCamera(), now, { isMoving: player.isMoving() });
+      if (result) {
+        if (currentMode === 'multiplayer') {
+          network.send({
+            type: 'shoot',
+            request: {
+              origin: vectorToPlain(result.origin),
+              direction: vectorToPlain(result.direction),
+              weaponId: currentMultiplayerWeaponId(),
+              clientTime: now
+            }
+          });
+        }
+        const hitscanResult: RaycastResult & { damage: number } = result.isMelee
+          ? { hit: false, damage: 0 }
+          : projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
 
-      if (hitscanResult.hit) {
-        hud.showHitMarker();
-      }
+        if (hitscanResult.hit) {
+          hud.showHitMarker();
+        }
 
-      applyLocalWeaponHit(result);
+        applyLocalWeaponHit(result);
 
-      // Spawn impact effects (decals + tracers)
-      if (!result.isMelee) {
-        const weaponRange = weaponManager.getCurrentWeapon().range;
-        const enemyTarget = findClosestRayTarget(result.origin, result.direction, weaponRange);
-        if (enemyTarget) {
-          const hitPoint = result.origin.clone().add(result.direction.clone().multiplyScalar(enemyTarget.distance));
-          const hitNormal = hitscanResult.hit ? hitscanResult.normal! : new THREE.Vector3(0, 1, 0);
-          impactDecalManager.spawn(hitPoint, hitNormal, 'concrete');
-          if (weaponManager.shouldSpawnTracer()) {
-            tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitPoint);
-          }
-        } else if (hitscanResult.hit) {
-          impactDecalManager.spawn(hitscanResult.point!, hitscanResult.normal!, 'concrete');
-          if (weaponManager.shouldSpawnTracer()) {
-            tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitscanResult.point!);
+        if (!result.isMelee) {
+          const weaponRange = weaponManager.getCurrentWeapon().range;
+          const enemyTarget = findClosestRayTarget(result.origin, result.direction, weaponRange);
+          if (enemyTarget) {
+            const hitPoint = result.origin.clone().add(result.direction.clone().multiplyScalar(enemyTarget.distance));
+            const hitNormal = hitscanResult.hit ? hitscanResult.normal! : new THREE.Vector3(0, 1, 0);
+            impactDecalManager.spawn(hitPoint, hitNormal, 'concrete');
+            if (weaponManager.shouldSpawnTracer()) {
+              tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitPoint);
+            }
+          } else if (hitscanResult.hit) {
+            impactDecalManager.spawn(hitscanResult.point!, hitscanResult.normal!, 'concrete');
+            if (weaponManager.shouldSpawnTracer()) {
+              tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitscanResult.point!);
+            }
           }
         }
+        if (!result.isMelee) {
+          const ejectPos = weaponManager.getEjectPosition();
+          shellCasingManager.spawn(ejectPos, result.direction, weaponManager.getCurrentWeaponId());
+        }
+        if (weaponManager.isScoped()) {
+          weaponManager.setAiming(false);
+          hud.setScoped(false);
+        }
       }
-      // Shell casing ejection
-      if (!result.isMelee) {
-        const ejectPos = weaponManager.getEjectPosition();
-        shellCasingManager.spawn(ejectPos, result.direction, weaponManager.getCurrentWeaponId());
-      }
-      if (weaponManager.isScoped()) {
-        weaponManager.setAiming(false);
-        hud.setScoped(false);
       }
     }
+
+    // Apply screen shake before rendering
+    const shakeOffset = screenShake.getOffset();
+    const camera = scene.getCamera();
+    camera.position.x += shakeOffset.x;
+    camera.position.y += shakeOffset.y;
+    scene.render();
+    camera.position.x -= shakeOffset.x;
+    camera.position.y -= shakeOffset.y;
+  } catch (err) {
+    // 【修复闪退】捕获未预期的游戏逻辑异常，防止循环退出
+    console.error('[GameLoop] 未捕获异常:', err);
+    // 短暂暂停后继续循环，避免白屏/退出
+    if (gameRunning) {
+      hud.showNotification('游戏遇到问题，正在恢复...', 2000);
     }
   }
-
-  // Apply screen shake before rendering
-  const shakeOffset = screenShake.getOffset();
-  const camera = scene.getCamera();
-  camera.position.x += shakeOffset.x;
-  camera.position.y += shakeOffset.y;
-  scene.render();
-  camera.position.x -= shakeOffset.x;
-  camera.position.y -= shakeOffset.y;
   requestAnimationFrame(gameLoop);
 }
 
