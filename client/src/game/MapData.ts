@@ -554,34 +554,55 @@ function buildDust2Arena(): ArenaData {
 
     if (n.includes('tunnel') || n.includes('dark') || n.includes('upper')) {
       color = 0x9a8878; textureKey = 'concrete'; metalness = 0.05; roughness = 0.90;
+      // 洞内分段微变：入口亮 → 深处暗
+      if (n.includes('entrance')) { color = 0xa09280; roughness = 0.88; }
+      if (n.includes('narrow') || n.includes('inner')) { color = 0x8e7c6e; roughness = 0.92; }
     } else if (n.includes('catwalk') || n.includes('stair') || n.includes('ramp')) {
       color = 0x9a9080; textureKey = 'concrete'; metalness = 0.05; roughness = 0.88;
+      // 楼梯踏步磨损
+      if (n.includes('stair')) { color = 0xa69a88; roughness = 0.86; }
     } else if (n.includes('door') || n.includes('post')) {
       color = 0x7a6040; textureKey = 'metal'; metalness = 0.35; roughness = 0.55;
+      // 门框做旧
+      if (n.includes('frame') || n.includes('lintel')) { color = 0x6e5640; roughness = 0.62; }
     } else if (n.includes('box') || n.includes('car') || n.includes('bucket') || n.includes('plat')) {
       color = 0xc4a46b; textureKey = 'sand'; metalness = 0.06; roughness = 0.85;
+      // 掩体底部脏污
+      if (n.includes('base') || n.includes('lower')) { color = 0xb89a60; roughness = 0.88; }
+      if (n.includes('default') || n.includes('double')) { color = 0xc0a06a; roughness = 0.84; }
+      if (n.includes('body')) { color = 0x4a3a2a; roughness = 0.65; }
     } else if (n.includes('a-site') || n.includes('b-site')) {
       color = 0xc8b890; textureKey = 'plaster'; metalness = 0.04; roughness = 0.88;
+      // 平台前沿/后沿略暗
+      if (n.includes('lip') || n.includes('rear')) { color = 0xbaa880; roughness = 0.90; }
     } else if (n.includes('palace')) {
-      // Palace 中东风格砖砌内饰
       color = 0xc0b498; textureKey = 'plaster'; metalness = 0.04; roughness = 0.86;
+      // 宫殿外墙面比内部柱体略旧
+      if (n.includes('outer') || n.includes('wall')) { color = 0xb8aa88; roughness = 0.89; }
     } else if (n.includes('pillar')) {
-      // 宫殿内部石柱
       color = 0xc8bc98; textureKey = 'plaster'; metalness = 0.03; roughness = 0.85;
     } else if (n.includes('pit')) {
-      // A Pit 沙坑区域 — 更暖的沙漠色调
       color = 0xc8a470; textureKey = 'sand'; metalness = 0.06; roughness = 0.86;
+      // Pit 深处更暗
+      if (n.includes('floor') || n.includes('stair')) { color = 0xb89860; roughness = 0.90; }
     } else if (n.includes('fork')) {
-      // B洞岔路 — 隧道混凝土
       color = 0x9e8e7e; textureKey = 'concrete'; metalness = 0.05; roughness = 0.88;
     } else if (n.includes('window')) {
-      // 窗户框架
       color = 0x887658; textureKey = 'metal'; metalness = 0.28; roughness = 0.60;
+      // 窗台磨损
+      if (n.includes('sill') || n.includes('side')) { color = 0x7a6850; roughness = 0.65; }
     } else if (n.includes('border') || n.includes('wall')) {
-      // 区域边界墙 — 沙漠石砌
       color = 0xb09870; textureKey = 'sand'; metalness = 0.07; roughness = 0.84;
+      // 墙壁微变体：某些墙更偏暖黄，某些更偏灰
+      if (n.includes('outer') || n.includes('inner')) { color = 0xbca878; roughness = 0.82; }
+      if (n.includes('mid') || n.includes('ct') || n.includes('bs')) { color = 0xa89068; roughness = 0.86; }
     } else if (n.includes('boundary')) {
       color = 0xa09070; textureKey = 'sand';
+    }
+    // 通用老化微调：带有 refined/thickness/mass 后缀的块体略暗
+    if (n.includes('refined') || n.includes('thickness') || n.includes('mass')) {
+      color = new THREE.Color(color).multiplyScalar(0.92).getHex();
+      roughness = Math.min(0.94, roughness + 0.03);
     }
 
     return {
@@ -600,51 +621,232 @@ function buildDust2Arena(): ArenaData {
     // ── 大面积沙地地面 ──
     { ...box(0, 0.01, H(1536), H(8192), 0.02, H(10240), 0xffffff, 'dust2-sand-floor', 0.04, 0.88), textureKey: 'sand' as const },
 
-    // ── A Site 包点地面标记（Hammer A site center: -2560, z -1280）──
-    box(H(-2560), 0.02, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-a-bomb-marker', 0.1, 0.6),
-
-    // ── B Site 包点地面标记（Hammer B site center: 2560, z -1280）──
-    box(H(2560), 0.02, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-b-bomb-marker', 0.1, 0.6),
-
-    // ── A Site 地面（混凝土色调）──
+    // ── A Site 包点地面（混凝土）+ 标记 ──
     { ...box(H(-2688), 0.01, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-a-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
+    box(H(-2560), 0.03, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-a-bomb-marker', 0.1, 0.6),
 
-    // ── B Site 地面（混凝土色调）──
+    // ── B Site 包点地面（混凝土）+ 标记 ──
     { ...box(H(2560), 0.01, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-b-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
+    box(H(2560), 0.03, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-b-bomb-marker', 0.1, 0.6),
+
+    // ── CT Spawn 地面（浅色石板）──
+    { ...box(0, 0.01, H(3328), H(2048), 0.02, H(768), 0xa09880, 'dust2-ct-spawn-floor', 0.05, 0.85), textureKey: 'concrete' as const },
+
+    // ── A Long 走廊地面（沙地较暗）──
+    { ...box(H(-3584), 0.01, H(3072), H(576), 0.02, H(6144), 0xb09060, 'dust2-a-long-floor', 0.04, 0.90), textureKey: 'sand' as const },
+
+    // ── A Site 平台边沿与 Goose 区域视觉增强 ──
+    { ...box(H(-2688), 0.18, H(1024), H(768), 0.04, H(32), 0xe0c48c, 'dust2-a-site-platform-edge', 0.05, 0.78), textureKey: 'plaster' as const },
+    { ...box(H(-1984), 0.18, H(1600), H(224), 0.04, H(224), 0xc8b898, 'dust2-goose-floor-accent', 0.05, 0.80), textureKey: 'plaster' as const },
+
+    // ── B Tunnels 地面（暗色砖面）──
+    { ...box(H(3264), 0.01, H(3072), H(576), 0.02, H(6144), 0x6a5a48, 'dust2-b-tunnel-floor', 0.06, 0.92), textureKey: 'concrete' as const },
+
+    // ── B Site platform edge accent ──
+    { ...box(H(2560), 0.18, H(1024), H(640), 0.04, H(32), 0xd0b888, 'dust2-b-site-platform-edge', 0.05, 0.78), textureKey: 'plaster' as const },
+    // ── B Default / Double area floor accent ──
+    { ...box(H(2368), 0.10, H(1408), H(128), 0.04, H(192), 0xb8a070, 'dust2-b-default-floor-accent', 0.05, 0.82), textureKey: 'plaster' as const },
+    // ── Upper Dark floor (darker concrete) ──
+    { ...box(H(3072), 0.01, H(512), H(320), 0.02, H(1536), 0x3a3028, 'dust2-upper-dark-floor', 0.06, 0.95), textureKey: 'concrete' as const },
+    // ── B Window threshold ──
+    { ...box(H(1920), 0.10, H(1216), H(96), 0.04, H(64), 0x9a8a72, 'dust2-b-window-threshold', 0.05, 0.84), textureKey: 'concrete' as const },
+    // ── B Doors threshold ──
+    { ...box(H(1920), 0.10, H(1536), H(128), 0.04, H(256), 0x8f7b5e, 'dust2-b-doors-threshold', 0.05, 0.84), textureKey: 'concrete' as const },
+
+    // ════════════════════════════════════════════════════════
+    // 墙体底部磨损/脏污带 (wear strips at wall bases)
+    // ════════════════════════════════════════════════════════
+    // A Site — 平台前沿下方脏污
+    { ...box(H(-2688), -0.08, H(1024), H(768), 0.06, H(48), 0x6a5840, 'dust2-wear-a-platform-front', 0.12, 0.94) },
+    // A Site — Long Corner 转角墙角脏污
+    { ...box(H(-3136), -0.08, H(256), H(32), 0.06, H(48), 0x5a4830, 'dust2-wear-a-long-corner', 0.12, 0.94) },
+    // A Site — Goose 下方脏污
+    { ...box(H(-1984), -0.08, H(1600), H(224), 0.06, H(96), 0x5a4830, 'dust2-wear-goose', 0.12, 0.94) },
+    // A Long — A Doors 门框下方磨损
+    { ...box(H(-3584), -0.08, H(1920), H(544), 0.06, H(48), 0x5a4830, 'dust2-wear-a-doors', 0.12, 0.93) },
+    // Mid — Mid Doors 下方磨损
+    { ...box(H(0), -0.08, H(2048), H(288), 0.06, H(48), 0x5a4830, 'dust2-wear-mid-doors', 0.12, 0.93) },
+    // Mid — Xbox 下方暗区
+    { ...box(H(0), -0.08, H(1024), H(96), 0.06, H(64), 0x4a3828, 'dust2-wear-xbox', 0.14, 0.94) },
+    // B Tunnels — 入口地面磨损
+    { ...box(H(3264), -0.08, H(5760), H(576), 0.06, H(128), 0x4a3828, 'dust2-wear-b-tunnel-entrance', 0.12, 0.94) },
+    // B Tunnels — 出口地面磨损
+    { ...box(H(3264), -0.08, H(1984), H(576), 0.06, H(128), 0x4a3828, 'dust2-wear-b-tunnel-exit', 0.12, 0.94) },
+    // B Site — Car 下方暗区
+    { ...box(H(2688), -0.08, H(1408), H(128), 0.06, H(64), 0x3a2a1a, 'dust2-wear-b-car', 0.14, 0.94) },
+    // B Site — Default 箱下方
+    { ...box(H(2368), -0.08, H(1472), H(64), 0.06, H(64), 0x4a3828, 'dust2-wear-b-default', 0.14, 0.94) },
+    // B Site — B Doors 门框下方
+    { ...box(H(1920), -0.08, H(1536), H(128), 0.06, H(48), 0x5a4830, 'dust2-wear-b-doors', 0.12, 0.93) },
+    // CT Mid — 走廊地面暗痕
+    { ...box(H(0), -0.08, H(1792), H(512), 0.06, H(128), 0x6a5840, 'dust2-wear-ct-mid', 0.10, 0.92) },
+    // Suicide — 角落暗区
+    { ...box(H(512), -0.08, H(3072), H(256), 0.06, H(128), 0x4a3828, 'dust2-wear-suicide', 0.14, 0.95) },
+    // Pit — 坑底角落暗斑
+    { ...box(H(-3584), -0.70, H(256), H(576), 0.06, H(256), 0x3a2818, 'dust2-wear-pit', 0.14, 0.96) },
+
+    // ════════════════════════════════════════════════════════
+    // 地面脏污/色差斑块 (dirt patches on floors)
+    // ════════════════════════════════════════════════════════
+    // A Site 平台角落暗斑
+    { ...box(H(-2816), 0.02, H(-1408), H(64), 0.02, H(64), 0x8a7850, 'dust2-dirt-a-platform-1', 0.10, 0.90) },
+    { ...box(H(-2560), 0.02, H(-1536), H(48), 0.02, H(48), 0x8a7850, 'dust2-dirt-a-platform-2', 0.10, 0.90) },
+    // B Site 平台角落暗斑
+    { ...box(H(2240), 0.02, H(-1408), H(48), 0.02, H(48), 0x8a7850, 'dust2-dirt-b-platform-1', 0.10, 0.90) },
+    { ...box(H(2688), 0.02, H(-1664), H(48), 0.02, H(48), 0x8a7850, 'dust2-dirt-b-platform-2', 0.10, 0.90) },
+    // Mid 地面暗斑
+    { ...box(H(-384), 0.02, H(-512), H(48), 0.02, H(48), 0x6a5840, 'dust2-dirt-mid-1', 0.10, 0.92) },
+    { ...box(H(384), 0.02, H(-512), H(48), 0.02, H(48), 0x6a5840, 'dust2-dirt-mid-2', 0.10, 0.92) },
+    // Long 地面暗斑
+    { ...box(H(-3520), 0.02, H(4096), H(48), 0.02, H(48), 0x7a6850, 'dust2-dirt-a-long-1', 0.10, 0.90) },
+    { ...box(H(-3520), 0.02, H(2304), H(48), 0.02, H(48), 0x7a6850, 'dust2-dirt-a-long-2', 0.10, 0.90) },
+    // B Tunnels 地面暗斑
+    { ...box(H(3264), 0.02, H(4352), H(48), 0.02, H(48), 0x4a3830, 'dust2-dirt-b-tunnel-1', 0.10, 0.94) },
+    { ...box(H(3200), 0.02, H(2432), H(48), 0.02, H(48), 0x4a3830, 'dust2-dirt-b-tunnel-2', 0.10, 0.94) },
+    // CT Spawn 地面暗斑
+    { ...box(H(-384), 0.02, H(3136), H(48), 0.02, H(48), 0x7a7060, 'dust2-dirt-ct-spawn-1', 0.08, 0.90) },
+    { ...box(H(384), 0.02, H(3136), H(48), 0.02, H(48), 0x7a7060, 'dust2-dirt-ct-spawn-2', 0.08, 0.90) },
+
+    // ── Mid / CT Mid 地面层次 ──
+    { ...box(H(0), 0.02, H(-1024), H(1024), 0.02, H(2048), 0xb89e6a, 'dust2-mid-tone-floor', 0.05, 0.86), textureKey: 'sand' as const },
+    { ...box(H(-64), 0.10, H(-2048), H(384), 0.04, H(128), 0x9a8a72, 'dust2-mid-doors-threshold', 0.05, 0.84), textureKey: 'concrete' as const },
+    { ...box(H(0), 0.10, H(-1664), H(256), 0.04, H(512), 0x8f7b5e, 'dust2-ct-mid-floor-accent', 0.05, 0.84), textureKey: 'concrete' as const },
 
     // ── CT 家地面（石板）──
     { ...box(0, 0.01, H(3328), H(2048), 0.02, H(768), 0xa09880, 'dust2-ct-spawn-floor', 0.05, 0.85), textureKey: 'concrete' as const },
-
-    // ── 木门视觉模型 ──
-    // A Long Doors（Hammer z≈1920, x≈-3584）
     { ...box(H(-3712), 1.28, H(-1920), 0.10, 2.56, H(192), 0xffffff, 'dust2-a-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
     { ...box(H(-3456), 1.28, H(-1920), 0.10, 2.56, H(192), 0xffffff, 'dust2-a-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
-    // Mid Doors（Hammer z≈2048, x≈0）
     { ...box(H(-64),  1.28, H(-2048), 0.10, 2.56, H(192), 0xffffff, 'dust2-mid-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
     { ...box(H( 64),  1.28, H(-2048), 0.10, 2.56, H(192), 0xffffff, 'dust2-mid-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
-    // B Doors（Hammer z≈-1536, x≈1920）
     { ...box(H(1920), 1.28, H(1536), H(128), 1.92, 0.10, 0xffffff, 'dust2-b-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
 
-    // ── CT Window 玻璃 ──
+    // ── CT Window / B Window 玻璃 ──
     box(0, 1.92, H(1216), H(128), 0.48, H(32), 0x9edcff, 'dust2-ct-window-glass', 0.03, 0.06, 0.3),
-
-    // ── B Window 玻璃 ──
     box(H(1920), 1.92, H(1152), H(96), 0.48, H(32), 0x9edcff, 'dust2-b-window-glass', 0.03, 0.06, 0.3),
 
-    // ── T Spawn 顶棚（部分遮蔽阳光）──
+    // ── 顶棚 ──
     box(0, H(288), H(-6144), H(2048), 0.32, H(768), 0x3a3020, 'dust2-t-spawn-roof', 0.3, 0.7),
-
-    // ── B Tunnels 下层顶棚 ──
     box(H(3264), H(264), H(-3072), H(576), 0.32, H(6144), 0x3a3020, 'dust2-b-tunnel-roof', 0.3, 0.7),
-
-    // ── Upper Tunnels 顶棚 ──
     box(H(3072), H(264), H(512), H(320), 0.32, H(1536), 0x3a3020, 'dust2-upper-tunnel-roof', 0.3, 0.7),
-
-    // ── A Long 顶棚 ──
     box(H(-3584), H(264), H(-3072), H(576), 0.32, H(6144), 0x3a3020, 'dust2-a-long-roof', 0.3, 0.7),
-
-    // ── Palace 天花板视觉 ──
     { ...box(H(-2560), H(296), H(-3840), H(1280), 0.32, H(1536), 0xc8b898, 'dust2-palace-ceil-visual', 0.04, 0.86), textureKey: 'plaster' as const },
+
+    // ════════════════════════════════════════════════════════
+    // 标志性视觉道具
+    // ════════════════════════════════════════════════════════
+
+    // ── A Long 废弃轿车（Long Car）──
+    // 车身
+    box(H(-3200), 0.30, H(3584), H(384), 0.60, H(192), 0x4a3a2a, 'dust2-a-long-car-body', 0.18, 0.65),
+    // 车顶
+    box(H(-3200), 0.90, H(3584), H(288), 0.30, H(144), 0x3a2c1c, 'dust2-a-long-car-roof', 0.18, 0.70),
+    // 车轮（4个）
+    box(H(-3072), 0.12, H(3456), H(48), 0.24, H(32), 0x1a1a1a, 'dust2-car-wheel-fr', 0.3, 0.7),
+    box(H(-3072), 0.12, H(3712), H(48), 0.24, H(32), 0x1a1a1a, 'dust2-car-wheel-rr', 0.3, 0.7),
+    box(H(-3328), 0.12, H(3456), H(48), 0.24, H(32), 0x1a1a1a, 'dust2-car-wheel-fl', 0.3, 0.7),
+    box(H(-3328), 0.12, H(3712), H(48), 0.24, H(32), 0x1a1a1a, 'dust2-car-wheel-rl', 0.3, 0.7),
+    // 挡风玻璃
+    box(H(-3200), 0.72, H(3488), H(256), 0.30, H(128), 0x8ab8d0, 'dust2-car-windshield', 0.05, 0.12, 0.45),
+
+    // ── T Spawn 栅栏（木板围栏）──
+    { ...box(H(-512), 0.48, H(-5888), H(32), 0.96, H(576), 0xffffff, 'dust2-t-fence-1', 0.05, 0.92), textureKey: 'wood' as const },
+    { ...box(H( 512), 0.48, H(-5888), H(32), 0.96, H(576), 0xffffff, 'dust2-t-fence-2', 0.05, 0.92), textureKey: 'wood' as const },
+    // 横梁
+    { ...box(H(0),    0.72, H(-5888), H(1024), 0.08, H(32), 0xffffff, 'dust2-t-fence-top-rail', 0.05, 0.90), textureKey: 'wood' as const },
+    { ...box(H(0),    0.24, H(-5888), H(1024), 0.08, H(32), 0xffffff, 'dust2-t-fence-bot-rail', 0.05, 0.90), textureKey: 'wood' as const },
+
+    // ── CT Spawn 路灯柱（2根）──
+    box(H(-384), 1.80, H(3072), H(16), 3.60, H(16), 0x706050, 'dust2-ct-lamp-post-l', 0.5, 0.5),
+    box(H( 384), 1.80, H(3072), H(16), 3.60, H(16), 0x706050, 'dust2-ct-lamp-post-r', 0.5, 0.5),
+    // 灯臂
+    box(H(-384), 3.52, H(3040), H(96), 0.08, H(16), 0x706050, 'dust2-ct-lamp-arm-l', 0.5, 0.5),
+    box(H( 384), 3.52, H(3040), H(96), 0.08, H(16), 0x706050, 'dust2-ct-lamp-arm-r', 0.5, 0.5),
+    // 灯罩
+    box(H(-432), 3.48, H(3032), H(48), 0.16, H(32), 0xfff0a0, 'dust2-ct-lamp-head-l', 0.1, 0.4),
+    box(H( 432), 3.48, H(3032), H(48), 0.16, H(32), 0xfff0a0, 'dust2-ct-lamp-head-r', 0.1, 0.4),
+
+    // ── B Site 水箱（右侧）──
+    box(H(3200), 1.20, H(1280), H(192), 2.40, H(128), 0x556677, 'dust2-b-water-tank-body', 0.25, 0.55),
+    box(H(3200), 2.42, H(1280), H(208), 0.08, H(144), 0x445566, 'dust2-b-water-tank-top', 0.25, 0.50),
+    // 水管
+    box(H(3200), 1.20, H(1216), H(32), 2.40, H(32), 0x445566, 'dust2-b-water-pipe', 0.3, 0.6),
+
+    // ── Pit / Mid 铁桶 ──
+    box(H(-3456), 0.28, H(-384), H(48), 0.56, H(48), 0x5a4830, 'dust2-pit-barrel-1', 0.4, 0.65),
+    box(H(-3392), 0.28, H(-320), H(48), 0.56, H(48), 0x5a4830, 'dust2-pit-barrel-2', 0.4, 0.65),
+    box(H(-128),  0.28, H( 640), H(48), 0.56, H(48), 0x4a5a40, 'dust2-mid-barrel',   0.4, 0.65),
+
+    // ── B Tunnels 壁灯（沿走廊每隔一段）──
+    // 灯底座
+    box(H(3072), 1.80, H(5500), H(16), 0.16, H(16), 0x5a5040, 'dust2-b-lamp-base-1', 0.3, 0.6),
+    box(H(3072), 1.80, H(4000), H(16), 0.16, H(16), 0x5a5040, 'dust2-b-lamp-base-2', 0.3, 0.6),
+    box(H(3072), 1.80, H(2500), H(16), 0.16, H(16), 0x5a5040, 'dust2-b-lamp-base-3', 0.3, 0.6),
+    box(H(3072), 1.80, H(1000), H(16), 0.16, H(16), 0x5a5040, 'dust2-b-lamp-base-4', 0.3, 0.6),
+    // 灯罩（偏橙黄色）
+    box(H(3072), 1.84, H(5500), H(32), 0.12, H(32), 0xffa040, 'dust2-b-lamp-1', 0.1, 0.3),
+    box(H(3072), 1.84, H(4000), H(32), 0.12, H(32), 0xffa040, 'dust2-b-lamp-2', 0.1, 0.3),
+    box(H(3072), 1.84, H(2500), H(32), 0.12, H(32), 0xffa040, 'dust2-b-lamp-3', 0.1, 0.3),
+    box(H(3072), 1.84, H(1000), H(32), 0.12, H(32), 0xffa040, 'dust2-b-lamp-4', 0.1, 0.3),
+
+    // ── A Long 走廊壁灯 ──
+    box(H(-3904), 1.80, H(5000), H(16), 0.16, H(16), 0x5a5040, 'dust2-a-lamp-base-1', 0.3, 0.6),
+    box(H(-3904), 1.80, H(3500), H(16), 0.16, H(16), 0x5a5040, 'dust2-a-lamp-base-2', 0.3, 0.6),
+    box(H(-3904), 1.80, H(1500), H(16), 0.16, H(16), 0x5a5040, 'dust2-a-lamp-base-3', 0.3, 0.6),
+    box(H(-3904), 1.84, H(5000), H(32), 0.12, H(32), 0xffa040, 'dust2-a-lamp-1', 0.1, 0.3),
+    box(H(-3904), 1.84, H(3500), H(32), 0.12, H(32), 0xffa040, 'dust2-a-lamp-2', 0.1, 0.3),
+    box(H(-3904), 1.84, H(1500), H(32), 0.12, H(32), 0xffa040, 'dust2-a-lamp-3', 0.1, 0.3),
+
+    // ── Pit 坑底地面（比主地面低）──
+    { ...box(H(-3584), -0.63, H(256), H(576), 0.02, H(512), 0xb09060, 'dust2-pit-floor', 0.04, 0.90), textureKey: 'sand' as const },
+
+    // ── A Site Ninja 夹角地面标记（细节地板纹理）──
+    { ...box(H(-3424), 0.01, H(1856), H(192), 0.02, H(384), 0x9a8860, 'dust2-ninja-floor', 0.04, 0.90), textureKey: 'concrete' as const },
+
+    // ── B Outside 地面 ──
+    { ...box(H(2240), 0.01, H(-5120), H(640), 0.02, H(1024), 0xb09060, 'dust2-b-outside-floor', 0.04, 0.88), textureKey: 'sand' as const },
+
+    // ── A Site 货柜箱（A Ramp 旁）──
+    box(H(-3072), 0.30, H(-768), H(128), 0.96, H(96), 0x4a6e3a, 'dust2-a-shipping-container-1', 0.3, 0.55),
+    box(H(-3072), 1.26, H(-768), H(132), 0.08, H(100), 0x3a5a2a, 'dust2-a-shipping-container-top', 0.3, 0.50),
+
+    // ── Mid 路障（Mid Doors 旁）──
+    box(H(-384), 0.30, H(2048), H(96), 0.60, H(32), 0x6a6a6a, 'dust2-mid-barrier-l', 0.4, 0.60),
+    box(H(384), 0.30, H(2048), H(96), 0.60, H(32), 0x6a6a6a, 'dust2-mid-barrier-r', 0.4, 0.60),
+
+    // ── CT Mid 木箱堆 ──
+    box(H(-256), 0.30, H(-2048), H(64), 0.96, H(64), 0xc4a46b, 'dust2-ct-mid-crate-1', 0.08, 0.78),
+    box(H(-256), 1.26, H(-2048), H(64), 0.60, H(64), 0xb89a58, 'dust2-ct-mid-crate-2', 0.08, 0.80),
+
+    // ── B Site 货柜（B Doors 外侧）──
+    box(H(1408), 0.30, H(-768), H(96), 0.96, H(64), 0x4a6e3a, 'dust2-b-shipping-container', 0.3, 0.55),
+
+    // ── A Long 油桶堆 ──
+    box(H(-3456), 0.28, H(4608), H(32), 0.56, H(32), 0x5a4830, 'dust2-a-long-drum-1', 0.4, 0.65),
+    box(H(-3456), 0.28, H(4480), H(32), 0.56, H(32), 0x5a4830, 'dust2-a-long-drum-2', 0.4, 0.65),
+    box(H(-3392), 0.28, H(4544), H(32), 0.56, H(32), 0x5a4830, 'dust2-a-long-drum-3', 0.4, 0.65),
+
+    // ── Palace 柱子（视觉建筑结构）──
+    box(H(-2816), 0, H(-3840), H(64), H(384), H(64), 0xc8bc98, 'dust2-palace-pillar-1', 0.04, 0.85),
+    box(H(-2432), 0, H(-3840), H(64), H(384), H(64), 0xc8bc98, 'dust2-palace-pillar-2', 0.04, 0.85),
+    box(H(-2816), H(384), H(-3840), H(96), H(32), H(96), 0xbaa888, 'dust2-palace-pillar-cap-1', 0.04, 0.86),
+    box(H(-2432), H(384), H(-3840), H(96), H(32), H(96), 0xbaa888, 'dust2-palace-pillar-cap-2', 0.04, 0.86),
+
+    // ── B Tunnels 隔断墙（增强洞道转折感）──
+    box(H(3264), 0, H(-512), H(32), H(192), H(192), 0x8e7c6e, 'dust2-b-tunnel-partition-1', 0.05, 0.90),
+    box(H(3264), 0, H(1024), H(32), H(192), H(192), 0x8e7c6e, 'dust2-b-tunnel-partition-2', 0.05, 0.90),
+    box(H(3264), 0, H(2560), H(32), H(192), H(192), 0x8e7c6e, 'dust2-b-tunnel-partition-3', 0.05, 0.90),
+
+    // ── T Spawn 前木箱 ──
+    box(H(-256), 0.30, H(6272), H(64), 0.96, H(64), 0xc4a46b, 'dust2-t-spawn-crate-l', 0.08, 0.78),
+    box(H(256), 0.30, H(6272), H(64), 0.96, H(64), 0xc4a46b, 'dust2-t-spawn-crate-r', 0.08, 0.78),
+
+    // ── A Site A Ramp 护栏 ──
+    box(H(-2944), 0.15, H(-1408), H(16), 0.48, H(512), 0x706050, 'dust2-a-ramp-railing-l', 0.5, 0.50),
+    box(H(-2432), 0.15, H(-1408), H(16), 0.48, H(512), 0x706050, 'dust2-a-ramp-railing-r', 0.5, 0.50),
+
+    // ── Upper Dark 箱子 ──
+    box(H(3072), 0.30, H(-256), H(64), 0.96, H(64), 0x5a5a5a, 'dust2-upper-dark-crate-1', 0.08, 0.80),
+    box(H(3328), 0.30, H(-256), H(64), 0.96, H(64), 0x5a5a5a, 'dust2-upper-dark-crate-2', 0.08, 0.80),
   ];
 
   return {
@@ -673,6 +875,12 @@ function buildDust2Arena(): ArenaData {
       materialZone('dust2-concrete-b',  'concrete', H( 2560), 0.01, H(1280), H(1792), 0.1, H(1664)),
       materialZone('dust2-plaster-cat', 'plaster',  H(-1536), 1.28, H(1216), H(384),  0.1, H(1152)),
       materialZone('dust2-concrete-ct', 'concrete', H(0),     0.01, H(3328), H(2048), 0.1, H(768)),
+      materialZone('dust2-mid-sand',    'sand',     H(0),     0.01, H(-1024), H(1024), 0.1, H(2048)),
+      materialZone('dust2-goose-plaster','plaster', H(-1984), 0.01, H(1600), H(256),  0.1, H(224)),
+      materialZone('dust2-ct-mid-concrete','concrete', H(0),  0.01, H(1664), H(256),  0.1, H(512)),
+      materialZone('dust2-b-tunnel-concrete', 'concrete', H(3264), 0.01, H(3072), H(576), 0.1, H(6144)),
+      materialZone('dust2-upper-dark-stone',  'stone',    H(3072), 0.01, H(512),  H(320), 0.1, H(1536)),
+      materialZone('dust2-b-site-plaster',    'plaster',  H(2560), 0.01, H(1280), H(640), 0.1, H(448)),
     ]
   };
 }

@@ -58,7 +58,8 @@
       "Bash(npx claude-mem *)",
       "Bash(npx -y claude-mem install)",
       "Bash(bun --version)",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(pkill -f \"node.*5173\\\\|vite\")"
     ],
     "additionalDirectories": [
       "/Users/fengye/.claude/plugins/marketplaces/thedotmack/src/services"

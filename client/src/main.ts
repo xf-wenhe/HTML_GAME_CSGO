@@ -67,6 +67,8 @@ function mergeDelta(target: any, delta: any) {
 declare global {
   interface Window {
     __debugPlayerPosition?: () => { x: number; y: number; z: number } | null;
+    __debugSetPlayerPosition?: (x: number, z: number, yaw?: number, y?: number) => boolean;
+    __debugTakeScreenshot?: () => string | null;
     __debugInputState?: () => {
       mode: InputMode;
       pointerLocked: boolean;
@@ -102,6 +104,9 @@ declare global {
       mouseSensitivity: number;
     };
     __debugAllowPointerLockBypassForTests?: () => void;
+    __debugSetPlayerYaw?: (yaw: number) => boolean;
+    __debugSetKeyPressed?: (key: string, pressed: boolean) => void;
+    __debugSetMouseDelta?: (x: number, y: number) => void;
   }
 }
 
@@ -1299,6 +1304,24 @@ function nearestBombSite(): 'A' | 'B' {
 }
 
 window.__debugPlayerPosition = () => player ? vectorToPlain(player.getPosition()) : null;
+window.__debugSetPlayerPosition = (x: number, z: number, yaw = 0, y = 1.7) => {
+  if (!player) return false;
+  const pos = new THREE.Vector3(x, y, z);
+  player.setPosition(pos);
+  player.setRotation(0, yaw);
+  player.resetVelocity();
+  return true;
+};
+window.__debugSetPlayerYaw = (yaw: number) => {
+  if (!player) return false;
+  player.setRotation(0, yaw);
+  return true;
+};
+window.__debugTakeScreenshot = (): string | null => {
+  const canvas = scene?.getRenderer()?.domElement as HTMLCanvasElement | undefined;
+  if (!canvas) return null;
+  return canvas.toDataURL('image/png');
+};
 window.__debugInputState = () => ({
   mode: inputMode,
   pointerLockState,
@@ -1340,6 +1363,12 @@ if (allowDebugPointerLockBypass) {
     pointerLockState = 'locked';
     lockFailureReason = null;
     hud.hidePointerLockGuide();
+  };
+  window.__debugSetKeyPressed = (key: string, pressed: boolean) => {
+    input.setKeyPressed(key, pressed);
+  };
+  window.__debugSetMouseDelta = (x: number, y: number) => {
+    input.setMouseDelta(x, y);
   };
 }
 

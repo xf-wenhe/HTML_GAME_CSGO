@@ -33,7 +33,7 @@ export class Scene {
     this.scene.fog = new THREE.Fog(0x5b8cbf, 60, 160);
 
     this.camera = new THREE.PerspectiveCamera(
-      82,
+      90,
       window.innerWidth / window.innerHeight,
       0.1,
       1000
@@ -42,7 +42,11 @@ export class Scene {
     this.scene.add(this.camera);
 
     try {
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: 'high-performance',
+        preserveDrawingBuffer: true
+      });
       this.renderer.setSize(window.innerWidth, window.innerHeight);
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
       this.renderer.shadowMap.enabled = true;
@@ -100,8 +104,8 @@ export class Scene {
 
     // Map-specific sky colors
     const skyColors: Record<string, { bg: number; fog: number; fogNear: number; fogFar: number; skyTop: number; skyHorizon: number }> = {
-      // 【修改 5】换成真实的 CSGO Dust2 偏暖色天空和漫反射沙雾
-      Dust2:     { bg: 0x8cb5d6, fog: 0xd6cbb4, fogNear: 60, fogFar: 180, skyTop: 0x6a9ccf, skyHorizon: 0xd6ccb4 },
+      // 更接近 CS:GO Dust2 的沙尘暖雾
+      Dust2:     { bg: 0x8cb5d6, fog: 0xc8b898, fogNear: 50, fogFar: 160, skyTop: 0x6a9ccf, skyHorizon: 0xccb890 },
       Mirage:    { bg: 0x6a8faa, fog: 0x7a9fb5, fogNear: 50, fogFar: 130, skyTop: 0x4a7090, skyHorizon: 0xc0d8e8 },
       Inferno:   { bg: 0x6d7b6a, fog: 0x758568, fogNear: 45, fogFar: 120, skyTop: 0x4a5a48, skyHorizon: 0xbcc8b8 },
       Train:     { bg: 0x5a6a78, fog: 0x6a7885, fogNear: 45, fogFar: 120, skyTop: 0x3a4a58, skyHorizon: 0xb0c0d0 },
@@ -134,37 +138,121 @@ export class Scene {
 
     [...arena.colliders, ...arena.props].forEach(spec => this.addBox(spec));
 
-    const laneMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd0a74f,
-      roughness: 0.42,
-      metalness: 0.25,
-      emissive: 0x1a1204
-    });
+    const isD2 = arena.name === 'Dust2';
 
-    for (const x of [-22, 0, 22]) {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 76), laneMaterial);
-      stripe.position.set(x, 0.025, -8);
-      stripe.receiveShadow = true;
-      this.addArenaObject(stripe);
+    if (isD2) {
+      // ── Dust2 专用灯光 ──────────────────────────────────────
+      // CT Spawn 路灯（明亮白光）
+      const ctLamps = [
+        new THREE.Vector3(-3.84, 3.6, -30.72),
+        new THREE.Vector3( 3.84, 3.6, -30.72),
+        new THREE.Vector3( 0,    3.6, -33.28),
+      ];
+      ctLamps.forEach(pos => {
+        const l = new THREE.PointLight(0xfffae8, 2.2, 18, 2.0);
+        l.position.copy(pos);
+        this.addArenaObject(l);
+      });
+
+      // A Site 天光（从上方射入的暖阳）
+      const aSiteLamps = [
+        new THREE.Vector3(-25.6, 5.2, 12.8),
+        new THREE.Vector3(-22.8, 4.8, 15.8),
+        new THREE.Vector3(-28.8, 4.7, 10.2),
+      ];
+      aSiteLamps.forEach(pos => {
+        const l = new THREE.PointLight(0xffefdc, 2.0, 18, 1.8);
+        l.position.copy(pos);
+        this.addArenaObject(l);
+      });
+
+      // B Site 灯光
+      const bSiteLamps = [
+        new THREE.Vector3( 25.6, 5.0,  12.8),
+        new THREE.Vector3( 28.0, 4.5,   9.0),
+        new THREE.Vector3( 22.0, 4.5,  16.0),
+      ];
+      bSiteLamps.forEach(pos => {
+        const l = new THREE.PointLight(0xffeedd, 1.8, 20, 1.8);
+        l.position.copy(pos);
+        this.addArenaObject(l);
+      });
+
+      // Lower B Tunnels 壁灯 — 入口略亮，出口略暗
+      [55.0, 42.0, 28.0, 14.0].forEach((zHU, i) => {
+        const intensity = i < 2 ? 1.2 : 1.0;
+        const l = new THREE.PointLight(0xff9930, intensity, 10, 2.4);
+        l.position.set(32.64, 2.0, -zHU);
+        this.addArenaObject(l);
+      });
+      // Upper Dark — 极暗冷光，强化暗角感
+      const upperDarkLight = new THREE.PointLight(0x8090a0, 0.5, 8, 2.8);
+      upperDarkLight.position.set(32.64, 3.8, -5.12);
+      this.addArenaObject(upperDarkLight);
+      // B Site 额外补光 — 比洞道亮
+      const bSiteExtraLight = new THREE.PointLight(0xffeedd, 1.4, 16, 1.8);
+      bSiteExtraLight.position.set(25.6, 4.8, 12.8);
+      this.addArenaObject(bSiteExtraLight);
+
+      // A Long 走廊壁灯（橙黄色，较暗）
+      [50.0, 35.0, 15.0].forEach(zHU => {
+        const l = new THREE.PointLight(0xff9930, 1.2, 12, 2.2);
+        l.position.set(-39.04, 2.0, -zHU);
+        this.addArenaObject(l);
+      });
+
+      // Mid 中路天光 + Doors 过渡光
+      const midLights = [
+        { pos: new THREE.Vector3(0, 4.8, -10.24), color: 0xfff0d0, intensity: 1.6, dist: 22 },
+        { pos: new THREE.Vector3(0, 3.2, -20.48), color: 0xffd8a0, intensity: 1.3, dist: 14 },
+        { pos: new THREE.Vector3(-15.36, 3.8, -12.16), color: 0xffe2b0, intensity: 1.1, dist: 12 },
+      ];
+      midLights.forEach(({ pos, color, intensity, dist }) => {
+        const l = new THREE.PointLight(color, intensity, dist, 1.9);
+        l.position.copy(pos);
+        this.addArenaObject(l);
+      });
+
+      // T Spawn 顶光
+      const tSpawnLight = new THREE.PointLight(0xffeebb, 1.6, 20, 1.8);
+      tSpawnLight.position.set(0, 4.0, -61.44);
+      this.addArenaObject(tSpawnLight);
+
+    } else {
+      // 其他地图通用灯光
+      for (const position of [
+        new THREE.Vector3(-25, 4.5, -28),
+        new THREE.Vector3(25, 4.5, -28),
+        new THREE.Vector3(0, 4.8, -10),
+        new THREE.Vector3(-21, 3.8, 7),
+        new THREE.Vector3(21, 3.8, 7),
+        new THREE.Vector3(0, 4.6, 26)
+      ]) {
+        const lamp = new THREE.PointLight(0xffc98b, 1.85, 24, 2.0);
+        lamp.position.copy(position);
+        this.addArenaObject(lamp);
+      }
     }
 
-    for (const position of [
-      new THREE.Vector3(-25, 4.5, -28),
-      new THREE.Vector3(25, 4.5, -28),
-      new THREE.Vector3(0, 4.8, -10),
-      new THREE.Vector3(-21, 3.8, 7),
-      new THREE.Vector3(21, 3.8, 7),
-      new THREE.Vector3(0, 4.6, 26)
-    ]) {
-      const lamp = new THREE.PointLight(0xffc98b, 1.85, 24, 2.0);
-      lamp.position.copy(position);
-      this.addArenaObject(lamp);
+    // Dust2 no lane stripes — they look wrong on the new large map
+    if (!isD2) {
+      const laneMaterial = new THREE.MeshStandardMaterial({
+        color: 0xd0a74f,
+        roughness: 0.42,
+        metalness: 0.25,
+        emissive: 0x1a1204
+      });
+      for (const x of [-22, 0, 22]) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 76), laneMaterial);
+        stripe.position.set(x, 0.025, -8);
+        stripe.receiveShadow = true;
+        this.addArenaObject(stripe);
+      }
     }
 
     // Dust2: place bomb markers at correct Hammer-mapped positions
     // A site center: Hammer(-2560, z-1280) → game(-25.6, z+12.8)
     // B site center: Hammer(2560, z-1280)  → game(25.6,  z+12.8)
-    const isD2 = arena.name === 'Dust2';
     this.addBombSiteMarker('A', isD2
       ? new THREE.Vector3(-25.6, 0.04,  12.8)
       : new THREE.Vector3(-24,   0.04, -27));

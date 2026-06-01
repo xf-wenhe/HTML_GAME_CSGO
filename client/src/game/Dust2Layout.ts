@@ -104,7 +104,8 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   // A Doors 门框（左右两根柱）
   b(-3840,  1920,   32,  192, 256, 0, 'a-doors-left-frame'),
   b(-3328,  1920,   32,  192, 256, 0, 'a-doors-right-frame'),
-  b(-3584,  1920,  544,   32,  64, 192, 'a-doors-lintel'),
+  b(-3584,  1920,  256,   32,  64, 192, 'a-doors-lintel-l'),
+  b(-3328,  1920,  256,   32,  64, 192, 'a-doors-lintel-r'),
 
   // A Long 掩体箱
   b(-3520,  4096,   64,   64,  48, 0, 'a-long-box-1'),
@@ -145,92 +146,140 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b(-1728, -1216,   32, 1152, 256,   0, 'catwalk-wall-west'),
   b(-1664, -1792,   32,  256, 128,   0, 'short-wall-to-a-site'),
   ...stairsX(-1920, -640, 768, 192, 32, 128, 12, 'catwalk-stairs'),
-  b(-1536,  -512,   64,   64,  48, 128, 'catwalk-box'),
+  b(-1664,  -512,   64,   64,  48, 128, 'catwalk-box'),
 
   // ── A Site（A包点）──────────────────────────────────────────
-  // 包点平台
-  b(-2688, -1280,  768,  512,  16,   0, 'a-site-platform'),
-  // 四面墙
-  b(-2688, -1920, 1792,   32, 320,   0, 'a-site-north-wall'),
+  // 包点平台（32 HU 高，更接近原版 Dust2）
+  b(-2688, -1280,  768,  512,  32,   0, 'a-site-platform-base'),
+  b(-2688, -1024,  768,   64,  16,  32, 'a-site-platform-front-lip'),
+  b(-2688, -1536,  640,   64,  16,  32, 'a-site-platform-rear-lip'),
+  // 平台侧边压条
+  b(-3072, -1280,   32,  512,  16,  32, 'a-site-platform-left-edge'),
+  b(-2304, -1280,   32,  512,  16,  32, 'a-site-platform-right-edge'),
+  // 四面墙（入口留 5.12 宽通道，中央偏 A Ramp 侧）
+  b(-3264, -1920,  640,  128,  320,   0, 'a-site-north-wall-l'),
+  b(-2112, -1920,  640,  128,  320,   0, 'a-site-north-wall-r'),
+  b(-2688, -1920, 1792,  128,   32,  320, 'a-site-north-lintel'),
+  b(-3328, -1856,  640,   32, 320,   0, 'a-site-north-entry-l'),
+  b(-2048, -1856,  640,   32, 320,   0, 'a-site-north-entry-r'),
   b(-3584, -1280,   32, 1664, 320,   0, 'a-site-west-wall'),
   b(-1792, -1280,   32, 1664, 320,   0, 'a-site-east-wall'),
   b(-2688,  -256, 1792,   32, 320,   0, 'a-site-south-wall'),
-  // A Ramp（CT→A 斜坡，16级）
-  ...stairsZ(-2688, -2560, 512, 1024, 0, 96, 16, 'a-ramp'),
-  // Goose（鹅角）
-  b(-1920, -1536,   64,  192, 128,  96, 'goose-box'),
-  b(-1984, -1728,  128,   64,  64,  96, 'goose-plat-ext'),
-  // 包点平台掩体
-  b(-2752, -1408,   96,   64,  96,  96, 'a-site-shield-box'),
-  b(-2496, -1408,   64,   48,  96,  96, 'a-site-double-box'),
-  b(-2496, -1536,   64,   64,  48,  96, 'a-site-default-box'),
-  b(-2432, -1408,   48,   48,  48,  96, 'a-site-small-box'),
+  // A Ramp（CT→A 斜坡，16级，顶部衔接32 HU平台）
+  ...stairsZ(-2688, -2560, 512, 1024, 0, 128, 16, 'a-ramp'),
+  // Ramp 顶部过渡块
+  b(-2688, -1664,  512,   96,  16,  32, 'a-ramp-top-transition'),
+  b(-2560, -1760,  256,   64,  16,  48, 'a-ramp-top-transition-2'),
+  // Goose（鹅角）— 地面层高台
+  b(-1984, -1600,  160,  224,  96,   0, 'goose-main-face'),
+  b(-1920, -1760,   96,   64,  64,   0, 'goose-rear-step'),
+  b(-2048, -1536,   64,  160,  96,   0, 'goose-side-thickness'),
+  b(-1984,  -768,  160,   32,  16,  96, 'goose-front-edge'),
+  // 包点平台掩体（放在32 HU平台上）
+  b(-2816, -1408,  128,   96,  96,  32, 'a-site-shield-box'),
+  b(-2560, -1408,  192,  128,  24,  32, 'a-site-default-base'),
+  b(-2496, -1472,   64,   64,  48,  56, 'a-site-default-upper'),
+  b(-2432, -1408,   64,   48,  40,  32, 'a-site-small-box'),
+  b(-2368, -1408,   64,   64,  96,  32, 'a-site-double-box-left'),
+  b(-2304, -1472,   64,   64,  96,  32, 'a-site-double-box-right'),
   // 地面掩体
   b(-2752,  -896,   64,   64,  96,   0, 'a-long-exit-box'),
   b(-2048,  -768,   96,   48,  48,   0, 'a-catwalk-exit-box'),
   b(-2944,  -640,   64,   48,  48,   0, 'a-long-side-box'),
   b(-2688, -1664,   64,   48,  48,   0, 'a-back-corner-box'),
   b(-2176, -1920,   48,   64,  48,   0, 'a-north-wall-box'),
+  // Short 出 A 视线组织
+  b(-2432, -1792,  192,   64,  48,   0, 'short-exit-low-block'),
+  b(-2240, -1728,  128,   64,  64,   0, 'short-exit-side-block'),
+  b(-2144, -1664,   64,  128,  48,   0, 'short-exit-vision-guide'),
 
   // ── Mid（中路）──────────────────────────────────────────────
-  // 中路两侧主墙
-  b(  -64,  1024,   32, 4096, 256,   0, 'mid-wall-west'),
-  b(   64,  1024,   32, 4096, 256,   0, 'mid-wall-east'),
+  // 中路两侧主墙（ widened: gap=2.56 units for comfortable 1.28 clearance each side）
+  b( -128,  1024,  128, 4096, 256,   0, 'mid-wall-west'),
+  b(  128,  1024,  128, 4096, 256,   0, 'mid-wall-east'),
+  // Top Mid 两侧体量，增强被建筑夹出的空间感
+  b( -512,  1536,  256,  768, 256,   0, 'top-mid-west-mass-1'),
+  b( -768,  2048,  256,  512, 256,   0, 'top-mid-west-mass-2'),
+  b(  512,  1536,  256,  768, 256,   0, 'top-mid-east-mass-1'),
+  b(  768,  2048,  256,  512, 256,   0, 'top-mid-east-mass-2'),
   // Mid Doors
   b( -128,  2048,   32,  192, 256,   0, 'mid-doors-left-frame'),
   b(  128,  2048,   32,  192, 256,   0, 'mid-doors-right-frame'),
   b(    0,  2048,  288,   32,  64, 192, 'mid-doors-lintel'),
+  // Mid Doors 房体厚度
+  b( -320,  2048,  160,  256, 256,   0, 'mid-doors-thickness-west'),
+  b(  320,  2048,  160,  256, 256,   0, 'mid-doors-thickness-east'),
+  b( -192,  1856,  128,  128, 128,   0, 'mid-doors-inner-depth-w'),
+  b(  192,  1856,  128,  128, 128,   0, 'mid-doors-inner-depth-e'),
   // Xbox
-  b(    0,  1024,   96,   64,  48,   0, 'xbox'),
+  b( -128,  1024,   96,   64,  48,   0, 'xbox'),
+  b( -192,   896,  128,  128,  64,   0, 'xbox-side-block-w'),
+  b(  192,   896,  128,  128,  64,   0, 'xbox-side-block-e'),
+  b(  -96,   768,   96,   64,  32,   0, 'xbox-front-lip-l'),
+  b(   96,   768,   96,   64,  32,   0, 'xbox-front-lip-r'),
   // Mid 左侧低箱
   b( -384,  -512,   64,   64,  48,   0, 'mid-box-left'),
+  b( -320,  1152,   96,  160,  64,   0, 'mid-cover-west'),
+  b(  320,  1088,   96,  160,  64,   0, 'mid-cover-east'),
   // Suicide（自杀角）
   b(  512,  3072,  256,  256,  32,   0, 'suicide-ledge'),
   b(  384,  2816,   64,   64,  48,   0, 'suicide-box'),
   // CT Window
-  b(    0, -1280,  128,   64, 128,   0, 'ct-window-platform'),
-  b(    0, -1216,  128,   32,  32, 128, 'ct-window-sill'),
+  b(  -64, -1280,   64,   64, 128,   0, 'ct-window-platform-w'),
+  b(   64, -1280,   64,   64, 128,   0, 'ct-window-platform-e'),
+  b(  -64, -1216,   64,   32,  32, 128, 'ct-window-sill-w'),
+  b(   64, -1216,   64,   32,  32, 128, 'ct-window-sill-e'),
   b(  256, -1536,   32,  512, 256,   0, 'ct-window-wall-east'),
   b( -256, -1536,   32,  512, 256,   0, 'ct-window-wall-west'),
-  // CT Mid 走廊
-  b(    0, -2176,  512,  640, 256,   0, 'ct-mid-north-wall'),
-  b( -256, -1792,   32,  768, 256,   0, 'ct-mid-wall-left'),
-  b(  256, -1792,   32,  768, 256,   0, 'ct-mid-wall-right'),
+  // CT Mid 走廊（北墙分两段，留中央通道给 Mid→CT 路线）
+  b( -448, -2240,  256,  512, 224,   0, 'ct-mid-north-wall-w'),
+  b( 1152, -2240,  512,  512, 224,   0, 'ct-mid-north-wall-e'),
+  b( -64, -1664,   64,  256,  160,   0, 'ct-mid-opening-guide-w'),
+  b(   64, -1664,   64,  256,  160,   0, 'ct-mid-opening-guide-e'),
 
-  // ── 中央区域建筑分隔块（填充不可走区域）────────────────────
-  b(-1350,  4250, 2300, 4500, 500,   0, 'a-long-mid-south-block'),
-  b(-2000,  1000, 1000, 2000, 500,   0, 'a-long-catwalk-block'),
-  b( -650,   900,  900, 1800, 500,   0, 'mid-catwalk-block'),
-  b( 1450,  4450, 2500, 4100, 500,   0, 'mid-btunnels-south-block'),
-  b( 1450,  1000, 2500, 2000, 500,   0, 'mid-btunnels-mid-block'),
-  b(-2550, -2500, 1100, 2000, 500,   0, 'asite-ct-divider'),
-  b(-1000, -1250, 1000, 2500, 500,   0, 'ctmid-asite-divider'),
-  b( 1000, -1850, 1000, 1300, 500,   0, 'ctmid-bsite-north-wall'),
-  b( 1000,  -950, 1000,  100, 500,   0, 'ctmid-bsite-mid-wall'),
-  b( 1000,  -350, 1000,  700, 500,   0, 'ctmid-bsite-south-wall'),
+  // ── 中央区域建筑分隔块（保留CT Mid以南的隔离，不干扰走廊通行）────────────────────
   b( 1000, -1200, 1000,  200,  64,   0, 'b-window-crouch-wall'),
-  b( 2300, -2500, 1600, 2000, 500,   0, 'bsite-ct-divider'),
 
   // ── B Tunnels（B洞）─────────────────────────────────────────
-  // 下层走廊
-  b( 3072,  3072,  192, 6144, 256,   0, 'b-tunnels-outer-wall'),
-  b( 3456,  3072,  192, 6144, 256,   0, 'b-tunnels-inner-wall'),
+  // 下层走廊 — 断面变化版
+  b( 3072,  5760,  192,  768, 256,   0, 'b-lower-outer-entrance'),
+  b( 3072,  4608,  192, 1536, 256,   0, 'b-lower-outer-mid'),
+  b( 2944,  3584,  192,  768, 256,   0, 'b-lower-outer-narrow'),
+  b( 3072,  2816,  192, 1536, 256,   0, 'b-lower-outer-exit'),
+  b( 3456,  5760,  192,  768, 256,   0, 'b-lower-inner-entrance'),
+  b( 3456,  4608,  192, 1536, 256,   0, 'b-lower-inner-mid'),
+  b( 3488,  3584,  128,  768, 256,   0, 'b-lower-inner-narrow'),
+  b( 3456,  2816,  192, 1536, 256,   0, 'b-lower-inner-exit'),
   b( 3264,  3072,  576, 6144,  32, 256, 'b-tunnels-ceiling'),
-  // 上层平台（Upper Tunnels / Upper Dark）
-  b( 3072,  -512,  320, 1536,  16, 128, 'upper-tunnels-platform'),
+  // B洞出口框景
+  b( 3072,  1920,  256,   64,  32, 224, 'b-tunnel-exit-lintel-l'),
+  b( 3456,  1920,  256,   64,  32, 224, 'b-tunnel-exit-lintel-r'),
+  b( 3072,  1984,  192,  128, 256,   0, 'b-tunnel-exit-frame-w'),
+  b( 3456,  1984,  192,  128, 256,   0, 'b-tunnel-exit-frame-e'),
+  // 上层平台（Upper Tunnels / Upper Dark）— 精雕版
+  b( 3072,  -512,  320, 1536,  16, 128, 'upper-tunnels-platform-base'),
+  b( 3072,  -256,  320,   64,  10, 144, 'upper-tunnels-platform-front-lip'),
+  b( 3072, -1024,  320,   64,  10, 144, 'upper-tunnels-platform-rear-lip'),
   b( 2880,  -512,   32, 1536, 256,   0, 'upper-tunnels-west-wall'),
   b( 3072,  -512,  320, 1536,  32, 256, 'upper-tunnels-ceiling'),
+  // Upper Dark — 更强收口
+  b( 2944,   128,  192,  512, 256,   0, 'upper-dark-south-wall'),
+  b( 3072,   384,  320,   32, 256, 128, 'upper-dark-inner-wall'),
+  b( 3264,   192,   96,  192,  96, 128, 'upper-dark-box-refined'),
+  b( 3200,    64,   64,   64,  64, 128, 'upper-dark-corner-block'),
+  b( 3264,  -896,   64,   48,  48, 128, 'upper-tunnel-exit-box'),
+  // 楼梯侧墙压迫感
+  b( 2816,  1280,   64,  256, 256,   0, 'b-stair-sidewall-w'),
+  b( 3392,  1280,   64,  256, 256,   0, 'b-stair-sidewall-e'),
+  b( 2880,  1024,   32,  128, 128,   0, 'b-stair-lower-block'),
   // 上层楼梯（16级）
   ...stairsX(2880, 1280, 384, 256, 0, 128, 16, 'b-tunnel-stairs'),
-  // Upper Dark 掩体
-  b( 3264,     0,   96,   80,  96, 128, 'upper-dark-box'),
-  b( 3264,  -896,   64,   48,  48, 128, 'upper-tunnel-exit-box'),
   // 下层掩体
-  b( 3264,  4352,   64,   64,  48,   0, 'b-tunnel-box-1'),
+  b( 3072,  4352,   64,   64,  48,   0, 'b-tunnel-box-1'),
   b( 3328,  2816,   48,   64,  48,   0, 'b-tunnel-box-2'),
   b( 3200,  2432,   64,   48,  96,   0, 'b-tunnel-tall-box'),
   b( 3392,  5504,   64,   64,  96,   0, 'b-tunnel-entrance-box'),
-  b( 3264,  5120,   48,   48,  48,   0, 'b-tunnel-mid-box'),
+  b( 3456,  5120,   48,   48,  48,   0, 'b-tunnel-mid-box'),
   // B洞下层岔路
   b( 1200,  1800,   64,  400, 200,   0, 'b-tunnel-fork-wall'),
   b( 1050,  2000,   64,   32, 220,   0, 'b-tunnel-fork-left'),
@@ -238,20 +287,30 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b( 1450,  2800,   64,  400, 200,   0, 'b-lower-to-stairs-wall'),
 
   // ── B Site（B包点）──────────────────────────────────────────
-  // 包点平台
-  b( 2560, -1280,  640,  448,  16,   0, 'b-site-platform'),
+  // 包点平台 — 精雕版
+  b( 2560, -1280,  640,  448,  16,   0, 'b-site-platform-base'),
+  b( 2560, -1024,  640,   64,  10,  16, 'b-site-platform-front-lip'),
+  b( 2560, -1536,  512,   64,  10,  16, 'b-site-platform-rear-lip'),
   // 四面墙
   b( 2560, -1920, 1792,   32, 320,   0, 'b-site-north-wall'),
   b( 1664, -1280,   32, 1664, 320,   0, 'b-site-west-wall'),
   b( 3456, -1280,   32, 1664, 320,   0, 'b-site-east-wall'),
   b( 2560,  -256, 1792,   32, 320,   0, 'b-site-south-wall'),
-  // Car
-  b( 2688, -1408,  128,   64,  40,  96, 'b-car'),
-  // Back Plat
-  b( 2176, -1728,  256,  128,  88,   0, 'b-back-plat'),
-  // 平台掩体
-  b( 2368, -1408,   64,   64,  96,  96, 'b-site-double-stack'),
-  b( 2368, -1536,   64,   64,  48,  96, 'b-site-default-box'),
+  // Car — 车身+引擎盖+后备箱
+  b( 2688, -1408,  128,   64,  40,  96, 'b-car-body'),
+  b( 2688, -1344,   96,   32,  16, 136, 'b-car-hood'),
+  b( 2688, -1472,   96,   32,  16, 136, 'b-car-trunk'),
+  // Back Plat — 底座+台阶+后墙
+  b( 2176, -1728,  256,  128,  88,   0, 'b-back-plat-base'),
+  b( 2176, -1792,  192,   64,  32,  88, 'b-back-plat-step'),
+  b( 2176, -1856,  256,   32,  64,  88, 'b-back-plat-rear-wall'),
+  // Default — 底座+上层
+  b( 2368, -1408,   64,  128,  20,  96, 'b-site-default-base'),
+  b( 2368, -1472,   64,   64,  48, 116, 'b-site-default-upper'),
+  // Double stack — 两层可辨识
+  b( 2240, -1408,   64,   64,  48,  96, 'b-site-double-lower'),
+  b( 2240, -1408,   48,   48,  48, 144, 'b-site-double-upper'),
+  // 其余掩体
   b( 2688, -1664,   64,   48,  96,  96, 'b-site-right-back-box'),
   b( 2176, -1344,   48,   48,  48,  96, 'b-site-small-box'),
   // 地面掩体
@@ -260,14 +319,69 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b( 2880,  -640,   96,   48,  48,   0, 'b-right-corridor-box'),
   b( 2752, -1664,   64,   48,  48,   0, 'b-back-corner-box'),
   b( 2176, -1920,   48,   64,  48,   0, 'b-north-wall-box'),
-  // B Window（B窗台，可蹲通过）
+  // B Window — 更清晰的窗洞结构
   b( 1920, -1216,   96,   64, 128,   0, 'b-window-platform'),
-  b( 1920, -1152,   96,   32,  32, 128, 'b-window-sill'),
+  b( 1920, -1152,   96,   32,  32, 128, 'b-window-sill-top'),
   b( 1920, -1280,   96,   32,  64,  64, 'b-window-sill-low'),
-  // B Doors
+  b( 1888, -1216,   32,   64, 128,   0, 'b-window-side-block-w'),
+  b( 1952, -1216,   32,   64, 128,   0, 'b-window-side-block-e'),
+  // B Doors — 更厚的门洞
   b( 1920, -1472,   32,  128, 256,   0, 'b-doors-frame-north'),
   b( 1920, -1600,   32,  128, 256,   0, 'b-doors-frame-south'),
   b( 1920, -1536,  128,   32,  64, 192, 'b-doors-lintel'),
+  b( 1856, -1536,   64,  256, 256,   0, 'b-doors-thickness-w'),
+  b( 1984, -1536,   64,  256, 256,   0, 'b-doors-thickness-e'),
+
+  // ── 新增：B Outside（T家→B外侧路线）───────────────────────
+  // B Outside 主走廊外墙（T家右侧绕行）
+  b( 1920,  5632,   32, 1024, 256,   0, 'b-outside-outer-wall-n'),
+  b( 1920,  4608,   32, 1024, 256,   0, 'b-outside-outer-wall-s'),
+  b( 2560,  5120,  1280,   32, 256,   0, 'b-outside-back-wall'),
+  // B Outside 走廊顶
+  b( 2240,  5120, 640, 1024,   32, 256, 'b-outside-ceiling'),
+  // B Outside 掩体
+  b( 2048,  4352,   64,   64,  48,   0, 'b-outside-box-1'),
+  b( 2432,  4864,   64,   64,  96,   0, 'b-outside-box-2'),
+
+  // ── 新增：A Long Corner（转角墙）────────────────────────────
+  // Long Corner — A大道进入A Site前的拐角遮蔽墙
+  b(-3136,  -256,   32,  512, 256,   0, 'a-long-corner-wall'),
+  b(-2944,  -512, 384,    32, 256,   0, 'a-long-corner-south-wall'),
+  // Long Corner 箱子（玩家常用反扒位）
+  b(-3072,  -384,   96,   64,  96,   0, 'a-long-corner-box'),
+
+  // ── 新增：Short Boost Wall（Catwalk上方可跳台阶）──────────
+  b(-1280, -1792,  256,   32,  64, 128, 'short-boost-wall'),
+  b(-1152, -1792,  128,   64,  96, 128, 'short-double-stack'),
+
+  // ── 新增：Ninja 忍者位（A Site 西北角夹角）──────────────────
+  b(-3456, -1760,   32,  320, 96,   0, 'a-ninja-wall-refined'),
+  b(-3328, -1888,  224,   32, 96,   0, 'a-ninja-back-edge'),
+  b(-3264, -1760,   64,  128, 48,   0, 'a-ninja-floor-stop'),
+
+  // ── 新增：CT Mid → B 连接走廊（绕行路线）────────────────────
+  b(  640, -2048,   32,  512, 256,   0, 'ct-to-b-corridor-wall-e'),
+  b(  384, -2048,   32,  512, 256,   0, 'ct-to-b-corridor-wall-w'),
+  b(  512, -2304,  512,   32, 256,   0, 'ct-to-b-corridor-north'),
+
+  // ── 新增：T Mid 拱门结构（T家出口遮蔽）─────────────────────
+  b( -192,  5760,  192,   32, 256,   0, 't-mid-arch-base-l'),
+  b(  192,  5760,  192,   32, 256,   0, 't-mid-arch-base-r'),
+  b( -192,  5632,   32,  256, 256,   0, 't-mid-arch-left'),
+  b(  192,  5632,   32,  256, 256,   0, 't-mid-arch-right'),
+
+  // ── 新增：Mid Boost Wall（中路西侧可跳矮墙）────────────────
+  b( -320,   512,   32,  256,  64,   0, 'mid-boost-wall'),
+
+  // ── 新增：Pit 下沉地面（比主地面低64 HU）────────────────────
+  // Pit 坑底（玩家跳入后站立区域，低于A Long地面）
+  b(-3584,  -256,  576,  512,  16, -64, 'pit-floor'),
+  // Pit 东侧上台阶（从pit爬回A Long的台阶）
+  b(-3264,  -256,   32,  512, 256,   0, 'pit-east-wall'),
+  ...stairsZ(-3392, -512, 192, 256, -64, 0, 4, 'pit-climb-stairs'),
+
+  // ── 新增：A Site Ninja 夹角（后角藏身位）────────────────────
+  b(-3520, -1728,   32,  384, 256,   0, 'a-site-ninja-corner-wall'),
 ];
 
 // ═══════════════════════════════════════════════════════════════

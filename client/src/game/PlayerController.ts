@@ -21,9 +21,9 @@ export class PlayerController {
   private armor = 100;
   private maxArmor = 100;
   private moving = false;
-  private eyeHeight = 0.28;
-  private readonly standingEyeHeight = 0.28;
-  private readonly crouchEyeHeight = 0.14;
+  private eyeHeight = 0.64;
+  private readonly standingEyeHeight = 0.64;
+  private readonly crouchEyeHeight = 0.36;
   private grounded = false;
   private airborneTime = 0;
   private crouched = false;
@@ -287,8 +287,17 @@ export class PlayerController {
     return { pitch: this.pitch, yaw: this.yaw };
   }
 
+  setRotation(pitch: number, yaw: number): void {
+    this.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+    this.yaw = yaw;
+  }
+
   setPosition(position: THREE.Vector3): void {
     this.body.position.set(position.x, this.resolveBodyYFromEyeY(position.y), position.z);
+  }
+
+  resetVelocity(): void {
+    this.body.velocity.set(0, 0, 0);
   }
 
   dispose(): void {
