@@ -618,36 +618,55 @@ function buildDust2Arena(): ArenaData {
   const H = (v: number) => v * 0.01;
 
   const props: BoxSpec[] = [
-    // ── 大面积沙地地面 ──
-    { ...box(0, 0.01, H(1536), H(8192), 0.02, H(10240), 0xffffff, 'dust2-sand-floor', 0.04, 0.88), textureKey: 'sand' as const },
+    // ── 大面积沙地地面（最底层 Y=0.00）──
+    { ...box(0, 0.00, H(1536), H(8192), 0.02, H(10240), 0xffffff, 'dust2-sand-floor', 0.04, 0.88), textureKey: 'sand' as const },
 
-    // ── A Site 包点地面（混凝土）+ 标记 ──
-    { ...box(H(-2688), 0.01, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-a-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
+    // ── A Site 包点地面（混凝土，Y=0.005）+ 标记 ──
+    { ...box(H(-2688), 0.005, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-a-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
     box(H(-2560), 0.03, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-a-bomb-marker', 0.1, 0.6),
 
-    // ── B Site 包点地面（混凝土）+ 标记 ──
-    { ...box(H(2560), 0.01, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-b-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
+    // ── B Site 包点地面（混凝土，Y=0.005）+ 标记 ──
+    { ...box(H(2560), 0.005, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-b-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
     box(H(2560), 0.03, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-b-bomb-marker', 0.1, 0.6),
 
-    // ── CT Spawn 地面（浅色石板）──
-    { ...box(0, 0.01, H(3328), H(2048), 0.02, H(768), 0xa09880, 'dust2-ct-spawn-floor', 0.05, 0.85), textureKey: 'concrete' as const },
+    // ── CT Spawn 地面（暗色石板，Y=0.005，封闭房间内部）──
+    { ...box(0, 0.005, H(3328), H(1024), 0.02, H(768), 0x4a4038, 'dust2-ct-spawn-floor', 0.05, 0.85), textureKey: 'concrete' as const },
 
-    // ── A Long 走廊地面（沙地较暗）──
-    { ...box(H(-3584), 0.01, H(3072), H(576), 0.02, H(6144), 0xb09060, 'dust2-a-long-floor', 0.04, 0.90), textureKey: 'sand' as const },
+    // ── CT Spawn 房间墙体视觉（四面封闭，暗色）──
+    // 后墙
+    { ...box(0, 1.28, H(3712), H(1024), 2.56, H(16), 0x3a3028, 'dust2-ct-spawn-back-wall-visual', 0.3, 0.7), textureKey: 'concrete' as const },
+    // 左墙
+    { ...box(H(-512), 1.28, H(3328), H(16), 2.56, H(768), 0x3a3028, 'dust2-ct-spawn-left-wall-visual', 0.3, 0.7), textureKey: 'concrete' as const },
+    // 右墙
+    { ...box(H(512), 1.28, H(3328), H(16), 2.56, H(768), 0x3a3028, 'dust2-ct-spawn-right-wall-visual', 0.3, 0.7), textureKey: 'concrete' as const },
+    // 前墙左段
+    { ...box(H(-768), 1.28, H(2944), H(256), 2.56, H(16), 0x3a3028, 'dust2-ct-spawn-front-left-visual', 0.3, 0.7), textureKey: 'concrete' as const },
+    // 前墙中段
+    { ...box(0, 1.28, H(2944), H(256), 2.56, H(16), 0x3a3028, 'dust2-ct-spawn-front-mid-visual', 0.3, 0.7), textureKey: 'concrete' as const },
+    // 前墙右段
+    { ...box(H(768), 1.28, H(2944), H(256), 2.56, H(16), 0x3a3028, 'dust2-ct-spawn-front-right-visual', 0.3, 0.7), textureKey: 'concrete' as const },
+    // 屋顶（封闭顶部，使房间昏暗，高度在墙顶2.56附近）
+    { ...box(0, 2.56, H(3328), H(1040), 0.32, H(784), 0x2a2018, 'dust2-ct-spawn-ceiling-visual', 0.3, 0.7), textureKey: 'concrete' as const },
+
+    // ── T Spawn 地面（沙地延伸，Y=0.005）──
+    { ...box(0, 0.005, H(-5632), H(2048), 0.02, H(2048), 0xb09060, 'dust2-t-spawn-floor', 0.04, 0.90), textureKey: 'sand' as const },
+
+    // ── A Long 走廊地面（沙地较暗，Y=0.005）──
+    { ...box(H(-3584), 0.005, H(3072), H(576), 0.02, H(6144), 0xb09060, 'dust2-a-long-floor', 0.04, 0.90), textureKey: 'sand' as const },
 
     // ── A Site 平台边沿与 Goose 区域视觉增强 ──
     { ...box(H(-2688), 0.18, H(1024), H(768), 0.04, H(32), 0xe0c48c, 'dust2-a-site-platform-edge', 0.05, 0.78), textureKey: 'plaster' as const },
     { ...box(H(-1984), 0.18, H(1600), H(224), 0.04, H(224), 0xc8b898, 'dust2-goose-floor-accent', 0.05, 0.80), textureKey: 'plaster' as const },
 
-    // ── B Tunnels 地面（暗色砖面）──
-    { ...box(H(3264), 0.01, H(3072), H(576), 0.02, H(6144), 0x6a5a48, 'dust2-b-tunnel-floor', 0.06, 0.92), textureKey: 'concrete' as const },
+    // ── B Tunnels 地面（暗色砖面，Y=0.005）──
+    { ...box(H(3264), 0.005, H(3072), H(576), 0.02, H(6144), 0x6a5a48, 'dust2-b-tunnel-floor', 0.06, 0.92), textureKey: 'concrete' as const },
 
     // ── B Site platform edge accent ──
     { ...box(H(2560), 0.18, H(1024), H(640), 0.04, H(32), 0xd0b888, 'dust2-b-site-platform-edge', 0.05, 0.78), textureKey: 'plaster' as const },
     // ── B Default / Double area floor accent ──
     { ...box(H(2368), 0.10, H(1408), H(128), 0.04, H(192), 0xb8a070, 'dust2-b-default-floor-accent', 0.05, 0.82), textureKey: 'plaster' as const },
-    // ── Upper Dark floor (darker concrete) ──
-    { ...box(H(3072), 0.01, H(512), H(320), 0.02, H(1536), 0x3a3028, 'dust2-upper-dark-floor', 0.06, 0.95), textureKey: 'concrete' as const },
+    // ── Upper Dark floor (darker concrete, Y=0.005) ──
+    { ...box(H(3072), 0.005, H(512), H(320), 0.02, H(1536), 0x3a3028, 'dust2-upper-dark-floor', 0.06, 0.95), textureKey: 'concrete' as const },
     // ── B Window threshold ──
     { ...box(H(1920), 0.10, H(1216), H(96), 0.04, H(64), 0x9a8a72, 'dust2-b-window-threshold', 0.05, 0.84), textureKey: 'concrete' as const },
     // ── B Doors threshold ──
@@ -707,13 +726,12 @@ function buildDust2Arena(): ArenaData {
     { ...box(H(-384), 0.02, H(3136), H(48), 0.02, H(48), 0x7a7060, 'dust2-dirt-ct-spawn-1', 0.08, 0.90) },
     { ...box(H(384), 0.02, H(3136), H(48), 0.02, H(48), 0x7a7060, 'dust2-dirt-ct-spawn-2', 0.08, 0.90) },
 
-    // ── Mid / CT Mid 地面层次 ──
-    { ...box(H(0), 0.02, H(-1024), H(1024), 0.02, H(2048), 0xb89e6a, 'dust2-mid-tone-floor', 0.05, 0.86), textureKey: 'sand' as const },
+    // ── Mid / CT Mid 地面层次（Y=0.005）──
+    { ...box(H(0), 0.005, H(-1024), H(1024), 0.02, H(2048), 0xb89e6a, 'dust2-mid-tone-floor', 0.05, 0.86), textureKey: 'sand' as const },
     { ...box(H(-64), 0.10, H(-2048), H(384), 0.04, H(128), 0x9a8a72, 'dust2-mid-doors-threshold', 0.05, 0.84), textureKey: 'concrete' as const },
     { ...box(H(0), 0.10, H(-1664), H(256), 0.04, H(512), 0x8f7b5e, 'dust2-ct-mid-floor-accent', 0.05, 0.84), textureKey: 'concrete' as const },
 
-    // ── CT 家地面（石板）──
-    { ...box(0, 0.01, H(3328), H(2048), 0.02, H(768), 0xa09880, 'dust2-ct-spawn-floor', 0.05, 0.85), textureKey: 'concrete' as const },
+    // ── 木门 ──
     { ...box(H(-3712), 1.28, H(-1920), 0.10, 2.56, H(192), 0xffffff, 'dust2-a-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
     { ...box(H(-3456), 1.28, H(-1920), 0.10, 2.56, H(192), 0xffffff, 'dust2-a-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
     { ...box(H(-64),  1.28, H(-2048), 0.10, 2.56, H(192), 0xffffff, 'dust2-mid-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
@@ -796,14 +814,14 @@ function buildDust2Arena(): ArenaData {
     box(H(-3904), 1.84, H(3500), H(32), 0.12, H(32), 0xffa040, 'dust2-a-lamp-2', 0.1, 0.3),
     box(H(-3904), 1.84, H(1500), H(32), 0.12, H(32), 0xffa040, 'dust2-a-lamp-3', 0.1, 0.3),
 
-    // ── Pit 坑底地面（比主地面低）──
+    // ── Pit 坑底地面（比主地面低，保持原样）──
     { ...box(H(-3584), -0.63, H(256), H(576), 0.02, H(512), 0xb09060, 'dust2-pit-floor', 0.04, 0.90), textureKey: 'sand' as const },
 
-    // ── A Site Ninja 夹角地面标记（细节地板纹理）──
-    { ...box(H(-3424), 0.01, H(1856), H(192), 0.02, H(384), 0x9a8860, 'dust2-ninja-floor', 0.04, 0.90), textureKey: 'concrete' as const },
+    // ── A Site Ninja 夹角地面标记（Y=0.005）──
+    { ...box(H(-3424), 0.005, H(1856), H(192), 0.02, H(384), 0x9a8860, 'dust2-ninja-floor', 0.04, 0.90), textureKey: 'concrete' as const },
 
-    // ── B Outside 地面 ──
-    { ...box(H(2240), 0.01, H(-5120), H(640), 0.02, H(1024), 0xb09060, 'dust2-b-outside-floor', 0.04, 0.88), textureKey: 'sand' as const },
+    // ── B Outside 地面（Y=0.005）──
+    { ...box(H(2240), 0.005, H(-5120), H(640), 0.02, H(1024), 0xb09060, 'dust2-b-outside-floor', 0.04, 0.88), textureKey: 'sand' as const },
 
     // ── A Site 货柜箱（A Ramp 旁）──
     box(H(-3072), 0.30, H(-768), H(128), 0.96, H(96), 0x4a6e3a, 'dust2-a-shipping-container-1', 0.3, 0.55),
