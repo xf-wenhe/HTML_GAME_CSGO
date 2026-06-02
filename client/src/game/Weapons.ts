@@ -100,6 +100,12 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     projectileSpeed: 66, switchTime: 0.3, range: 52, reserveAmmo: 100,
     armorPenetration: 0.69, adsSpreadMultiplier: 0.54
   }),
+  mp5sd: new Weapon({
+    id: 'mp5sd', name: 'MP5-SD', displayName: 'MP5-SD',
+    damage: 27, fireRate: 11, magazineSize: 30, reloadTime: 2.2, spread: 0.06,
+    projectileSpeed: 64, switchTime: 0.28, range: 52, reserveAmmo: 120,
+    armorPenetration: 0.62, adsSpreadMultiplier: 0.52
+  }),
 
   // ── 步枪 ──────────────────────────────────────────────────────────────────
   rifle: new Weapon({
@@ -214,6 +220,12 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     projectileSpeed: 42, switchTime: 0.48, range: 24, reserveAmmo: 32,
     armorPenetration: 0.25, adsSpreadMultiplier: 0.65, pellets: 8
   }),
+  sawedoff: new Weapon({
+    id: 'sawedoff', name: 'Sawed-Off', displayName: 'Sawed-Off',
+    damage: 22, fireRate: 1.4, magazineSize: 7, reloadTime: 2.5, spread: 0.24,
+    projectileSpeed: 36, switchTime: 0.42, range: 18, reserveAmmo: 32,
+    armorPenetration: 0.22, adsSpreadMultiplier: 0.7, pellets: 8
+  }),
   m249: new Weapon({
     id: 'm249', name: 'M249', displayName: 'M249',
     damage: 32, fireRate: 11, magazineSize: 100, reloadTime: 5.0, spread: 0.075,
@@ -242,6 +254,13 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     projectileSpeed: 0, ammoConsumed: false, isMelee: true,
     switchTime: 0.18, range: 2.35, reserveAmmo: 0,
     armorPenetration: 0.2, adsSpreadMultiplier: 1
+  }),
+  zeus: new Weapon({
+    id: 'zeus', name: 'Zeus x27', displayName: 'Zeus x27',
+    damage: 500, fireRate: 0.2, magazineSize: 1, reloadTime: 0, spread: 0.01,
+    projectileSpeed: 60, ammoConsumed: true,
+    switchTime: 0.35, range: 3.5, reserveAmmo: 0,
+    armorPenetration: 1.0, adsSpreadMultiplier: 1
   }),
 
   // ── 旧别名兼容（保持现有购买菜单ID可用） ────────────────────────────────

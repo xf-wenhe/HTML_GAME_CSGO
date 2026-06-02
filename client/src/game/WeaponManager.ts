@@ -247,14 +247,18 @@ export class WeaponManager {
   private setViewModelRenderOrder(model: THREE.Object3D): void {
     model.traverse(child => {
       if (!(child instanceof THREE.Mesh)) return;
+      // 材质设置
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       materials.forEach(mat => {
         mat.depthTest = false;   // 跳过深度测试，始终渲染
         mat.depthWrite = false;  // 不写入深度缓冲，避免干扰场景
-        mat.renderOrder = 999;   // 最高渲染优先级
         mat.needsUpdate = true;
       });
+      // Object3D 渲染顺序（renderOrder 是 Object3D 属性，不是 Material 属性）
+      child.renderOrder = 999;
     });
+    // 根节点也要设置
+    model.renderOrder = 999;
   }
 
   private resolveWeaponAssetId(weaponId: string): string {

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 70">
+  <defs>
+    <linearGradient id="knife-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D8DCE0"/>
+      <stop offset="100%" stop-color="#9098A0"/>
+    </linearGradient>
+  </defs>
+  <!-- Tactical Knife: curved blade + karambit handle -->
+  <g fill="url(#knife-grad)">
+    <!-- Handle -->
+    <rect x="90" y="25" width="12" height="36" rx="4"/>
+    <!-- Handle finger grooves -->
+    <rect x="90" y="32" width="14" height="3" rx="1" opacity="0.3"/>
+    <rect x="90" y="40" width="14" height="3" rx="1" opacity="0.3"/>
+    <rect x="90" y="48" width="14" height="3" rx="1" opacity="0.3"/>
+    <!-- Handle butt -->
+    <circle cx="96" cy="62" r="5"/>
+    <!-- Blade (curved) -->
+    <path d="M56 22 Q48 20 38 18 Q28 16 22 20 Q16 24 20 28 Q24 32 36 34 Q48 36 60 35 Q72 34 82 30 Q90 26 86 22 Z"/>
+    <!-- Blade spine highlight -->
+    <path d="M56 22 Q48 20 38 18 Q32 17 26 19" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity="0.3"/>
+    <!-- Finger ring -->
+    <circle cx="86" cy="28" r="8" fill="none" stroke="url(#knife-grad)" stroke-width="3"/>
+    <!-- Point highlight -->
+    <circle cx="20" cy="22" r="1.5" fill="#FFF" opacity="0.4"/>
+  </g>
+</svg>

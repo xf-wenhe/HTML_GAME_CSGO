@@ -59,10 +59,17 @@
       "Bash(npx -y claude-mem install)",
       "Bash(bun --version)",
       "Bash(xargs cat)",
-      "Bash(pkill -f \"node.*5173\\\\|vite\")"
+      "Bash(pkill -f \"node.*5173\\\\|vite\")",
+      "Bash(xargs kill -9)",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/**)",
+      "Bash('button')",
+      "Bash(node screenshot-game.cjs)"
     ],
     "additionalDirectories": [
-      "/Users/fengye/.claude/plugins/marketplaces/thedotmack/src/services"
+      "/Users/fengye/.claude/plugins/marketplaces/thedotmack/src/services",
+      "/tmp",
+      "/private/tmp"
     ]
   }
 }

@@ -35,6 +35,7 @@ const BUY_MENU_CATEGORIES: BuyMenuCategory[] = [
       { label: 'Five-SeveN',    price: 500,  hint: '穿甲利器',        damage: 32,  svgType: 'pistol',       weaponId: 'five_seven' },
       { label: 'R8 Revolver',   price: 600,  hint: '高伤转轮',        damage: 86,  svgType: 'pistol-heavy', weaponId: 'r8' },
       { label: 'Desert Eagle',  price: 700,  hint: '强力单发',        damage: 55,  svgType: 'pistol-heavy', weaponId: 'deagle' },
+      { label: 'Zeus x27',     price: 200,  hint: '电击一击必杀',      damage: 500, svgType: 'pistol-heavy', weaponId: 'zeus' },
     ]
   },
   {
@@ -42,6 +43,7 @@ const BUY_MENU_CATEGORIES: BuyMenuCategory[] = [
     items: [
       { label: 'MAC-10',   price: 1050, hint: 'T方近距离',   damage: 29, svgType: 'smg', weaponId: 'mac10' },
       { label: 'MP9',      price: 1250, hint: 'CT方SMG',     damage: 26, svgType: 'smg', weaponId: 'mp9' },
+      { label: 'MP5-SD',   price: 1500, hint: '消音SMG',     damage: 27, svgType: 'smg', weaponId: 'mp5sd' },
       { label: 'UMP-45',   price: 1200, hint: '高穿甲伤害',  damage: 35, svgType: 'smg', weaponId: 'ump45' },
       { label: 'PP-野牛',  price: 1400, hint: '超大弹匣',    damage: 27, svgType: 'smg', weaponId: 'pp_bizon' },
       { label: 'MP7',      price: 1500, hint: '精准全能',    damage: 29, svgType: 'smg', weaponId: 'mp7' },
@@ -72,6 +74,7 @@ const BUY_MENU_CATEGORIES: BuyMenuCategory[] = [
   {
     title: '重型 / 霰弹枪 / 机枪',
     items: [
+      { label: 'Sawed-Off',price: 1100, hint: 'T方短管霰弹',damage: 22,  svgType: 'shotgun', weaponId: 'sawedoff' },
       { label: 'Nova',    price: 1050, hint: '近距爆发',  damage: 20,  svgType: 'shotgun', weaponId: 'nova' },
       { label: 'MAG-7',   price: 1300, hint: 'CT方霰弹',  damage: 30,  svgType: 'shotgun', weaponId: 'mag7' },
       { label: 'XM1014',  price: 2000, hint: '半自动霰弹',damage: 19,  svgType: 'shotgun', weaponId: 'xm1014' },

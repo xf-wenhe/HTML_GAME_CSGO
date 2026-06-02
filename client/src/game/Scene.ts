@@ -124,17 +124,8 @@ export class Scene {
     // Sky dome
     this.createSkyDome(sky.skyTop, sky.skyHorizon);
 
-    const groundGeometry = new THREE.PlaneGeometry(arena.bounds.width, arena.bounds.depth, 18, 24);
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      color: arena.name === 'Dust2' ? 0x8a7a5a : arena.name === 'Italy' ? 0x5d6870 : 0x555e66,
-      metalness: 0.1,
-      roughness: 0.78
-    });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.z = arena.bounds.centerZ;
-    ground.receiveShadow = true;
-    this.addArenaObject(ground);
+    // 注意：地面几何体由 MapData.ts 的 props 定义，不再在此创建 PlaneGeometry
+    // 避免 Z-fighting（多个地面在同一 y 高度导致材质闪烁）
 
     [...arena.colliders, ...arena.props].forEach(spec => this.addBox(spec));
 
