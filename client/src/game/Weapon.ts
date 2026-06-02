@@ -55,6 +55,7 @@ export class Weapon {
   private reloadStartTime: number = 0;
   private shotPressure = 0;
   private lastShotIndex = -1;
+  private lastUpdateTime: number = 0; // 新增：用于帧间平滑计算
 
   constructor(config: WeaponConfig) {
     this.id = config.id;
@@ -83,7 +84,8 @@ export class Weapon {
       { x: 0.012, y: 0.044 },
       { x: -0.014, y: 0.052 }
     ];
-    this.moveInaccuracy = config.moveInaccuracy ?? (this.isMelee ? 0 : this.spread * 1.4);
+    // CSGO中移动开枪惩罚非常高，如果未配置自动增加为站立散布的2.5倍
+    this.moveInaccuracy = config.moveInaccuracy ?? (this.isMelee ? 0 : this.spread * 2.5);
     this.standRecovery = config.standRecovery ?? 0.36;
     this.currentAmmo = this.magazineSize;
   }
@@ -103,7 +105,8 @@ export class Weapon {
     if (timeSinceLastShot < 1 / this.fireRate) return false;
 
     if (this.ammoConsumed) this.currentAmmo--;
-    this.lastShotIndex = Math.min(this.recoilPattern.length - 1, this.lastShotIndex + 1);
+    // 【修复】每次射击将浮点恢复转正，确保连续点射时后坐力正确叠加
+    this.lastShotIndex = Math.min(this.recoilPattern.length - 1, Math.max(0, Math.floor(this.lastShotIndex)) + 1);
     this.shotPressure = Math.min(1.6, this.shotPressure + (this.recoilPattern.length > 10 ? 0.06 : 0.16));
     this.lastShotTime = now;
     return true;
@@ -116,6 +119,10 @@ export class Weapon {
   }
 
   update(now: number = performance.now()): void {
+    // 获取 delta time 用于平滑过渡
+    const dt = this.lastUpdateTime > 0 ? (now - this.lastUpdateTime) / 1000 : 0.016;
+    this.lastUpdateTime = now;
+
     if (this.isReloading) {
       const reloadProgress = (now - this.reloadStartTime) / 1000;
       if (reloadProgress >= this.reloadTime) {
@@ -126,10 +133,21 @@ export class Weapon {
         this.isReloading = false;
       }
     }
+    
     const timeSinceLastShot = (now - this.lastShotTime) / 1000;
-    if (!this.isReloading && this.lastShotTime > 0 && timeSinceLastShot >= 0.4) {
-      this.shotPressure = 0;
-      this.lastShotIndex = -1;
+    
+    // 【核心修复】取消0.4秒的瞬间清零，改为按时间(dt)逐帧平滑衰减后坐力
+    if (!this.isReloading && this.lastShotTime > 0) {
+      // 恢复延迟：仅当停止射击时间超过射击间隔的一小段（类似刚能开下一枪的瞬间）就开始迅速恢复
+      const recoveryDelay = Math.max(0.05, (1 / this.fireRate) * 0.6);
+      
+      if (timeSinceLastShot > recoveryDelay) {
+        // 准星扩散恢复：基于 standRecovery 参数。乘以8让数值在半秒左右能完全归零，模拟点射手感
+        this.shotPressure = Math.max(0, this.shotPressure - this.standRecovery * dt * 8);
+        
+        // 后坐力弹道平滑下降（每秒降低约25发后坐力进度，支持2连发/3连发迅速复位）
+        this.lastShotIndex = Math.max(-1, this.lastShotIndex - dt * 25);
+      }
     }
   }
 
@@ -139,17 +157,23 @@ export class Weapon {
   }
 
   getSpreadMultiplier(): number {
-    return 1 + this.shotPressure;
+    // 调高压力惩罚系数，做到“首发极准，扫射失控”的效果
+    return 1 + (this.shotPressure * 1.5);
   }
 
   getEffectiveSpread(isMoving = false, isAiming = false): number {
     const aimingMultiplier = isAiming && !this.isMelee ? this.adsSpreadMultiplier : 1;
-    return this.spread * this.getSpreadMultiplier() * aimingMultiplier + (isMoving ? this.moveInaccuracy : 0);
+    // 【核心修复】原配置的散布在空间计算中偏差太大，用 0.15 缩小首发散布基数
+    const baseCSGOPrecision = this.spread * 0.15; 
+    return baseCSGOPrecision * this.getSpreadMultiplier() * aimingMultiplier + (isMoving ? this.moveInaccuracy : 0);
   }
 
   getRecoilOffset(): { x: number; y: number } {
     if (this.lastShotIndex <= 0 || this.isMelee) return { x: 0, y: 0 };
-    return this.recoilPattern[Math.min(this.lastShotIndex - 1, this.recoilPattern.length - 1)];
+    // 因为现在是平滑下降(浮点数)，此处用 Math.floor 转换获取弹道阵列索引
+    const idx = Math.min(Math.floor(this.lastShotIndex) - 1, this.recoilPattern.length - 1);
+    if (idx < 0) return { x: 0, y: 0 };
+    return this.recoilPattern[idx];
   }
 
   getDamageProfile(): DamageProfile {

@@ -296,7 +296,6 @@ const materialZone = (
 });
 
 type AnyCollider = { position: { x: number; y: number; z: number }; size: { x: number; y: number; z: number }; rotation?: { x: number; y: number; z: number }; name?: string };
-
 function buildMapArena(
   name: string,
   colliders: AnyCollider[],
@@ -529,8 +528,7 @@ function buildBloodStrikeArena(): ArenaData {
     [
       box(BLOODSTRIKE_BOMB_SITES.A.position.x, BLOODSTRIKE_BOMB_SITES.A.position.y, BLOODSTRIKE_BOMB_SITES.A.position.z, 1.92, 0.04, 1.92, 0xd4a017, 'bs-a-bomb-marker', 0.1, 0.6),
       box(BLOODSTRIKE_BOMB_SITES.B.position.x, BLOODSTRIKE_BOMB_SITES.B.position.y, BLOODSTRIKE_BOMB_SITES.B.position.z, 1.92, 0.04, 1.92, 0xd4a017, 'bs-b-bomb-marker', 0.1, 0.6),
-      box(0, 0.01, 0, 32, 0.02, 32, 0x6a1414, 'bs-blood-floor', 0.05, 0.75),
-    ],
+      box(0, 0.01, 0, 32, 0.02, 32, 0x8a8b85, 'bs-concrete-floor', 0.05, 0.85),    ],
     [
       materialZone('bs-concrete', 'concrete', 0, 0, 0, 32, 0.1, 32),
       materialZone('bs-metal-center', 'metal', 0, 0, 0, 4, 0.1, 4),
@@ -626,7 +624,7 @@ function buildDust2Arena(): ArenaData {
     box(H(-2560), 0.03, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-a-bomb-marker', 0.1, 0.6),
 
     // ── B Site 包点地面（混凝土，Y=0.005）+ 标记 ──
-    { ...box(H(2560), 0.005, H(1280), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-b-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
+    { ...box(H(2560), 0.005, H(1536), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-b-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
     box(H(2560), 0.03, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-b-bomb-marker', 0.1, 0.6),
 
     // ── CT Spawn 地面（暗色石板，Y=0.005，封闭房间内部）──
@@ -662,13 +660,13 @@ function buildDust2Arena(): ArenaData {
     { ...box(H(3264), 0.005, H(3072), H(576), 0.02, H(6144), 0x6a5a48, 'dust2-b-tunnel-floor', 0.06, 0.92), textureKey: 'concrete' as const },
 
     // ── B Site platform edge accent ──
-    { ...box(H(2560), 0.18, H(1024), H(640), 0.04, H(32), 0xd0b888, 'dust2-b-site-platform-edge', 0.05, 0.78), textureKey: 'plaster' as const },
+    { ...box(H(2560), 0.18, H(1152), H(512), 0.04, H(32), 0xd0b888, 'dust2-b-site-platform-edge', 0.05, 0.78), textureKey: 'plaster' as const },
     // ── B Default / Double area floor accent ──
     { ...box(H(2368), 0.10, H(1408), H(128), 0.04, H(192), 0xb8a070, 'dust2-b-default-floor-accent', 0.05, 0.82), textureKey: 'plaster' as const },
     // ── Upper Dark floor (darker concrete, Y=0.005) ──
     { ...box(H(3072), 0.005, H(512), H(320), 0.02, H(1536), 0x3a3028, 'dust2-upper-dark-floor', 0.06, 0.95), textureKey: 'concrete' as const },
     // ── B Window threshold ──
-    { ...box(H(1920), 0.10, H(1216), H(96), 0.04, H(64), 0x9a8a72, 'dust2-b-window-threshold', 0.05, 0.84), textureKey: 'concrete' as const },
+    { ...box(H(1920), 0.10, H(1024), H(96), 0.04, H(64), 0x9a8a72, 'dust2-b-window-threshold', 0.05, 0.84), textureKey: 'concrete' as const },
     // ── B Doors threshold ──
     { ...box(H(1920), 0.10, H(1536), H(128), 0.04, H(256), 0x8f7b5e, 'dust2-b-doors-threshold', 0.05, 0.84), textureKey: 'concrete' as const },
 
@@ -734,20 +732,20 @@ function buildDust2Arena(): ArenaData {
     // ── 木门 ──
     { ...box(H(-3712), 1.28, H(-1920), 0.10, 2.56, H(192), 0xffffff, 'dust2-a-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
     { ...box(H(-3456), 1.28, H(-1920), 0.10, 2.56, H(192), 0xffffff, 'dust2-a-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
-    { ...box(H(-64),  1.28, H(-2048), 0.10, 2.56, H(192), 0xffffff, 'dust2-mid-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
-    { ...box(H( 64),  1.28, H(-2048), 0.10, 2.56, H(192), 0xffffff, 'dust2-mid-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
+    { ...box(H(-64),  1.60, H(-2048), 0.10, 3.20, H(192), 0xffffff, 'dust2-mid-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
+    { ...box(H( 64),  1.60, H(-2048), 0.10, 3.20, H(192), 0xffffff, 'dust2-mid-doors-right', 0.08, 0.88), textureKey: 'wood' as const },
     { ...box(H(1920), 1.28, H(1536), H(128), 1.92, 0.10, 0xffffff, 'dust2-b-doors-left',  0.08, 0.88), textureKey: 'wood' as const },
 
     // ── CT Window / B Window 玻璃 ──
     box(0, 1.92, H(1216), H(128), 0.48, H(32), 0x9edcff, 'dust2-ct-window-glass', 0.03, 0.06, 0.3),
-    box(H(1920), 1.92, H(1152), H(96), 0.48, H(32), 0x9edcff, 'dust2-b-window-glass', 0.03, 0.06, 0.3),
+    box(H(1920), 1.92, H(960), H(96), 0.48, H(32), 0x9edcff, 'dust2-b-window-glass', 0.03, 0.06, 0.3),
 
     // ── 顶棚 ──
     box(0, H(288), H(-6144), H(2048), 0.32, H(768), 0x3a3020, 'dust2-t-spawn-roof', 0.3, 0.7),
     box(H(3264), H(264), H(-3072), H(576), 0.32, H(6144), 0x3a3020, 'dust2-b-tunnel-roof', 0.3, 0.7),
     box(H(3072), H(264), H(512), H(320), 0.32, H(1536), 0x3a3020, 'dust2-upper-tunnel-roof', 0.3, 0.7),
-    box(H(-3584), H(264), H(-3072), H(576), 0.32, H(6144), 0x3a3020, 'dust2-a-long-roof', 0.3, 0.7),
-    { ...box(H(-2560), H(296), H(-3840), H(1280), 0.32, H(1536), 0xc8b898, 'dust2-palace-ceil-visual', 0.04, 0.86), textureKey: 'plaster' as const },
+    box(H(-3584), H(336), H(-3072), H(576), 0.32, H(6144), 0x3a3020, 'dust2-a-long-roof', 0.3, 0.7),
+    { ...box(H(-2560), H(368), H(-3840), H(1280), 0.32, H(1536), 0xc8b898, 'dust2-palace-ceil-visual', 0.04, 0.86), textureKey: 'plaster' as const },
 
     // ════════════════════════════════════════════════════════
     // 标志性视觉道具

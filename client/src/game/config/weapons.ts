@@ -88,7 +88,7 @@ export const MULTIPLAYER_WEAPONS: Record<string, WeaponBalance> = {
     spread: 0.015,
     movementSpeedMultiplier: 0.72,
     armorPenetration: 0.98,
-    headshotMultiplier: 2,
+    headshotMultiplier: 4, // <-- 【修复】从 2 改为 CSGO 标准的 4
     range: 130
   },
   specter: {

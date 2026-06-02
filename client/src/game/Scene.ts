@@ -113,7 +113,15 @@ export class Scene {
       Nuke:      { bg: 0x4a5a6a, fog: 0x5a6a78, fogNear: 45, fogFar: 120, skyTop: 0x2a3a4a, skyHorizon: 0xa0b8d0 },
       Italy:     { bg: 0x6a8aaa, fog: 0x7a9ab8, fogNear: 50, fogFar: 130, skyTop: 0x4a6a90, skyHorizon: 0xc0d8f0 },
       Warehouse:    { bg: 0x4a5a6a, fog: 0x5a6878, fogNear: 40, fogFar: 110, skyTop: 0x2a3a4a, skyHorizon: 0xa0b0c0 },
-      'Blood Strike': { bg: 0x1a0a0a, fog: 0x2a1010, fogNear: 20, fogFar: 80,  skyTop: 0x100505, skyHorizon: 0x3a1010 },
+      // client/src/game/Scene.ts 中的 skyColors 配置
+      'Blood Strike': { 
+        bg: 0x799ebd, 
+        fog: 0xa8b8c8, 
+        fogNear: 80, 
+        fogFar: 250,  
+        skyTop: 0x5482a8, 
+        skyHorizon: 0xb5c6d6 
+      },
     };
 
     const sky = skyColors[arena.name] ?? skyColors.Dust2;

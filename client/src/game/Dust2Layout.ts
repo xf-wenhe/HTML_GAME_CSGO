@@ -115,12 +115,12 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b(  384, -3136,   48,   48,  48, 0, 'ct-spawn-box-right'),
 
   // ── A Long（A大道）主走廊 ────────────────────────────────────
-  // 外西墙（整条）
-  b(-3904,  3072,  192, 6144, 256, 0, 'a-long-outer-wall'),
+  // 外西墙（整条）— 320 HU增强走廊封闭感
+  b(-3904,  3072,  192, 6144, 320, 0, 'a-long-outer-wall'),
   // 内东墙（整条）
-  b(-3264,  3072,  192, 6144, 256, 0, 'a-long-inner-wall'),
-  // 天花板
-  b(-3584,  3072,  576, 6144,  32, 256, 'a-long-ceiling'),
+  b(-3264,  3072,  192, 6144, 320, 0, 'a-long-inner-wall'),
+  // 天花板（对齐墙高320）
+  b(-3584,  3072,  576, 6144,  32, 320, 'a-long-ceiling'),
 
   // A Doors 门框（左右两根柱）
   b(-3840,  1920,   32,  192, 256, 0, 'a-doors-left-frame'),
@@ -144,17 +144,17 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   ...stairsZ(-3584, -512, 320, 384, 0, 96, 3, 'pit-stairs'),
   b(-3520,  -256,   64,   48,  48, 0, 'pit-box'),
 
-  // ── Palace（宫殿）───────────────────────────────────────────
-  b(-1920,  3584,   32, 1024, 320, 0, 'palace-outer-wall'),
-  b(-2560,  3072, 1280,   32, 320, 0, 'palace-south-wall'),
-  b(-2560,  4608, 1280,   32, 320, 0, 'palace-north-wall'),
-  b(-3200,  3840,   32, 1536, 320, 0, 'palace-inner-west-wall'),
-  b(-2560,  3840, 1280, 1536,  32, 288, 'palace-ceiling'),
+  // ── Palace（宫殿）— 384 HU增强宏伟感
+  b(-1920,  3584,   32, 1024, 384, 0, 'palace-outer-wall'),
+  b(-2560,  3072, 1280,   32, 384, 0, 'palace-south-wall'),
+  b(-2560,  4608, 1280,   32, 384, 0, 'palace-north-wall'),
+  b(-3200,  3840,   32, 1536, 384, 0, 'palace-inner-west-wall'),
+  b(-2560,  3840, 1280, 1536,  32, 352, 'palace-ceiling'),
   // 四根柱子
-  b(-2048,  3200,   48,   48, 320, 0, 'palace-pillar-sw'),
-  b(-2048,  4480,   48,   48, 320, 0, 'palace-pillar-nw'),
-  b(-2816,  3200,   48,   48, 320, 0, 'palace-pillar-se'),
-  b(-2816,  4480,   48,   48, 320, 0, 'palace-pillar-ne'),
+  b(-2048,  3200,   48,   48, 384, 0, 'palace-pillar-sw'),
+  b(-2048,  4480,   48,   48, 384, 0, 'palace-pillar-nw'),
+  b(-2816,  3200,   48,   48, 384, 0, 'palace-pillar-se'),
+  b(-2816,  4480,   48,   48, 384, 0, 'palace-pillar-ne'),
   // 南侧窗口
   b(-1984,  2848,  128,   32,  96,  64, 'palace-window-sill-low'),
   b(-2048,  2848,  256,   32,  96, 160, 'palace-window-sill-high'),
@@ -178,14 +178,14 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b(-3072, -1280,   32,  512,  16,  32, 'a-site-platform-left-edge'),
   b(-2304, -1280,   32,  512,  16,  32, 'a-site-platform-right-edge'),
   // 四面墙（入口留 5.12 宽通道，中央偏 A Ramp 侧）
-  b(-3264, -1920,  640,  128,  320,   0, 'a-site-north-wall-l'),
-  b(-2112, -1920,  640,  128,  320,   0, 'a-site-north-wall-r'),
-  b(-2688, -1920, 1792,  128,   32,  320, 'a-site-north-lintel'),
-  b(-3328, -1856,  640,   32, 320,   0, 'a-site-north-entry-l'),
-  b(-2048, -1856,  640,   32, 320,   0, 'a-site-north-entry-r'),
-  b(-3584, -1280,   32, 1664, 320,   0, 'a-site-west-wall'),
-  b(-1792, -1280,   32, 1664, 320,   0, 'a-site-east-wall'),
-  b(-2688,  -256, 1792,   32, 320,   0, 'a-site-south-wall'),
+  b(-3264, -1920,  640,  128,  384,   0, 'a-site-north-wall-l'),
+  b(-2112, -1920,  640,  128,  384,   0, 'a-site-north-wall-r'),
+  b(-2688, -1920, 1792,  128,   32,  384, 'a-site-north-lintel'),
+  b(-3328, -1856,  640,   32, 384,   0, 'a-site-north-entry-l'),
+  b(-2048, -1856,  640,   32, 384,   0, 'a-site-north-entry-r'),
+  b(-3584, -1280,   32, 1664, 384,   0, 'a-site-west-wall'),
+  b(-1792, -1280,   32, 1664, 384,   0, 'a-site-east-wall'),
+  b(-2688,  -256, 1792,   32, 384,   0, 'a-site-south-wall'),
   // A Ramp（CT→A 斜坡，16级，顶部衔接32 HU平台）
   ...stairsZ(-2688, -2560, 512, 1024, 0, 128, 16, 'a-ramp'),
   // Ramp 顶部过渡块
@@ -215,21 +215,21 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b(-2144, -1664,   64,  128,  48,   0, 'short-exit-vision-guide'),
 
   // ── Mid（中路）──────────────────────────────────────────────
-  // 中路两侧主墙（ widened: gap=2.56 units for comfortable 1.28 clearance each side）
-  b( -128,  1024,  128, 4096, 256,   0, 'mid-wall-west'),
-  b(  128,  1024,  128, 4096, 256,   0, 'mid-wall-east'),
-  // Top Mid 两侧体量，增强被建筑夹出的空间感
-  b( -512,  1536,  256,  768, 256,   0, 'top-mid-west-mass-1'),
-  b( -768,  2048,  256,  512, 256,   0, 'top-mid-west-mass-2'),
-  b(  512,  1536,  256,  768, 256,   0, 'top-mid-east-mass-1'),
-  b(  768,  2048,  256,  512, 256,   0, 'top-mid-east-mass-2'),
-  // Mid Doors
-  b( -128,  2048,   32,  192, 256,   0, 'mid-doors-left-frame'),
-  b(  128,  2048,   32,  192, 256,   0, 'mid-doors-right-frame'),
-  b(    0,  2048,  288,   32,  64, 192, 'mid-doors-lintel'),
-  // Mid Doors 房体厚度
-  b( -320,  2048,  160,  256, 256,   0, 'mid-doors-thickness-west'),
-  b(  320,  2048,  160,  256, 256,   0, 'mid-doors-thickness-east'),
+  // 中路两侧主墙 — 320 HU增强中路建筑压迫感
+  b( -128,  1024,  128, 4096, 320,   0, 'mid-wall-west'),
+  b(  128,  1024,  128, 4096, 320,   0, 'mid-wall-east'),
+  // Top Mid 两侧体量 — 384 HU增强建筑体量感
+  b( -512,  1536,  256,  768, 384,   0, 'top-mid-west-mass-1'),
+  b( -768,  2048,  256,  512, 384,   0, 'top-mid-west-mass-2'),
+  b(  512,  1536,  256,  768, 384,   0, 'top-mid-east-mass-1'),
+  b(  768,  2048,  256,  512, 384,   0, 'top-mid-east-mass-2'),
+  // Mid Doors — 门框加高至320，确保中门对狙通道清晰
+  b( -128,  2048,   32,  192, 320,   0, 'mid-doors-left-frame'),
+  b(  128,  2048,   32,  192, 320,   0, 'mid-doors-right-frame'),
+  b(    0,  2048,  288,   32,  64, 256, 'mid-doors-lintel'),
+  // Mid Doors 房体厚度 — 加高与门框对齐
+  b( -320,  2048,  160,  256, 320,   0, 'mid-doors-thickness-west'),
+  b(  320,  2048,  160,  256, 320,   0, 'mid-doors-thickness-east'),
   b( -192,  1856,  128,  128, 128,   0, 'mid-doors-inner-depth-w'),
   b(  192,  1856,  128,  128, 128,   0, 'mid-doors-inner-depth-e'),
   // Xbox
@@ -261,6 +261,22 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   // ── 中央区域建筑分隔块（保留CT Mid以南的隔离，不干扰走廊通行）────────────────────
   b( 1000, -1200, 1000,  200,  64,   0, 'b-window-crouch-wall'),
 
+  // ── Zone C: Mid ↔ B Tunnel 分隔墙（核心空间骨架）────────────────
+  // 在 x=768 处建南北贯穿分隔墙，把 Mid 和 B Tunnel 区域隔开
+  // 北段: z=5376~6912（连接T Spawn北侧到北边界）
+  b(  768,  6144,   32, 1536, 320,   0, 'mid-b-divider-north'),
+  // 中段（留门洞）: z=3072~3840
+  // 南半段: z=1024~3072
+  b(  768,  2048,   32, 2048, 320,   0, 'mid-b-divider-mid-south'),
+  // 北半段: z=3840~4352
+  b(  768,  4096,   32, 1024, 320,   0, 'mid-b-divider-mid-north'),
+  // 南段: z=-512~1024（连接到CT Mid区域）
+  b(  768,   256,   32, 1536, 320,   0, 'mid-b-divider-south'),
+  // 门洞结构（z=3072~3840之间，允许B Tunnel→Mid Doors后方穿行）
+  b(  640,  3456,   32,  768, 320,   0, 'mid-b-gateway-l'),
+  b(  896,  3456,   32,  768, 320,   0, 'mid-b-gateway-r'),
+  b(  768,  3456,  288,   32,  64, 256, 'mid-b-gateway-lintel'),
+
   // ── B Tunnels（B洞）─────────────────────────────────────────
   // 下层走廊 — 断面变化版
   b( 3072,  5760,  192,  768, 256,   0, 'b-lower-outer-entrance'),
@@ -272,6 +288,14 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b( 3488,  3584,  128,  768, 256,   0, 'b-lower-inner-narrow'),
   b( 3456,  2816,  192, 1536, 256,   0, 'b-lower-inner-exit'),
   b( 3264,  3072,  576, 6144,  32, 256, 'b-tunnels-ceiling'),
+  // Zone D: B下层走廊封口
+  // 北端封口（z=6144，留入口通道供T Spawn→B Tunnel通行）
+  b( 3008,  6144,  128,   32, 320,   0, 'b-lower-north-wall-l'),
+  b( 3392,  6144,  128,   32, 320,   0, 'b-lower-north-wall-r'),
+  b(  3200,  6144,  512,   32,  64, 256, 'b-lower-north-lintel'),
+  // 南端封口（z=2048，连接到B Outside区域）
+  b(  3200,  2048,  384,   32, 256,   0, 'b-lower-south-wall'),
+  b(  3264,  2016,  128,   32,  64, 192, 'b-lower-south-lintel'),
   // B洞出口框景
   b( 3072,  1920,  256,   64,  32, 224, 'b-tunnel-exit-lintel-l'),
   b( 3456,  1920,  256,   64,  32, 224, 'b-tunnel-exit-lintel-r'),
@@ -283,18 +307,52 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b( 3072, -1024,  320,   64,  10, 144, 'upper-tunnels-platform-rear-lip'),
   b( 2880,  -512,   32, 1536, 256,   0, 'upper-tunnels-west-wall'),
   b( 3072,  -512,  320, 1536,  32, 256, 'upper-tunnels-ceiling'),
+  // Zone F: Upper Tunnels 封口（北/东/南墙）
+  // 北墙（z=256，留通往旋转楼梯出口）
+  b(  3072,   384,  256,   32, 256, 128, 'upper-tunnels-north-wall-l'),
+  b(  3264,   384,   96,   32, 256, 128, 'upper-tunnels-north-wall-r'),
+  // 东墙（x=3392）
+  b(  3392,  -512,   32, 1536, 256,   0, 'upper-tunnels-east-wall'),
+  // 南墙（z=-1280，留通往B Site出口通道）
+  b(  3072, -1280,  256,   32, 256, 128, 'upper-tunnels-south-wall-l'),
+  b(  3264, -1280,   96,   32, 256, 128, 'upper-tunnels-south-wall-r'),
   // Upper Dark — 更强收口
   b( 2944,   128,  192,  512, 256,   0, 'upper-dark-south-wall'),
   b( 3072,   384,  320,   32, 256, 128, 'upper-dark-inner-wall'),
   b( 3264,   192,   96,  192,  96, 128, 'upper-dark-box-refined'),
   b( 3200,    64,   64,   64,  64, 128, 'upper-dark-corner-block'),
   b( 3264,  -896,   64,   48,  48, 128, 'upper-tunnel-exit-box'),
-  // 楼梯侧墙压迫感
-  b( 2816,  1280,   64,  256, 256,   0, 'b-stair-sidewall-w'),
-  b( 3392,  1280,   64,  256, 256,   0, 'b-stair-sidewall-e'),
-  b( 2880,  1024,   32,  128, 128,   0, 'b-stair-lower-block'),
-  // 上层楼梯（16级）
-  ...stairsX(2880, 1280, 384, 256, 0, 128, 16, 'b-tunnel-stairs'),
+  // ── B洞旋转楼梯（替换原直行楼梯）─────────────────────
+  // 真实 CS:GO DUST2: 下层→直行段→90°左转平台→转向段→上层
+  // 阶段1: 直行段 (z: 1280→896, 从地面上升到 h=64)
+  b( 2944, 1232,  64,  64,  24,   0, 'b-spiral-stair-s1-0'),
+  b( 2944, 1168,  64,  64,  24,  16, 'b-spiral-stair-s1-1'),
+  b( 2944, 1104,  64,  64,  24,  32, 'b-spiral-stair-s1-2'),
+  b( 2944, 1040,  64,  64,  24,  48, 'b-spiral-stair-s1-3'),
+  // 阶段2: 旋转平台 (z≈896, h=64)
+  b( 3024,   896,  192,  128,  16,  64, 'b-spiral-platform'),
+  // 阶段2护栏
+  b( 2928,   896,   32,  128,  48,  64, 'b-spiral-platform-rail-w'),
+  // 阶段3: 转向段 (从平台向X方向延伸, x: 2944→3200, 继续上升到 h=128)
+  b( 2976,   832,  64,  64,  24,  64, 'b-spiral-stair-s3-0'),
+  b( 3040,   832,  64,  64,  24,  80, 'b-spiral-stair-s3-1'),
+  b( 3104,   832,  64,  64,  24,  96, 'b-spiral-stair-s3-2'),
+  b( 3168,   832,  64,  64,  24, 112, 'b-spiral-stair-s3-3'),
+  // 转弯连接段 (x: 3200→3264, z: 832→768, 上升到 h=128 上层)
+  b( 3200,   800,  64,  64,  24, 112, 'b-spiral-stair-turn-0'),
+  b( 3200,   768,  64,  64,  24, 120, 'b-spiral-stair-turn-1'),
+  // 旋转楼梯侧墙（形成封闭走廊感）
+  b( 2880,  1024,   32,  512, 256,   0, 'b-spiral-wall-west'),
+  b( 3328,  1024,   32,  256, 256,   0, 'b-spiral-wall-east-1'),
+  b( 3264,   768,   32,  128, 256,   0, 'b-spiral-wall-east-2'),
+  // 旋转楼梯拐角掩体
+  b( 3072,   896,   48,  48,  48,  64, 'b-spiral-corner-box-1'),
+  b( 3200,   800,   48,  48,  48, 112, 'b-spiral-corner-box-2'),
+  // 下层补充箱子（楼梯底部）
+  b( 2880,  1344,   48,  48,  48,   0, 'b-spiral-base-box-1'),
+  b( 2880,  1408,   48,  48,  96,   0, 'b-spiral-base-box-2'),
+  // 上层护栏（连接旋转楼梯出口到上层平台）
+  b( 3072,   640,  320,   32,  48, 128, 'b-spiral-upper-rail'),
   // 下层掩体
   b( 3072,  4352,   64,   64,  48,   0, 'b-tunnel-box-1'),
   b( 3328,  2816,   48,   64,  48,   0, 'b-tunnel-box-2'),
@@ -302,50 +360,55 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b( 3392,  5504,   64,   64,  96,   0, 'b-tunnel-entrance-box'),
   b( 3456,  5120,   48,   48,  48,   0, 'b-tunnel-mid-box'),
   // B洞下层岔路
-  b( 1200,  1800,   64,  400, 200,   0, 'b-tunnel-fork-wall'),
-  b( 1050,  2000,   64,   32, 220,   0, 'b-tunnel-fork-left'),
-  b( 1350,  2000,   64,   32, 220,   0, 'b-tunnel-fork-right'),
-  b( 1450,  2800,   64,  400, 200,   0, 'b-lower-to-stairs-wall'),
-
+  // [旧岔路墙体已移除，由 Zone G 新结构替代]
+  // Zone G: 新岔路口结构（连接分隔墙门洞到B下层/旋转楼梯）
+  b( 1152,  2304,  384,   32, 256,   0, 'b-fork-north-wall'),
+  b( 1152,  1792,  384,   32, 256,   0, 'b-fork-south-wall'),
+  b( 1344,  2048,   32,  512, 256,   0, 'b-fork-corridor-e'),
+  b( 1216,  2176,   64,   64,  48,   0, 'b-fork-box-1'),
+  b( 1216,  1920,   64,   64,  96,   0, 'b-fork-box-2'),
   // ── B Site（B包点）──────────────────────────────────────────
-  // 包点平台 — 精雕版
-  b( 2560, -1280,  640,  448,  16,   0, 'b-site-platform-base'),
-  b( 2560, -1024,  640,   64,  10,  16, 'b-site-platform-front-lip'),
-  b( 2560, -1536,  512,   64,  10,  16, 'b-site-platform-rear-lip'),
-  // 四面墙
-  b( 2560, -1920, 1792,   32, 320,   0, 'b-site-north-wall'),
-  b( 1664, -1280,   32, 1664, 320,   0, 'b-site-west-wall'),
-  b( 3456, -1280,   32, 1664, 320,   0, 'b-site-east-wall'),
-  b( 2560,  -256, 1792,   32, 320,   0, 'b-site-south-wall'),
-  // Car — 车身+引擎盖+后备箱
-  b( 2688, -1408,  128,   64,  40,  96, 'b-car-body'),
-  b( 2688, -1344,   96,   32,  16, 136, 'b-car-hood'),
-  b( 2688, -1472,   96,   32,  16, 136, 'b-car-trunk'),
-  // Back Plat — 底座+台阶+后墙
-  b( 2176, -1728,  256,  128,  88,   0, 'b-back-plat-base'),
-  b( 2176, -1792,  192,   64,  32,  88, 'b-back-plat-step'),
-  b( 2176, -1856,  256,   32,  64,  88, 'b-back-plat-rear-wall'),
-  // Default — 底座+上层
-  b( 2368, -1408,   64,  128,  20,  96, 'b-site-default-base'),
-  b( 2368, -1472,   64,   64,  48, 116, 'b-site-default-upper'),
-  // Double stack — 两层可辨识
-  b( 2240, -1408,   64,   64,  48,  96, 'b-site-double-lower'),
-  b( 2240, -1408,   48,   48,  48, 144, 'b-site-double-upper'),
+  // 包点平台 — 向后移256 HU更靠北墙
+  b( 2560, -1536,  512,  384,  16,   0, 'b-site-platform-base'),
+  b( 2560, -1152,  512,   64,  10,  16, 'b-site-platform-front-lip'),
+  b( 2560, -1792,  384,   64,  10,  16, 'b-site-platform-rear-lip'),
+  // 平台侧边压条
+  b( 2304, -1536,   32,  384,  16,  16, 'b-site-platform-left-edge'),
+  b( 2816, -1536,   32,  384,  16,  16, 'b-site-platform-right-edge'),
+  // 四面墙 — 384 HU增强B区封闭感
+  b( 2560, -1920, 1792,   32, 384,   0, 'b-site-north-wall'),
+  b( 1664, -1280,   32, 1664, 384,   0, 'b-site-west-wall'),
+  b( 3456, -1280,   32, 1664, 384,   0, 'b-site-east-wall'),
+  b( 2560,  -256, 1792,   32, 384,   0, 'b-site-south-wall'),
+  // Car — 移到平台右侧后方
+  b( 2688, -1664,  128,   64,  40,  96, 'b-car-body'),
+  b( 2688, -1600,   96,   32,  16, 136, 'b-car-hood'),
+  b( 2688, -1728,   96,   32,  16, 136, 'b-car-trunk'),
+  // Back Plat — 移到左后角
+  b( 2112, -1856,  256,  128,  88,   0, 'b-back-plat-base'),
+  b( 2112, -1920,  192,   64,  32,  88, 'b-back-plat-step'),
+  b( 2112, -1984,  256,   32,  64,  88, 'b-back-plat-rear-wall'),
+  // Default — 移到平台右前
+  b( 2496, -1408,   64,  128,  20,  96, 'b-site-default-base'),
+  b( 2496, -1472,   64,   64,  48, 116, 'b-site-default-upper'),
+  // Double stack — 移到平台左前
+  b( 2272, -1408,   64,   64,  48,  96, 'b-site-double-lower'),
+  b( 2272, -1408,   48,   48,  48, 144, 'b-site-double-upper'),
   // 其余掩体
-  b( 2688, -1664,   64,   48,  96,  96, 'b-site-right-back-box'),
+  b( 2688, -1792,   64,   48,  96,  96, 'b-site-right-back-box'),
   b( 2176, -1344,   48,   48,  48,  96, 'b-site-small-box'),
   // 地面掩体
   b( 2176,  -896,   64,   64,  96,   0, 'b-tunnel-exit-box'),
   b( 2496,  -768,   64,   48,  48,   0, 'b-right-front-box'),
   b( 2880,  -640,   96,   48,  48,   0, 'b-right-corridor-box'),
-  b( 2752, -1664,   64,   48,  48,   0, 'b-back-corner-box'),
-  b( 2176, -1920,   48,   64,  48,   0, 'b-north-wall-box'),
+  b( 2752, -1792,   64,   48,  48,   0, 'b-back-corner-box'),
+  b( 2112, -1920,   48,   64,  48,   0, 'b-north-wall-box'),
   // B Window — 更清晰的窗洞结构
-  b( 1920, -1216,   96,   64, 128,   0, 'b-window-platform'),
-  b( 1920, -1152,   96,   32,  32, 128, 'b-window-sill-top'),
-  b( 1920, -1280,   96,   32,  64,  64, 'b-window-sill-low'),
-  b( 1888, -1216,   32,   64, 128,   0, 'b-window-side-block-w'),
-  b( 1952, -1216,   32,   64, 128,   0, 'b-window-side-block-e'),
+  b( 1920, -1024,   96,   64, 128,   0, 'b-window-platform'),
+  b( 1920,  -960,   96,   32,  32, 128, 'b-window-sill-top'),
+  b( 1920, -1088,   96,   32,  64,  64, 'b-window-sill-low'),
+  b( 1888, -1024,   32,   64, 128,   0, 'b-window-side-block-w'),
+  b( 1952, -1024,   32,   64, 128,   0, 'b-window-side-block-e'),
   // B Doors — 更厚的门洞
   b( 1920, -1472,   32,  128, 256,   0, 'b-doors-frame-north'),
   b( 1920, -1600,   32,  128, 256,   0, 'b-doors-frame-south'),
@@ -363,6 +426,18 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   // B Outside 掩体
   b( 2048,  4352,   64,   64,  48,   0, 'b-outside-box-1'),
   b( 2432,  4864,   64,   64,  96,   0, 'b-outside-box-2'),
+  // Zone E: B Outside 半开放庭院（下层出口到B Site之间）
+  // 东侧围墙（限定B Outside范围）
+  b(  3904,  1280,   32, 2560, 256,   0, 'b-outside-east-wall'),
+  // 东侧建筑体块（形成真实DUST2半开放庭院感）
+  b(  3712,  1792,  384,  512, 256,   0, 'b-outside-east-mass-1'),
+  b(  3712,   896,  384,  512, 256,   0, 'b-outside-east-mass-2'),
+  b(  3712,  -128,  384,  640, 256,   0, 'b-outside-east-mass-3'),
+  // 南侧围墙（连接到B Site北边界）
+  b(  3200,  -256, 1408,   32, 256,   0, 'b-outside-south-wall'),
+  // 庭院掩体
+  b(  3456,  1536,  128,  128,  96,   0, 'b-outside-box-large'),
+  b(  3328,   768,   64,   64,  48,   0, 'b-outside-box-mid'),
 
   // ── 新增：A Long Corner（转角墙）────────────────────────────
   // Long Corner — A大道进入A Site前的拐角遮蔽墙
@@ -390,6 +465,33 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b(  192,  5760,  192,   32, 256,   0, 't-mid-arch-base-r'),
   b( -192,  5632,   32,  256, 256,   0, 't-mid-arch-left'),
   b(  192,  5632,   32,  256, 256,   0, 't-mid-arch-right'),
+
+  // ── 新增：Mid 斜坡（T Spawn→Mid Doors 阶梯式下降）──
+  // 真实 DUST2: T出生点高于 Mid Doors，形成高地优势
+  // 使用固定厚度平台、递减 yOff 实现下降
+  // 总下降: 96 HU (从 120→24), 8段, 每段下降12 HU
+  b(   0,  5504,  128,  384,  24,  108, 'mid-ramp-0'),
+  b(   0,  5120,  128,  384,  24,   96, 'mid-ramp-1'),
+  b(   0,  4736,  128,  384,  24,   84, 'mid-ramp-2'),
+  b(   0,  4352,  128,  384,  24,   72, 'mid-ramp-3'),
+  b(   0,  3968,  128,  384,  24,   60, 'mid-ramp-4'),
+  b(   0,  3584,  128,  384,  24,   48, 'mid-ramp-5'),
+  b(   0,  3200,  128,  384,  24,   36, 'mid-ramp-6'),
+  b(   0,  2816,  128,  384,  24,   24, 'mid-ramp-7'),
+  // Mid 斜坡两侧护墙
+  b( -192,  4160,   32, 2304,  64,   0, 'mid-ramp-wall-west'),
+  b(  192,  4160,   32, 2304,  64,   0, 'mid-ramp-wall-east'),
+
+  // ── Zone A: T Spawn → A Long 引导墙 ──────────────────────────
+  // T Spawn 左墙(x=-896)向南延伸至A Long入口区
+  b( -896,  4864,   32, 1792, 320,   0, 't-spawn-to-a-long-wall'),
+
+  // ── Zone B: T Spawn → B Outside 右侧走廊 ─────────────────────
+  // T Spawn 右墙(x=896)向东延伸到 B Outside 入口
+  b(  1408,  5888, 1024,   32, 320,   0, 't-spawn-to-b-wall'),
+  // B Outside 入口通道
+  b(  896,  5632,   32,  512, 320,   0, 'b-outside-entry-l'),
+  b( 1408,  5632,   32,  512, 320,   0, 'b-outside-entry-r'),
 
   // ── 新增：Mid Boost Wall（中路西侧可跳矮墙）────────────────
   b( -320,   512,   32,  256,  64,   0, 'mid-boost-wall'),

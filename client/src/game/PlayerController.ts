@@ -21,15 +21,21 @@ export class PlayerController {
   private armor = 100;
   private maxArmor = 100;
   private moving = false;
+  
   private eyeHeight = 0.64;
   private readonly standingEyeHeight = 0.64;
-  private readonly crouchEyeHeight = 0.36;
+  private readonly crouchEyeHeight = 0.46;
+  
   private grounded = false;
   private airborneTime = 0;
   private crouched = false;
   private crouchJumpActive = false;
   private lastLandingSpeed = 0;
-  private readonly bodyHalfHeight = 0.36;
+
+  // 【大跳修复核心】分离站立和下蹲的碰撞盒高度
+  private readonly standingHalfHeight = 0.36; // 站立时的半高 (总高0.72)
+  private readonly crouchingHalfHeight = 0.27; // 下蹲时的半高 (总高0.54，缩减了约18单位)
+  private currentHalfHeight = 0.36;
   private readonly maxStepHeight = 0.18;
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
@@ -37,7 +43,8 @@ export class PlayerController {
     this.input = input;
     this.physics = physics;
 
-    const shape = new CANNON.Box(new CANNON.Vec3(0.16, this.bodyHalfHeight, 0.16));
+    // 初始使用站立尺寸
+    const shape = new CANNON.Box(new CANNON.Vec3(0.16, this.standingHalfHeight, 0.16));
     const bodyY = this.resolveBodyYFromEyeY(position.y);
     this.body = new CANNON.Body({
       mass: 70,
@@ -140,8 +147,9 @@ export class PlayerController {
     if (wishDirection.lengthSq() === 0) return;
 
     const direction = wishDirection.clone().normalize();
-    const groundY = this.body.position.y - this.bodyHalfHeight;
+    const groundY = this.body.position.y - this.currentHalfHeight; // 【修复】使用当前实际半高
     const probeDistances = [0.34, 0.5, 0.68];
+    const currentFullHeight = this.currentHalfHeight * 2;
 
     for (const probeDistance of probeDistances) {
       const probeX = this.body.position.x + direction.x * probeDistance;
@@ -157,8 +165,9 @@ export class PlayerController {
       const surfaceName = (result.body as NamedBody | undefined)?.userData?.name;
       if (!canStepUpObstacle({ grounded: this.grounded, obstacleHeight, maxStepHeight: this.maxStepHeight, horizontalSpeed, surfaceName })) continue;
 
-      const targetY = result.hitPointWorld.y + this.bodyHalfHeight + 0.01;
-      if (!this.canStandAt(probeX, targetY, probeZ)) continue;
+      const targetY = result.hitPointWorld.y + this.currentHalfHeight + 0.01;
+      // 【修复】只检查当前姿态是否有足够的空间上去
+      if (!this.hasClearance(probeX, result.hitPointWorld.y, probeZ, currentFullHeight)) continue;
 
       this.body.position.y = Math.max(this.body.position.y, targetY);
       if (this.body.velocity.y < 0) this.body.velocity.y = 0;
@@ -166,42 +175,90 @@ export class PlayerController {
     }
   }
 
-  private updateCrouchState(dt: number): void {
-    const wantsCrouch = this.input.isKeyPressed('ControlLeft') || this.input.isKeyPressed('ControlRight');
-    if (wantsCrouch) {
-      this.crouched = true;
-    } else if (this.canStand()) {
-      this.crouched = false;
-    }
-    const targetEyeHeight = this.crouched ? this.crouchEyeHeight : this.standingEyeHeight;
-    this.eyeHeight = THREE.MathUtils.lerp(this.eyeHeight, targetEyeHeight, 1 - Math.exp(-8 * dt));
-    if (this.grounded) this.crouchJumpActive = false;
-  }
-
-  private canStand(): boolean {
-    return this.canStandAt(this.body.position.x, this.body.position.y, this.body.position.z);
-  }
-
-  private canStandAt(x: number, y: number, z: number): boolean {
-    const from = new CANNON.Vec3(x, y + this.bodyHalfHeight * 0.85, z);
-    const to = new CANNON.Vec3(x, y + this.bodyHalfHeight + this.standingEyeHeight, z);
+  // 【新增】通用空间净空检测逻辑
+  private hasClearance(x: number, bottomY: number, z: number, requiredHeight: number): boolean {
+    const from = new CANNON.Vec3(x, bottomY + 0.1, z);
+    const to = new CANNON.Vec3(x, bottomY + requiredHeight - 0.05, z);
     const ray = new CANNON.Ray(from, to);
     const result = new CANNON.RaycastResult();
     return !ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: true, result });
   }
 
+  private updateCrouchState(dt: number): void {
+    const wantsCrouch = this.input.isKeyPressed('ControlLeft') || this.input.isKeyPressed('ControlRight');
+    
+    if (wantsCrouch && !this.crouched) {
+      this.crouched = true;
+      this.setHullSize(true);
+    } else if (!wantsCrouch && this.crouched) {
+      if (this.canStand()) { // 确保头顶有空间才允许站立
+        this.crouched = false;
+        this.setHullSize(false);
+      }
+    }
+
+    const targetEyeHeight = this.crouched ? this.crouchEyeHeight : this.standingEyeHeight;
+    this.eyeHeight = THREE.MathUtils.lerp(this.eyeHeight, targetEyeHeight, 1 - Math.exp(-8 * dt));
+    if (this.grounded) this.crouchJumpActive = false;
+  }
+
+  // 【核心修复】动态改变物理碰撞盒，并根据着地状态智能位移
+  private setHullSize(isCrouching: boolean): void {
+    const targetHalfHeight = isCrouching ? this.crouchingHalfHeight : this.standingHalfHeight;
+    if (this.currentHalfHeight === targetHalfHeight) return;
+
+    const oldHalfHeight = this.currentHalfHeight;
+    this.currentHalfHeight = targetHalfHeight;
+
+    // 1. 替换物理引擎里的形状
+    const newShape = new CANNON.Box(new CANNON.Vec3(0.16, this.currentHalfHeight, 0.16));
+    this.body.shapes = [];
+    this.body.shapeOffsets = [];
+    this.body.shapeOrientations = [];
+    this.body.addShape(newShape);
+    this.body.updateBoundingRadius(); // 更新内部缓存
+
+    // 2. CSGO大跳精髓：改变形状时处理重心补偿
+    const heightDiff = oldHalfHeight - this.currentHalfHeight;
+    if (isCrouching) {
+      if (!this.grounded) {
+        // 【空中下蹲】顶部保持不动，底部强行上提，产生让脚跨过箱子的净空！
+        this.body.position.y += heightDiff;
+      } else {
+        // 【地面下蹲】底部保持紧贴地面，头部下降
+        this.body.position.y -= heightDiff;
+      }
+    } else {
+      if (!this.grounded) {
+        // 空中起立（把腿伸直）
+        this.body.position.y -= heightDiff;
+      } else {
+        // 地面起立
+        this.body.position.y += heightDiff;
+      }
+    }
+    this.body.wakeUp();
+  }
+
+  private canStand(): boolean {
+    const bottomY = this.body.position.y - this.currentHalfHeight;
+    // 从脚底往上检测，是否能容纳站立的总高度
+    return this.hasClearance(this.body.position.x, bottomY, this.body.position.z, this.standingHalfHeight * 2);
+  }
+
   private canJump(): boolean {
     const rayStart = new CANNON.Vec3(this.body.position.x, this.body.position.y, this.body.position.z);
-    const rayEnd = new CANNON.Vec3(this.body.position.x, this.body.position.y - this.bodyHalfHeight - 0.1, this.body.position.z);
+    // 【修复】使用当前实际半高，确保空中蹲着时也能正确判定距离地面的距离
+    const rayEnd = new CANNON.Vec3(this.body.position.x, this.body.position.y - this.currentHalfHeight - 0.1, this.body.position.z);
     const ray = new CANNON.Ray(rayStart, rayEnd);
     const result = new CANNON.RaycastResult();
     return ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: true, result });
   }
 
   private resolveBodyYFromEyeY(eyeY: number): number {
-    const defaultStandingEyeY = this.bodyHalfHeight + this.standingEyeHeight;
+    const defaultStandingEyeY = this.standingHalfHeight + this.standingEyeHeight;
     const normalizedEyeY = eyeY <= 1.0 ? defaultStandingEyeY : eyeY;
-    return Math.max(normalizedEyeY - this.eyeHeight, this.bodyHalfHeight);
+    return Math.max(normalizedEyeY - this.eyeHeight, this.standingHalfHeight);
   }
 
   getPosition(): THREE.Vector3 {
@@ -237,7 +294,7 @@ export class PlayerController {
   }
 
   getCollisionHeight(): number {
-    return this.crouched ? this.bodyHalfHeight : this.bodyHalfHeight * 2;
+    return this.currentHalfHeight * 2;
   }
 
   takeDamage(amount: number, region: HitRegion = 'chest', armorPenetration = 0.35): void {

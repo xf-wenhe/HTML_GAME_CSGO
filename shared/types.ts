@@ -19,7 +19,7 @@ export type WeaponId =
 export type MapId = 'dust2' | 'warehouse' | 'italy' | 'mirage' | 'inferno' | 'nuke' | 'train' | 'overpass' | 'bloodstrike';
 export type BuyCategory = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee';
 export type GrenadeId = 'he' | 'flashbang' | 'smoke' | 'incendiary' | 'decoy';
-export type HitRegion = 'head' | 'body';
+export type HitRegion = 'head' | 'chest' | 'stomach' | 'arm' | 'leg';
 
 export interface RoomConfig {
   mode: MatchMode;
@@ -62,6 +62,7 @@ export interface PlayerSnapshot {
   rotation: Vector3;
   health: number;
   armor: number;
+  hasHelmet?: boolean; // 新增头盔状态
   money: number;
   weaponId: WeaponId;
   ownedWeapons?: WeaponId[];

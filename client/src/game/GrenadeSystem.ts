@@ -20,16 +20,14 @@ interface ActiveGrenade {
   exploded: boolean;
 }
 
-// 烟雾粒子：用于多层烟雾效果
 interface SmokeParticle {
   mesh: THREE.Mesh;
-  growthRate: number;   // 扩散速度
-  targetScale: number;  // 目标大小
-  baseOpacity: number;  // 基础不透明度
+  growthRate: number;
+  targetScale: number;
+  baseOpacity: number;
   life: number;
 }
 
-// 闪光爆发效果
 interface FlashBurst {
   mesh: THREE.Mesh;
   life: number;
@@ -53,15 +51,12 @@ const GRENADE_COLORS: Record<GrenadeId, number> = {
   decoy: 0xd6a84f
 };
 
-// ── 程序化烟雾纹理 ──────────────────────────────────
-// 生成径向渐变 + 噪点的 Canvas 纹理，模拟真实烟团
 function createSmokeTexture(size: number = 64): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  // 径向渐变：中心浓、边缘淡
   const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
   gradient.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
   gradient.addColorStop(0.15, 'rgba(230, 232, 235, 0.85)');
@@ -73,7 +68,6 @@ function createSmokeTexture(size: number = 64): THREE.CanvasTexture {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
 
-  // 添加噪点增加不规则感
   const imageData = ctx.getImageData(0, 0, size, size);
   for (let i = 0; i < imageData.data.length; i += 4) {
     const noise = (Math.random() - 0.5) * 25;
@@ -88,14 +82,12 @@ function createSmokeTexture(size: number = 64): THREE.CanvasTexture {
   return texture;
 }
 
-// 缓存烟雾纹理（全局单例）
 let _smokeTexture: THREE.CanvasTexture | null = null;
 function getSmokeTexture(): THREE.CanvasTexture {
   if (!_smokeTexture) _smokeTexture = createSmokeTexture();
   return _smokeTexture;
 }
 
-// ── 闪光爆发纹理 ──────────────────────────────────
 function createFlashTexture(size: number = 32): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -122,7 +114,6 @@ function getFlashTexture(): THREE.CanvasTexture {
   return _flashTexture;
 }
 
-
 export class GrenadeSystem {
   private inventory: GrenadeInventory = { he: 1, flash: 2, smoke: 1, incendiary: 1, decoy: 1 };
   private selected: GrenadeId = 'he';
@@ -133,6 +124,7 @@ export class GrenadeSystem {
   private lastFlashIntensity = 0;
   private smTexture = getSmokeTexture();
   private flTexture = getFlashTexture();
+  private raycaster = new THREE.Raycaster();
 
   constructor(private scene: THREE.Scene) {}
 
@@ -156,6 +148,9 @@ export class GrenadeSystem {
       new THREE.SphereGeometry(0.11, 16, 12),
       new THREE.MeshStandardMaterial({ color: GRENADE_COLORS[this.selected], roughness: 0.55, metalness: 0.25 })
     );
+    // 【修复】防止手雷自己挡住自己的射线检测
+    mesh.userData.raycastIgnore = true;
+    
     mesh.position.copy(camera.position).add(direction.clone().multiplyScalar(0.75));
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -174,34 +169,48 @@ export class GrenadeSystem {
     return { success: true, origin: camera.position.clone(), velocity };
   }
 
-  /**
-   * 更新所有投掷物
-   * @param dt 帧间隔
-   * @param playerPosition 玩家位置
-   * @param playerDirection 玩家面朝方向（用于闪光弹方向感知）
-   */
   update(dt: number, playerPosition: THREE.Vector3, playerDirection?: THREE.Vector3): { damage: number; flash: number } {
     let damage = 0;
-    // 闪光效果自然衰减
     this.lastFlashIntensity = Math.max(0, this.lastFlashIntensity - dt * 0.85);
 
-    // ── 更新飞行中的手雷 ────────────────────────
+    // 【修复核心2】缓存地图网格用于射线检测（代替硬编码的 Y<0.13）
+    const collisionTargets: THREE.Object3D[] = [];
+    this.scene.traverse(obj => {
+      if (!obj.visible || !(obj as THREE.Mesh).isMesh || obj.userData.raycastIgnore) return;
+      if (obj.name === 'hit-flash' || obj.userData.kind) return;
+      collisionTargets.push(obj);
+    });
+
     this.active.forEach(grenade => {
       if (grenade.exploded) return;
       grenade.life += dt;
       grenade.timer -= dt;
-      grenade.velocity.y -= 18 * dt;
-      grenade.mesh.position.addScaledVector(grenade.velocity, dt);
-      grenade.mesh.rotation.x += dt * 8;
-      grenade.mesh.rotation.z += dt * 5;
+      grenade.velocity.y -= 18 * dt; // 重力
 
-      // 地面碰撞
-      if (grenade.mesh.position.y < 0.13) {
-        grenade.mesh.position.y = 0.13;
-        grenade.velocity.y = Math.abs(grenade.velocity.y) * 0.34;
-        grenade.velocity.x *= 0.62;
-        grenade.velocity.z *= 0.62;
+      const dist = grenade.velocity.length() * dt;
+      if (dist > 0.001) {
+        const dir = grenade.velocity.clone().normalize();
+        this.raycaster.set(grenade.mesh.position, dir);
+        
+        // 发射射线寻找墙壁和地板
+        const hits = this.raycaster.intersectObjects(collisionTargets, false);
+        
+        // 0.11 是手雷的半径
+        if (hits.length > 0 && hits[0].distance <= dist + 0.11) {
+          // 碰壁/碰地 反弹
+          const normal = hits[0].face?.normal || new THREE.Vector3(0, 1, 0);
+          // 把手雷推到接触点表面，防止卡进墙里
+          grenade.mesh.position.copy(hits[0].point).add(normal.clone().multiplyScalar(0.12));
+          // CSGO 物理摩擦弹跳系数
+          grenade.velocity.reflect(normal).multiplyScalar(0.35); 
+        } else {
+          // 前方无障碍，正常飞行
+          grenade.mesh.position.addScaledVector(grenade.velocity, dt);
+        }
       }
+
+      grenade.mesh.rotation.x += grenade.velocity.length() * dt;
+      grenade.mesh.rotation.z += dt * 5;
 
       if (grenade.timer <= 0) {
         const pos = grenade.mesh.position.clone();
@@ -212,17 +221,13 @@ export class GrenadeSystem {
             this.createExplosionEffect(pos);
             if (distance < 7) damage += Math.round((1 - distance / 7) * 65);
             break;
-
           case 'flash':
             this.createFlashEffect(pos);
             if (distance < 20) {
-              // 方向感知：背对闪光弹时减弱效果
               let directionFactor = 1.0;
               if (playerDirection) {
                 const toFlash = pos.clone().sub(playerPosition).normalize();
                 const dot = playerDirection.dot(toFlash);
-                // dot > 0 = 面向闪光, dot < 0 = 背对闪光
-                // 面向时全效果，背对时降至 35%
                 directionFactor = 0.35 + 0.65 * Math.max(0, (dot + 1) / 2);
               }
               const rawIntensity = Math.pow(1 - Math.min(distance / 20, 1), 1.5);
@@ -230,18 +235,15 @@ export class GrenadeSystem {
               this.lastFlashIntensity = Math.max(this.lastFlashIntensity, intensity);
             }
             break;
-
           case 'smoke':
             this.createSmokeEffect(pos);
             break;
-
           case 'incendiary':
             this.createFireEffect(pos);
             if (distance < 5) damage += 8;
             break;
-
           case 'decoy':
-            this.createExplosionEffect(pos); // 假爆炸（视觉干扰）
+            this.createExplosionEffect(pos);
             break;
         }
 
@@ -252,8 +254,6 @@ export class GrenadeSystem {
 
     this.active = this.active.filter(grenade => !grenade.exploded);
 
-    // ── 更新视觉效果 ────────────────────────────
-    // 普通特效（爆炸、火焰）
     this.effects.forEach(effect => {
       effect.userData.life = (effect.userData.life ?? 0) + dt;
       const mat = (effect as THREE.Mesh).material as THREE.MeshBasicMaterial;
@@ -261,12 +261,10 @@ export class GrenadeSystem {
       if (effect.userData.kind === 'fire') {
         effect.scale.addScalar(dt * 1.8);
         mat.opacity = Math.max(0, 0.85 - effect.userData.life * 0.18);
-        // 火焰颜色从橙红渐变到暗红
         const t = Math.min(1, effect.userData.life / 5);
         const r = 1.0, g = 0.48 - t * 0.35, b = 0.09 - t * 0.05;
         mat.color.setRGB(r, g, b);
       } else {
-        // 高爆雷/诱饵弹爆发
         effect.scale.addScalar(dt * 3.5);
         mat.opacity = Math.max(0, 0.95 - effect.userData.life * 1.3);
       }
@@ -279,7 +277,6 @@ export class GrenadeSystem {
       return false;
     });
 
-    // 闪光爆发特效
     this.flashBursts.forEach(burst => {
       burst.life += dt;
       const mat = burst.mesh.material as THREE.MeshBasicMaterial;
@@ -292,24 +289,21 @@ export class GrenadeSystem {
       return false;
     });
 
-    // 烟雾粒子
     this.smokeParticles.forEach(p => {
       p.life += dt;
-      const progress = Math.min(1, p.life / 18); // 18 秒总生命周期（接近 CS:GO）
+      const progress = Math.min(1, p.life / 18);
 
-      // 生长曲线：先快后慢
       const growFactor = Math.sin(progress * Math.PI * 0.5);
       const targetScale = 1 + growFactor * (p.targetScale - 1);
       p.mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), dt * 2.5);
 
-      // 不透明度：0-2秒上升，2-12秒保持，12-18秒衰减
       let opacity: number;
       if (progress < 0.11) {
-        opacity = p.baseOpacity * (progress / 0.11); // 上升阶段
+        opacity = p.baseOpacity * (progress / 0.11);
       } else if (progress < 0.67) {
-        opacity = p.baseOpacity; // 稳定阶段
+        opacity = p.baseOpacity;
       } else {
-        opacity = p.baseOpacity * (1 - (progress - 0.67) / 0.33); // 衰减阶段
+        opacity = p.baseOpacity * (1 - (progress - 0.67) / 0.33);
       }
 
       const mat = p.mesh.material as THREE.MeshBasicMaterial;
@@ -324,11 +318,10 @@ export class GrenadeSystem {
     return { damage, flash: this.lastFlashIntensity };
   }
 
-  // ── 创建高爆雷/诱饵弹效果 ──────────────────────
+  // 【修复】放大了所有投掷物特效的尺寸
   private createExplosionEffect(position: THREE.Vector3): void {
-    // 中心亮斑 + 外围扩散环
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.35, 20, 14),
+      new THREE.SphereGeometry(1.5, 20, 14),
       new THREE.MeshBasicMaterial({ color: 0xffee88, transparent: true, opacity: 0.95, depthWrite: false })
     );
     core.position.copy(position);
@@ -338,21 +331,19 @@ export class GrenadeSystem {
     this.effects.push(core);
 
     const ring = new THREE.Mesh(
-      new THREE.SphereGeometry(0.5, 16, 10),
+      new THREE.SphereGeometry(2.5, 16, 10),
       new THREE.MeshBasicMaterial({ color: 0xff9933, transparent: true, opacity: 0.7, depthWrite: false })
     );
     ring.position.copy(position);
     ring.userData.kind = 'burst';
-    ring.userData.life = -0.08; // 微小延迟
+    ring.userData.life = -0.08;
     this.scene.add(ring);
     this.effects.push(ring);
   }
 
-  // ── 创建闪光弹效果（CS:GO 风格全屏白 + 方向衰减）──
   private createFlashEffect(position: THREE.Vector3): void {
-    // 3D 闪光爆发球
     const burst = new THREE.Mesh(
-      new THREE.SphereGeometry(0.6, 24, 16),
+      new THREE.SphereGeometry(2.5, 24, 16),
       new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
@@ -370,9 +361,8 @@ export class GrenadeSystem {
       flashOrigin: position.clone()
     });
 
-    // 外围光晕
     const halo = new THREE.Mesh(
-      new THREE.SphereGeometry(1.2, 24, 16),
+      new THREE.SphereGeometry(4.0, 24, 16),
       new THREE.MeshBasicMaterial({
         color: 0xfff8e0,
         transparent: true,
@@ -387,23 +377,21 @@ export class GrenadeSystem {
     this.effects.push(halo);
   }
 
-  // ── 创建烟雾弹效果（多层粒子烟雾云，CS:GO 风格）─────
   private createSmokeEffect(position: THREE.Vector3): void {
-    const particleCount = 10; // 10 层粒子
+    const particleCount = 12; // 烟雾弹体积加厚
 
     for (let i = 0; i < particleCount; i++) {
-      // 随机偏移（不同粒子从不同位置扩散）
       const offset = new THREE.Vector3(
-        (Math.random() - 0.5) * 0.6,
-        Math.random() * 0.5,
-        (Math.random() - 0.5) * 0.6
+        (Math.random() - 0.5) * 1.5,
+        Math.random() * 1.5,
+        (Math.random() - 0.5) * 1.5
       );
 
-      // 每个粒子不同大小
-      const initialSize = 0.3 + Math.random() * 0.6;
-      const targetSize = 2.5 + Math.random() * 3.5;
+      const initialSize = 0.5 + Math.random() * 0.8;
+      // 目标膨胀尺寸达到 4 ~ 6.5 米（完全可以封住中门）
+      const targetSize = 4.5 + Math.random() * 2.0; 
       const growthRate = 1.5 + Math.random() * 1.8;
-      const baseOpacity = 0.35 + Math.random() * 0.3; // 0.35-0.65
+      const baseOpacity = 0.45 + Math.random() * 0.35; 
 
       const mat = new THREE.MeshBasicMaterial({
         color: 0x9aa4af,
@@ -415,11 +403,11 @@ export class GrenadeSystem {
       });
 
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(initialSize, 12, 8),
+        new THREE.SphereGeometry(initialSize, 16, 12),
         mat
       );
       mesh.position.copy(position).add(offset);
-      mesh.position.y += 0.2; // 略微悬浮
+      mesh.position.y += 0.2;
       this.scene.add(mesh);
 
       this.smokeParticles.push({
@@ -427,12 +415,11 @@ export class GrenadeSystem {
         growthRate,
         targetScale: targetSize,
         baseOpacity,
-        life: -Math.random() * 0.3 // 随机错开出现时间
+        life: -Math.random() * 0.3 
       });
     }
   }
 
-  // ── 创建燃烧弹效果 ─────────────────────────────
   private createFireEffect(position: THREE.Vector3): void {
     for (let i = 0; i < 5; i++) {
       const offset = new THREE.Vector3(

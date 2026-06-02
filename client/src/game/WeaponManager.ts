@@ -123,15 +123,26 @@ export class WeaponManager {
     this.meleeSwing = weapon.isMelee ? 1 : this.meleeSwing;
     this.muzzleFlash.material.opacity = weapon.isMelee ? 0 : 0.95;
 
-    const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const recoilOffset = weapon.getRecoilOffset();
-    direction.x += recoilOffset.x;
-    direction.y += recoilOffset.y;
+    // 【修复核心1】真实的 CSGO 弹道偏转算法
     const spread = weapon.getEffectiveSpread(Boolean(options.isMoving), this.aiming);
-    direction.x += (Math.random() - 0.5) * spread;
-    direction.y += (Math.random() - 0.5) * spread;
-    direction.z += (Math.random() - 0.5) * spread;
-    direction.normalize();
+    const recoilOffset = weapon.getRecoilOffset();
+
+    // 在局部的 2D 平面（也就是玩家屏幕中心点）上计算随机圆圈散布
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.random() * spread;
+    const spreadX = Math.cos(angle) * radius;
+    const spreadY = Math.sin(angle) * radius;
+
+    // 构建相机局部坐标系的向量 (-Z 是屏幕中心方向，+Y 向上，+X 向右)
+    const localDirection = new THREE.Vector3(
+      spreadX + recoilOffset.x,
+      spreadY + (weapon.isMelee ? 0 : recoilOffset.y), 
+      -1
+    ).normalize();
+
+    // 这一步至关重要：把完美的屏幕空间弹道，转换到 3D 世界朝向！
+    const direction = localDirection.applyQuaternion(camera.quaternion);
+
     this.feedbackEvents.push({ type: 'shoot', weaponId: weapon.id });
 
     return {
@@ -237,27 +248,20 @@ export class WeaponManager {
     this.currentModel = model;
     this.weaponRoot.add(model);
     this.weaponRoot.add(this.muzzleFlash);
-
-    // 【修复武器遮挡】ViewModel 武器必须始终渲染在最上层，不受场景深度测试影响
-    // 与 CS:GO 一致：第一人称武器永远可见，不会被地板/墙壁遮挡
     this.setViewModelRenderOrder(model);
   }
 
-  /** 设置 ViewModel 渲染优先级：depthTest=false 确保武器不因深度测试而被遮挡 */
   private setViewModelRenderOrder(model: THREE.Object3D): void {
     model.traverse(child => {
       if (!(child instanceof THREE.Mesh)) return;
-      // 材质设置
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       materials.forEach(mat => {
-        mat.depthTest = false;   // 跳过深度测试，始终渲染
-        mat.depthWrite = false;  // 不写入深度缓冲，避免干扰场景
+        mat.depthTest = false;
+        mat.depthWrite = false;
         mat.needsUpdate = true;
       });
-      // Object3D 渲染顺序（renderOrder 是 Object3D 属性，不是 Material 属性）
       child.renderOrder = 999;
     });
-    // 根节点也要设置
     model.renderOrder = 999;
   }
 
