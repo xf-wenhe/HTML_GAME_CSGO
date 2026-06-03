@@ -54,6 +54,17 @@ export class Physics {
     return body;
   }
 
+  addStaticTrimesh(vertices: number[], indices: number[], name?: string): CANNON.Body {
+    const body = new CANNON.Body({
+      mass: 0,
+      shape: new CANNON.Trimesh(vertices, indices),
+    });
+    const namedBody = body as NamedBody;
+    namedBody.userData = { ...(namedBody.userData ?? {}), name };
+    this.addBody(body);
+    return body;
+  }
+
   removeBody(body: CANNON.Body): void {
     this.world.removeBody(body);
     this.bodies = this.bodies.filter(b => b !== body);

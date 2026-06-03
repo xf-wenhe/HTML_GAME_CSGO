@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ARENA_MAPS, ArenaData, BoxSpec } from './MapData.js';
+import { ARENA_MAPS, ArenaData, BoxSpec, MeshSpec } from './MapData.js';
 import { MapId } from './types.js';
 import { getTexture, loadPBRTextureSet, PBRTextureKey } from './ProceduralTextures.js';
 
@@ -10,6 +10,7 @@ export class Scene {
   private fallbackCanvas: HTMLCanvasElement | null = null;
   private animationId: number | null = null;
   private colliders: BoxSpec[] = [];
+  private meshes: MeshSpec[] = [];
   private arenaObjects: THREE.Object3D[] = [];
   private skyDome: THREE.Mesh | null = null;
   private currentMapId: MapId = 'dust2';
@@ -101,6 +102,7 @@ export class Scene {
 
   private buildArena(arena: ArenaData): void {
     this.colliders = arena.colliders;
+    this.meshes = arena.meshes ?? [];
 
     // Map-specific sky colors
     const skyColors: Record<string, { bg: number; fog: number; fogNear: number; fogFar: number; skyTop: number; skyHorizon: number }> = {
@@ -136,6 +138,7 @@ export class Scene {
     // 避免 Z-fighting（多个地面在同一 y 高度导致材质闪烁）
 
     [...arena.colliders, ...arena.props].forEach(spec => this.addBox(spec));
+    this.meshes.forEach(spec => this.addMesh(spec));
 
     const isD2 = arena.name === 'Dust2';
 
@@ -351,6 +354,37 @@ export class Scene {
     this.addArenaObject(mesh);
   }
 
+  private addMesh(spec: MeshSpec): void {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(spec.positions.length * 3);
+
+    spec.positions.forEach((position, index) => {
+      positions[index * 3] = position.x;
+      positions[index * 3 + 1] = position.y;
+      positions[index * 3 + 2] = position.z;
+    });
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setIndex(spec.indices);
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+
+    const material = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(spec.color).lerp(new THREE.Color(0xffffff), 0.08),
+      metalness: spec.metalness ?? 0.05,
+      roughness: spec.roughness ?? 0.8,
+      transparent: spec.opacity !== undefined && spec.opacity < 1,
+      opacity: spec.opacity ?? 1,
+      side: THREE.DoubleSide
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.name = spec.name ?? 'arena-mesh';
+    this.addArenaObject(mesh);
+  }
+
   private addArenaObject(object: THREE.Object3D): void {
     this.arenaObjects.push(object);
     this.scene.add(object);
@@ -444,6 +478,10 @@ export class Scene {
 
   getArenaColliders(): BoxSpec[] {
     return this.colliders;
+  }
+
+  getArenaMeshes(): MeshSpec[] {
+    return this.meshes;
   }
 
   getCamera(): THREE.PerspectiveCamera {

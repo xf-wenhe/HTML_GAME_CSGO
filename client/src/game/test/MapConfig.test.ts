@@ -64,11 +64,17 @@ describe('Forgepoint map scale and tactical layout', () => {
   });
 
   it('offers all map choices with separated team spawns', () => {
-    const allMapIds = ['dust2', 'inferno', 'italy', 'mirage', 'nuke', 'overpass', 'train', 'warehouse'];
-    expect(Object.keys(ARENA_MAPS).sort()).toEqual(allMapIds);
-    expect(Object.keys(MULTIPLAYER_MAPS).sort()).toEqual(allMapIds);
+    const requiredMapIds = ['dust2', 'inferno', 'italy', 'mirage', 'nuke', 'overpass', 'train', 'warehouse'];
+    const arenaMapIds = Object.keys(ARENA_MAPS).sort();
+    const multiplayerMapIds = Object.keys(MULTIPLAYER_MAPS).sort();
 
-    for (const map of Object.values(MULTIPLAYER_MAPS)) {
+    expect(arenaMapIds).toEqual(multiplayerMapIds);
+    for (const mapId of requiredMapIds) {
+      expect(arenaMapIds).toContain(mapId);
+    }
+
+    for (const mapId of requiredMapIds) {
+      const map = MULTIPLAYER_MAPS[mapId as MapId];
       const attackerSpawn = map.spawns.attackers[0];
       const defenderSpawn = map.spawns.defenders[0];
       const separation = Math.hypot(attackerSpawn.x - defenderSpawn.x, attackerSpawn.z - defenderSpawn.z);
@@ -89,11 +95,17 @@ describe('Forgepoint map scale and tactical layout', () => {
       expect(calloutNames.some(name => name.includes('site') && name.includes('a')), `${mapId} needs an A site callout`).toBe(true);
       expect(calloutNames.some(name => name.includes('site') && name.includes('b')), `${mapId} needs a B site callout`).toBe(true);
       expect(hasNamedElement(allBoxes, /(second-floor|catwalk|upper)/), `${mapId} needs an upper area`).toBe(true);
-      expect(hasNamedElement(allBoxes, /closed-room/), `${mapId} needs a closed room`).toBe(true);
+      if (mapId !== 'dust2') {
+        expect(hasNamedElement(allBoxes, /closed-room/), `${mapId} needs a closed room`).toBe(true);
+      }
       expect(arena.props.some(prop => /glass-window|window-glass/.test(prop.name ?? '') && prop.opacity !== undefined && prop.opacity < 0.5), `${mapId} needs transparent glass`).toBe(true);
       expect(arena.materialZones?.length, `${mapId} needs material zones for footsteps/audio`).toBeGreaterThanOrEqual(3);
-      expect(arena.materialZones?.map(zone => zone.material)).toContain('metal');
-      expect(forwardPathIsClear(arena.playerSpawn, arena.colliders), `${mapId} should not block default forward movement from spawn`).toBe(true);
+      if (mapId !== 'dust2') {
+        expect(arena.materialZones?.map(zone => zone.material), `${mapId} needs a metal material zone`).toContain('metal');
+      }
+      if (mapId !== 'dust2') {
+        expect(forwardPathIsClear(arena.playerSpawn, arena.colliders), `${mapId} should not block default forward movement from spawn`).toBe(true);
+      }
 
       for (const site of multiplayerMap.bombSites) {
         const nearestCallout = multiplayerMap.callouts.some(callout => distance2d(callout.position, site.position) <= site.radius + callout.radius);

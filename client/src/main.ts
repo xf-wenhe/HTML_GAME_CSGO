@@ -202,7 +202,7 @@ syncArenaPhysics();
 
 function syncArenaPhysics(): void {
   arenaColliderBodies.forEach(body => physics.removeBody(body));
-  arenaColliderBodies = scene.getArenaColliders().map(collider => {
+  const boxBodies = scene.getArenaColliders().map(collider => {
     const body = physics.addStaticBox(
       new CANNON.Vec3(collider.position.x, collider.position.y, collider.position.z),
       new CANNON.Vec3(collider.size.x / 2, collider.size.y / 2, collider.size.z / 2),
@@ -211,6 +211,11 @@ function syncArenaPhysics(): void {
     );
     return body;
   });
+  const meshBodies = scene.getArenaMeshes().map(mesh => {
+    const vertices = mesh.positions.flatMap(position => [position.x, position.y, position.z]);
+    return physics.addStaticTrimesh(vertices, mesh.indices, mesh.name);
+  });
+  arenaColliderBodies = [...boxBodies, ...meshBodies];
   enemyManager.setLineOfSightColliders(scene.getArenaColliders());
 }
 

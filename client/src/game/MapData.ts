@@ -21,6 +21,8 @@ import {
 import {
   DUST2_SPAWNS
 } from './constants/Dust2HammerData.js';
+import { type Dust2WorldMeshResource, meshSpecFromDust2WorldMeshResource } from './Dust2MeshResource.js';
+import { DUST2_WORLD_MESH_RESOURCE } from './generated/dust2-world-mesh.js';
 
 export interface BoxSpec {
   position: THREE.Vector3;
@@ -32,6 +34,16 @@ export interface BoxSpec {
   name?: string;
   rotation?: { x: number; y: number; z: number };
   textureKey?: 'sand' | 'concrete' | 'wood' | 'metal' | 'plaster';
+}
+
+export interface MeshSpec {
+  name?: string;
+  positions: THREE.Vector3[];
+  indices: number[];
+  color: number;
+  metalness?: number;
+  roughness?: number;
+  opacity?: number;
 }
 
 export interface EnemySpawnPoint {
@@ -55,8 +67,41 @@ export interface ArenaData {
   enemySpawns: EnemySpawnPoint[];
   colliders: BoxSpec[];
   props: BoxSpec[];
+  meshes?: MeshSpec[];
   materialZones?: MaterialZone[];
 }
+
+export const resolveDust2SourceGeometry = (
+  sourceMeshes: MeshSpec[],
+  placeholderColliders: BoxSpec[],
+  placeholderProps: BoxSpec[]
+) => sourceMeshes.length > 0
+  ? { colliders: [] as BoxSpec[], props: [] as BoxSpec[], meshes: sourceMeshes }
+  : { colliders: placeholderColliders, props: placeholderProps, meshes: [] as MeshSpec[] };
+
+export const resolveDust2SourceSpawns = (
+  resource: Dust2WorldMeshResource | null,
+  fallbackPlayerSpawn: THREE.Vector3,
+  fallbackEnemySpawns: EnemySpawnPoint[]
+) => {
+  const entitySpawns = resource?.source.manifest.entities?.playerSpawns ?? [];
+  const toPlayerPosition = (position: { x: number; y: number; z: number }) =>
+    new THREE.Vector3(position.x, position.y + PLAYER_EYE_HEIGHT, position.z);
+  const tSpawns = entitySpawns
+    .filter(spawn => spawn.team === 't' && spawn.gamePosition)
+    .map(spawn => toPlayerPosition(spawn.gamePosition!));
+  const ctSpawns = entitySpawns
+    .filter(spawn => spawn.team === 'ct' && spawn.gamePosition)
+    .map(spawn => ({
+      position: toPlayerPosition(spawn.gamePosition!),
+      type: 'shooter' as const,
+    }));
+
+  return {
+    playerSpawn: tSpawns[0]?.clone() ?? fallbackPlayerSpawn,
+    enemySpawns: ctSpawns.length > 0 ? ctSpawns : fallbackEnemySpawns,
+  };
+};
 
 const box = (
   x: number,
@@ -228,6 +273,12 @@ const cloneZone = (zone: MaterialZone): MaterialZone => ({
   size: zone.size.clone()
 });
 
+const cloneMesh = (mesh: MeshSpec): MeshSpec => ({
+  ...mesh,
+  positions: mesh.positions.map(position => position.clone()),
+  indices: [...mesh.indices]
+});
+
 const cloneArena = (arena: ArenaData, name: string, playerSpawn: THREE.Vector3): ArenaData => ({
   ...arena,
   name,
@@ -235,6 +286,7 @@ const cloneArena = (arena: ArenaData, name: string, playerSpawn: THREE.Vector3):
   enemySpawns: arena.enemySpawns.map(spawn => ({ ...spawn, position: spawn.position.clone() })),
   colliders: arena.colliders.map(cloneBox),
   props: arena.props.map(cloneBox),
+  meshes: arena.meshes?.map(cloneMesh),
   materialZones: arena.materialZones?.map(cloneZone)
 });
 
@@ -543,6 +595,9 @@ function buildBloodStrikeArena(): ArenaData {
 }
 
 function buildDust2Arena(): ArenaData {
+  // This hand-authored Dust2 data is a visual/gameplay fallback. When a
+  // validated CS1.6 GoldSrc mesh resource exists, `resolveDust2SourceGeometry`
+  // drops these placeholder boxes/props and uses only the imported source mesh.
   const colliderBoxes: BoxSpec[] = DUST2_COLLIDERS.map(c => {
     const n = c.name ?? '';
     let color = 0xb8a070;
@@ -579,7 +634,7 @@ function buildDust2Arena(): ArenaData {
       if (n.includes('lip') || n.includes('rear')) { color = 0xbaa880; roughness = 0.90; }
     } else if (n.includes('palace')) {
       color = 0xc0b498; textureKey = 'plaster'; metalness = 0.04; roughness = 0.86;
-      // 宫殿外墙面比内部柱体略旧
+      // Legacy placeholder material variation.
       if (n.includes('outer') || n.includes('wall')) { color = 0xb8aa88; roughness = 0.89; }
     } else if (n.includes('pillar')) {
       color = 0xc8bc98; textureKey = 'plaster'; metalness = 0.03; roughness = 0.85;
@@ -633,10 +688,10 @@ function buildDust2Arena(): ArenaData {
     { ...box(H(2560), 0.005, H(1536), H(1792), 0.02, H(1664), 0xc0b490, 'dust2-b-site-floor', 0.06, 0.82), textureKey: 'plaster' as const },
     box(H(2560), 0.03, H(1280), H(512), 0.04, H(512), 0xd4a017, 'dust2-b-bomb-marker', 0.1, 0.6),
 
-    // ── CT Spawn 地面（暗色石板，Y=0.005，封闭房间内部）──
+    // ── CT Spawn placeholder floor ──
     { ...box(0, 0.005, H(3328), H(1024), 0.02, H(768), 0x4a4038, 'dust2-ct-spawn-floor', 0.05, 0.85), textureKey: 'concrete' as const },
 
-    // ── CT Spawn 房间墙体视觉（四面封闭，暗色）──
+    // ── CT Spawn placeholder room visuals ──
     // 后墙
     { ...box(0, 1.28, H(3712), H(1024), 2.56, H(16), 0x3a3028, 'dust2-ct-spawn-back-wall-visual', 0.3, 0.7), textureKey: 'concrete' as const },
     // 左墙
@@ -649,7 +704,7 @@ function buildDust2Arena(): ArenaData {
     { ...box(0, 1.28, H(2944), H(256), 2.56, H(16), 0x3a3028, 'dust2-ct-spawn-front-mid-visual', 0.3, 0.7), textureKey: 'concrete' as const },
     // 前墙右段
     { ...box(H(768), 1.28, H(2944), H(256), 2.56, H(16), 0x3a3028, 'dust2-ct-spawn-front-right-visual', 0.3, 0.7), textureKey: 'concrete' as const },
-    // 屋顶（封闭顶部，使房间昏暗，高度在墙顶2.56附近）
+    // Placeholder ceiling from the legacy fallback layout.
     { ...box(0, 2.56, H(3328), H(1040), 0.32, H(784), 0x2a2018, 'dust2-ct-spawn-ceiling-visual', 0.3, 0.7), textureKey: 'concrete' as const },
 
     // ── T Spawn 地面（沙地延伸，Y=0.005）──
@@ -847,7 +902,7 @@ function buildDust2Arena(): ArenaData {
     box(H(-3456), 0.28, H(4480), H(32), 0.56, H(32), 0x5a4830, 'dust2-a-long-drum-2', 0.4, 0.65),
     box(H(-3392), 0.28, H(4544), H(32), 0.56, H(32), 0x5a4830, 'dust2-a-long-drum-3', 0.4, 0.65),
 
-    // ── Palace 柱子（视觉建筑结构）──
+    // ── Legacy non-Dust2 placeholder pillars ──
     box(H(-2816), 0, H(-3840), H(64), H(384), H(64), 0xc8bc98, 'dust2-palace-pillar-1', 0.04, 0.85),
     box(H(-2432), 0, H(-3840), H(64), H(384), H(64), 0xc8bc98, 'dust2-palace-pillar-2', 0.04, 0.85),
     box(H(-2816), H(384), H(-3840), H(96), H(32), H(96), 0xbaa888, 'dust2-palace-pillar-cap-1', 0.04, 0.86),
@@ -870,27 +925,39 @@ function buildDust2Arena(): ArenaData {
     box(H(3072), 0.30, H(-256), H(64), 0.96, H(64), 0x5a5a5a, 'dust2-upper-dark-crate-1', 0.08, 0.80),
     box(H(3328), 0.30, H(-256), H(64), 0.96, H(64), 0x5a5a5a, 'dust2-upper-dark-crate-2', 0.08, 0.80),
   ];
+  const sourceMeshes = DUST2_WORLD_MESH_RESOURCE
+    ? [meshSpecFromDust2WorldMeshResource(DUST2_WORLD_MESH_RESOURCE)]
+    : [];
+  const sourceGeometry = resolveDust2SourceGeometry(sourceMeshes, colliderBoxes, props);
+  const fallbackPlayerSpawn = new THREE.Vector3(0, PLAYER_EYE_HEIGHT, H(-6144));
+  const fallbackEnemySpawns = [
+    { position: new THREE.Vector3(H(-2560), PLAYER_EYE_HEIGHT, H(1280)),  type: 'shooter' as const },
+    { position: new THREE.Vector3(H( 2560), PLAYER_EYE_HEIGHT, H(1280)),  type: 'shooter' as const },
+    { position: new THREE.Vector3(H(-3520), PLAYER_EYE_HEIGHT, H(-3072)), type: 'patrol' as const  },
+    { position: new THREE.Vector3(H( 3328), PLAYER_EYE_HEIGHT, H(-2560)), type: 'assault' as const },
+    { position: new THREE.Vector3(H(    0), PLAYER_EYE_HEIGHT, H(-1024)), type: 'shooter' as const },
+    { position: new THREE.Vector3(H(    0), PLAYER_EYE_HEIGHT, H(-2048)), type: 'patrol' as const  },
+    { position: new THREE.Vector3(H(-1536), PLAYER_EYE_HEIGHT, H( 1216)), type: 'assault' as const },
+    { position: new THREE.Vector3(H( 1536), PLAYER_EYE_HEIGHT, H( 1216)), type: 'assault' as const },
+  ];
+  const sourceSpawns = resolveDust2SourceSpawns(
+    DUST2_WORLD_MESH_RESOURCE,
+    fallbackPlayerSpawn,
+    fallbackEnemySpawns
+  );
 
   return {
     name: 'Dust2',
-    playerSpawn: new THREE.Vector3(0, PLAYER_EYE_HEIGHT, H(-6144)),
+    playerSpawn: sourceSpawns.playerSpawn,
     bounds: {
       width: DUST2_GAME_BOUNDS.width,
       depth: DUST2_GAME_BOUNDS.depth,
       centerZ: DUST2_GAME_BOUNDS.centerZ
     },
-    enemySpawns: [
-      { position: new THREE.Vector3(H(-2560), PLAYER_EYE_HEIGHT, H(1280)),  type: 'shooter' },
-      { position: new THREE.Vector3(H( 2560), PLAYER_EYE_HEIGHT, H(1280)),  type: 'shooter' },
-      { position: new THREE.Vector3(H(-3520), PLAYER_EYE_HEIGHT, H(-3072)), type: 'patrol'  },
-      { position: new THREE.Vector3(H( 3328), PLAYER_EYE_HEIGHT, H(-2560)), type: 'assault' },
-      { position: new THREE.Vector3(H(    0), PLAYER_EYE_HEIGHT, H(-1024)), type: 'shooter' },
-      { position: new THREE.Vector3(H(    0), PLAYER_EYE_HEIGHT, H(-2048)), type: 'patrol'  },
-      { position: new THREE.Vector3(H(-1536), PLAYER_EYE_HEIGHT, H( 1216)), type: 'assault' },
-      { position: new THREE.Vector3(H( 1536), PLAYER_EYE_HEIGHT, H( 1216)), type: 'assault' },
-    ],
-    colliders: colliderBoxes,
-    props,
+    enemySpawns: sourceSpawns.enemySpawns,
+    colliders: sourceGeometry.colliders,
+    props: sourceGeometry.props,
+    meshes: sourceGeometry.meshes,
     materialZones: [
       materialZone('dust2-sand',        'sand',     H(  0), 0, H(-1536), H(8192), 0.1, H(10240)),
       materialZone('dust2-concrete-a',  'concrete', H(-2688), 0.01, H(1280), H(1792), 0.1, H(1664)),

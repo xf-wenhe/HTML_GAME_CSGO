@@ -1,50 +1,35 @@
 import { chromium } from 'playwright';
 import { join } from 'path';
 import { mkdirSync, writeFileSync } from 'fs';
+import {
+  readDust2GeneratedMeshResource,
+  verifyDust2GeneratedMeshResource,
+} from './lib/dust2-generated-verify.mjs';
 
 const URL = 'http://localhost:5173';
 const SCREENSHOTS_DIR = join(import.meta.dirname, 'screenshots');
 mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 
-// Based on actual Dust2Layout.ts geometry coordinates (game units, Hammer * 0.01)
-const LOCATIONS = [
-  // --- T Spawn ---
-  { name: 't-spawn-back', x: 0, z: 68.0, yaw: 0, eye: 2.5 },
-  // --- Mid ---
-  { name: 't-mid-entrance', x: 0, z: 30.0, yaw: 0, eye: 2.5 },
-  { name: 'xbox', x: 5.0, z: 8.0, yaw: -0.3, eye: 2.5 },
-  { name: 'mid-doors-t', x: -2.0, z: 18.0, yaw: 0, eye: 2.5 },
-  { name: 'ct-window', x: 0, z: -25.0, yaw: 0, eye: 2.0 },
-  // --- A Long ---
-  { name: 'a-long-mid', x: -32.0, z: 28.0, yaw: -1.4, eye: 2.0 },
-  { name: 'a-long-doors', x: -35.0, z: 10.0, yaw: -1.4, eye: 2.0 },
-  // --- A Site (geometry: x=-35..-18, z=-20..-3) ---
-  { name: 'a-site-west', x: -40.0, z: -11.0, yaw: -0.5, eye: 2.5 },
-  { name: 'a-site-south', x: -28.0, z: 2.0, yaw: 3.14, eye: 2.5 },
-  { name: 'goose', x: -22.0, z: -18.0, yaw: 2.8, eye: 2.5 },
-  { name: 'a-platform', x: -28.0, z: -14.0, yaw: 0, eye: 2.5 },
-  // --- Short ---
-  { name: 'short-top', x: -10.0, z: -4.0, yaw: 0, eye: 2.0 },
-  { name: 'short-into-a', x: -16.0, z: -8.0, yaw: -0.5, eye: 2.0 },
-  // --- Pit ---
-  { name: 'pit', x: -32.0, z: 18.0, yaw: -1.4, eye: 2.0 },
-  // --- Palace ---
-  { name: 'palace', x: -40.0, z: -30.0, yaw: -0.5, eye: 2.5 },
-  // --- CT Spawn ---
-  { name: 'ct-spawn', x: 0, z: -34.0, yaw: 0, eye: 2.5 },
-  // --- B Tunnels (geometry: x=26..35, z=-30..-3) ---
-  { name: 'b-tunnels-lower', x: 34.0, z: -20.0, yaw: 3.14, eye: 2.5 },
-  { name: 'b-tunnels-stairs', x: 34.0, z: -8.0, yaw: 3.14, eye: 2.5 },
-  { name: 'upper-b', x: 34.0, z: 2.0, yaw: 3.14, eye: 2.0 },
-  { name: 'upper-dark', x: 34.0, z: -3.0, yaw: 3.14, eye: 2.0 },
-  // --- B Site (geometry: x=18..35, z=-20..-3) ---
-  { name: 'b-site-entrance', x: 38.0, z: -10.0, yaw: 0.5, eye: 2.5 },
-  { name: 'b-site-platform', x: 28.0, z: -12.0, yaw: 3.14, eye: 2.5 },
-  { name: 'b-doors', x: 20.0, z: -10.0, yaw: 0.5, eye: 2.5 },
-  { name: 'b-window', x: 22.0, z: -16.0, yaw: 0, eye: 2.5 },
-];
+const GENERATED_RESOURCE_PATH = 'client/src/game/generated/dust2-world-mesh.ts';
 
-(async () => {
+main().catch(error => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(2);
+});
+
+async function main() {
+  const resource = readDust2GeneratedMeshResource(GENERATED_RESOURCE_PATH);
+  const verification = verifyDust2GeneratedMeshResource(resource);
+  const locations = createSourceBackedLocations(resource);
+
+  console.log(JSON.stringify({
+    sourcePath: verification.sourcePath,
+    vertexCount: verification.vertexCount,
+    triangleCount: verification.triangleCount,
+    entityCount: verification.entityCount,
+    screenshotCount: locations.length,
+  }, null, 2));
+
   const browser = await chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage']
@@ -69,7 +54,7 @@ const LOCATIONS = [
   });
   await page.waitForTimeout(500);
 
-  for (const loc of LOCATIONS) {
+  for (const loc of locations) {
     console.log(`${loc.name}: (${loc.x}, ${loc.z})`);
     await page.evaluate(({ x, z, yaw, eye }) => {
       if (window.__debugSetPlayerPosition) {
@@ -98,4 +83,47 @@ const LOCATIONS = [
 
   await browser.close();
   console.log('Done!');
-})();
+}
+
+function createSourceBackedLocations(resource) {
+  const worldBounds = resource.source.manifest.geometry.worldModel?.gameBounds;
+  if (!worldBounds) {
+    throw new Error('Dust2 generated mesh manifest is missing source world bounds for screenshot placement.');
+  }
+
+  const spawns = resource.source.manifest.entities.playerSpawns;
+  const tSpawn = spawns.find(spawn => spawn.team === 't' && spawn.gamePosition)?.gamePosition;
+  const ctSpawn = spawns.find(spawn => spawn.team === 'ct' && spawn.gamePosition)?.gamePosition;
+  if (!tSpawn || !ctSpawn) {
+    throw new Error('Dust2 generated mesh manifest is missing source-backed T/CT spawn positions.');
+  }
+
+  const minX = Math.min(worldBounds.mins.x, worldBounds.maxs.x);
+  const maxX = Math.max(worldBounds.mins.x, worldBounds.maxs.x);
+  const minZ = Math.min(worldBounds.mins.z, worldBounds.maxs.z);
+  const maxZ = Math.max(worldBounds.mins.z, worldBounds.maxs.z);
+  const midX = (minX + maxX) / 2;
+  const midZ = (minZ + maxZ) / 2;
+  const width = maxX - minX;
+  const depth = maxZ - minZ;
+
+  return [
+    cameraAt('source-t-spawn', tSpawn, ctSpawn),
+    cameraAt('source-ct-spawn', ctSpawn, tSpawn),
+    { name: 'source-world-overview-south', x: midX, z: maxZ - depth * 0.12, yaw: Math.PI, eye: 24 },
+    { name: 'source-world-overview-north', x: midX, z: minZ + depth * 0.12, yaw: 0, eye: 24 },
+    { name: 'source-world-west-lane', x: minX + width * 0.18, z: midZ, yaw: -Math.PI / 2, eye: 8 },
+    { name: 'source-world-mid', x: midX, z: midZ, yaw: 0, eye: 8 },
+    { name: 'source-world-east-lane', x: maxX - width * 0.18, z: midZ, yaw: Math.PI / 2, eye: 8 },
+  ];
+}
+
+function cameraAt(name, from, to) {
+  return {
+    name,
+    x: from.x,
+    z: from.z,
+    yaw: Math.atan2(to.x - from.x, to.z - from.z),
+    eye: Math.max(2.5, from.y + 1.8),
+  };
+}

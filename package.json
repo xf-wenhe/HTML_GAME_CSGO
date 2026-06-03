@@ -8,6 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
+    "dust2:preflight": "node scripts/import-dust2-goldsrc.mjs --check",
+    "dust2:import": "node scripts/import-dust2-goldsrc.mjs --out-ts client/src/game/generated/dust2-world-mesh.ts",
+    "dust2:verify": "node scripts/verify-dust2-generated.mjs",
+    "dust2:screenshots": "node scripts/screenshot-dust2.mjs",
     "test:e2e:feel": "node tests/e2e/csgo-feel-smoke.mjs"
   },
   "dependencies": {

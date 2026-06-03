@@ -1,20 +1,10 @@
 /**
- * CS:GO de_dust2 — 1:1 精确几何重建
+ * Dust2 hand-authored placeholder geometry.
  *
- * 基于公开的 CS:GO VMF/BSP 测量数据（Hammer units）
- * 比例: 0.01x（1 Hammer unit = 0.01 游戏单位）
- * 坐标系：X=东西, Y=高度, Z=南北（已翻转Z轴与CSGO对齐）
- *
- * 区域覆盖：
- *  - T Spawn / CT Spawn
- *  - A Long + A Doors + Pit
- *  - A Short / Catwalk
- *  - Palace
- *  - A Site + Platform + Goose + Ramp
- *  - Mid + Xbox + CT Window + Mid Doors + Suicide
- *  - B Tunnels 上下层 + Upper Dark
- *  - B Site + Platform + Car + Back Plat + B Window + B Doors
- *  - CT Mid 走廊
+ * This file is not a CS1.6 1:1 reconstruction. A source-accurate rebuild must
+ * be generated from a legal original CS1.6 de_dust2.bsp/.map/.rmf file via the
+ * GoldSrc import pipeline, then converted into the current game coordinate
+ * system. See `npm run dust2:preflight` for the source-file gate.
  */
 
 import {
@@ -66,7 +56,10 @@ function stairsX(x0: number, z: number, totalW: number, d: number, h0: number, h
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CS:GO de_dust2 — 完整碰撞体矩阵（1:1 Hammer 数据）
+// Legacy Dust2 placeholder collider matrix.
+// These boxes are intentionally superseded by the generated GoldSrc mesh when
+// `client/src/game/generated/dust2-world-mesh.ts` contains a validated source
+// resource. Do not treat these coordinates as CS1.6/CS:GO 1:1 map data.
 // ═══════════════════════════════════════════════════════════════
 
 export const DUST2_COLLIDERS: ArenaCollider[] = [
@@ -85,8 +78,8 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b(  256,  6400,   64,   64,  48, 0, 't-spawn-box-right'),
   b(    0,  6464,   64,   64,  32, 0, 't-spawn-barrel'),
 
-  // ── CT Spawn 封闭房间 ─────────────────────────────────────────────────
-  // 宽 1024 HU, 深 768 HU, 高 256 HU (封闭房间)
+  // ── CT Spawn placeholder room ─────────────────────────────────────────
+  // Legacy hand-authored fallback only.
   // 后墙（北墙，z=-3712）
   b(    0, -3712, 1024,   16, 256, 0, 'ct-spawn-back-wall'),
   // 左墙（西墙，x=-512）
@@ -144,7 +137,7 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   ...stairsZ(-3584, -512, 320, 384, 0, 96, 3, 'pit-stairs'),
   b(-3520,  -256,   64,   48,  48, 0, 'pit-box'),
 
-  // ── Palace（宫殿）— 384 HU增强宏伟感
+  // ── Legacy non-Dust2 placeholder block kept only for fallback mode
   b(-1920,  3584,   32, 1024, 384, 0, 'palace-outer-wall'),
   b(-2560,  3072, 1280,   32, 384, 0, 'palace-south-wall'),
   b(-2560,  4608, 1280,   32, 384, 0, 'palace-north-wall'),
@@ -323,7 +316,7 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b( 3200,    64,   64,   64,  64, 128, 'upper-dark-corner-block'),
   b( 3264,  -896,   64,   48,  48, 128, 'upper-tunnel-exit-box'),
   // ── B洞旋转楼梯（替换原直行楼梯）─────────────────────
-  // 真实 CS:GO DUST2: 下层→直行段→90°左转平台→转向段→上层
+  // Legacy hand-authored lower-to-upper tunnel approximation.
   // 阶段1: 直行段 (z: 1280→896, 从地面上升到 h=64)
   b( 2944, 1232,  64,  64,  24,   0, 'b-spiral-stair-s1-0'),
   b( 2944, 1168,  64,  64,  24,  16, 'b-spiral-stair-s1-1'),
@@ -429,7 +422,7 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   // Zone E: B Outside 半开放庭院（下层出口到B Site之间）
   // 东侧围墙（限定B Outside范围）
   b(  3904,  1280,   32, 2560, 256,   0, 'b-outside-east-wall'),
-  // 东侧建筑体块（形成真实DUST2半开放庭院感）
+  // East-side placeholder massing.
   b(  3712,  1792,  384,  512, 256,   0, 'b-outside-east-mass-1'),
   b(  3712,   896,  384,  512, 256,   0, 'b-outside-east-mass-2'),
   b(  3712,  -128,  384,  640, 256,   0, 'b-outside-east-mass-3'),
@@ -467,7 +460,7 @@ export const DUST2_COLLIDERS: ArenaCollider[] = [
   b(  192,  5632,   32,  256, 256,   0, 't-mid-arch-right'),
 
   // ── 新增：Mid 斜坡（T Spawn→Mid Doors 阶梯式下降）──
-  // 真实 DUST2: T出生点高于 Mid Doors，形成高地优势
+  // Placeholder height cue: T Spawn sits above Mid Doors.
   // 使用固定厚度平台、递减 yOff 实现下降
   // 总下降: 96 HU (从 120→24), 8段, 每段下降12 HU
   b(   0,  5504,  128,  384,  24,  108, 'mid-ramp-0'),
