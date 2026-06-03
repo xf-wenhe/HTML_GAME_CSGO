@@ -559,10 +559,14 @@ function buildDust2Arena(): ArenaData {
       color = 0x9a9080; textureKey = 'concrete'; metalness = 0.05; roughness = 0.88;
       // 楼梯踏步磨损
       if (n.includes('stair')) { color = 0xa69a88; roughness = 0.86; }
-    } else if (n.includes('door') || n.includes('post')) {
+    } else if (n.includes('door') || n.includes('post') || n.includes('gateway')) {
       color = 0x7a6040; textureKey = 'metal'; metalness = 0.35; roughness = 0.55;
       // 门框做旧
       if (n.includes('frame') || n.includes('lintel')) { color = 0x6e5640; roughness = 0.62; }
+    } else if (n.includes('spiral')) {
+      color = 0x9e8e7e; textureKey = 'concrete'; metalness = 0.05; roughness = 0.88;
+      if (n.includes('wall') || n.includes('rail')) { color = 0x8a7a6a; roughness = 0.90; }
+      if (n.includes('platform')) { color = 0xa09280; roughness = 0.86; }
     } else if (n.includes('box') || n.includes('car') || n.includes('bucket') || n.includes('plat')) {
       color = 0xc4a46b; textureKey = 'sand'; metalness = 0.06; roughness = 0.85;
       // 掩体底部脏污
@@ -589,11 +593,13 @@ function buildDust2Arena(): ArenaData {
       color = 0x887658; textureKey = 'metal'; metalness = 0.28; roughness = 0.60;
       // 窗台磨损
       if (n.includes('sill') || n.includes('side')) { color = 0x7a6850; roughness = 0.65; }
-    } else if (n.includes('border') || n.includes('wall')) {
+    } else if (n.includes('border') || n.includes('wall') || n.includes('divider')) {
       color = 0xb09870; textureKey = 'sand'; metalness = 0.07; roughness = 0.84;
       // 墙壁微变体：某些墙更偏暖黄，某些更偏灰
       if (n.includes('outer') || n.includes('inner')) { color = 0xbca878; roughness = 0.82; }
       if (n.includes('mid') || n.includes('ct') || n.includes('bs')) { color = 0xa89068; roughness = 0.86; }
+      // 分隔墙和建筑体块用混凝土
+      if (n.includes('divider') || n.includes('mass') || n.includes('entry')) { textureKey = 'concrete'; color = 0xa09888; roughness = 0.88; }
     } else if (n.includes('boundary')) {
       color = 0xa09070; textureKey = 'sand';
     }
