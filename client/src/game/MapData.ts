@@ -69,6 +69,14 @@ export interface ArenaData {
   props: BoxSpec[];
   meshes?: MeshSpec[];
   materialZones?: MaterialZone[];
+  source?: {
+    sourceBacked: boolean;
+    engine?: 'goldsrc';
+    kind?: 'bsp' | 'map';
+    path?: string;
+    sha256?: string;
+    note?: string;
+  };
 }
 
 export const resolveDust2SourceGeometry = (
@@ -958,6 +966,18 @@ function buildDust2Arena(): ArenaData {
     colliders: sourceGeometry.colliders,
     props: sourceGeometry.props,
     meshes: sourceGeometry.meshes,
+    source: DUST2_WORLD_MESH_RESOURCE
+      ? {
+          sourceBacked: true,
+          engine: 'goldsrc',
+          kind: DUST2_WORLD_MESH_RESOURCE.source.kind,
+          path: DUST2_WORLD_MESH_RESOURCE.source.path,
+          sha256: DUST2_WORLD_MESH_RESOURCE.source.sha256,
+        }
+      : {
+          sourceBacked: false,
+          note: 'Dust2 is using legacy placeholder geometry until a legal CS1.6 de_dust2.bsp or de_dust2.map is imported.',
+        },
     materialZones: [
       materialZone('dust2-sand',        'sand',     H(  0), 0, H(-1536), H(8192), 0.1, H(10240)),
       materialZone('dust2-concrete-a',  'concrete', H(-2688), 0.01, H(1280), H(1792), 0.1, H(1664)),

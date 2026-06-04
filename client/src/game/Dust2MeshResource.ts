@@ -7,10 +7,12 @@ export interface Dust2WorldMeshResource {
   schema: typeof DUST2_WORLD_MESH_SCHEMA;
   source: {
     engine: 'goldsrc';
-    kind: 'bsp';
-    version: number;
+    kind: 'bsp' | 'map';
+    version: number | null;
     path: string;
+    sha256: string;
     manifest: {
+      sha256?: string;
       entities?: {
         entityCount?: number;
         classCounts?: Record<string, number>;
@@ -32,8 +34,22 @@ export interface Dust2WorldMeshResource {
       geometry?: {
         worldMeshVertexCount?: number;
         worldMeshTriangleCount?: number;
+        exportedMeshVertexCount?: number;
+        exportedMeshTriangleCount?: number;
+        exportedModelIndexes?: number[];
+        modelMeshes?: unknown[];
         collision?: {
           worldHullSummaries?: unknown[];
+          modelHullSummaries?: Array<{
+            modelIndex?: number;
+            hulls?: Array<{
+              hull?: number;
+              contents?: Record<string, number>;
+              missingNodes?: number[];
+              cycles?: number[];
+            }>;
+          }>;
+          brushSolidCount?: number;
         };
       };
     };
@@ -64,12 +80,29 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
     throw new Error(`Unsupported Dust2 world mesh schema: ${resource.schema}`);
   }
 
-  if (resource.source?.engine !== 'goldsrc' || resource.source?.kind !== 'bsp' || resource.source?.version !== 30) {
-    throw new Error('Dust2 world mesh resource must be generated from a GoldSrc BSP30 source.');
+  const sourceKind = resource.source?.kind;
+  if (
+    resource.source?.engine !== 'goldsrc'
+    || (sourceKind !== 'bsp' && sourceKind !== 'map')
+    || (sourceKind === 'bsp' && resource.source?.version !== 30)
+  ) {
+    throw new Error('Dust2 world mesh resource must be generated from a GoldSrc BSP30 or MAP source.');
   }
 
   if (!resource.source.path || typeof resource.source.path !== 'string') {
-    throw new Error('Dust2 world mesh resource must record the source BSP path.');
+    throw new Error('Dust2 world mesh resource must record the source path.');
+  }
+
+  if (!resource.source.path.toLowerCase().endsWith(`/de_dust2.${sourceKind}`) && resource.source.path.toLowerCase() !== `de_dust2.${sourceKind}`) {
+    throw new Error(`Dust2 world mesh source path must be named de_dust2.${sourceKind}.`);
+  }
+
+  if (!/^[a-f0-9]{64}$/i.test(resource.source.sha256)) {
+    throw new Error('Dust2 world mesh resource must include a source SHA-256 fingerprint.');
+  }
+
+  if (resource.source.manifest?.sha256 !== resource.source.sha256) {
+    throw new Error('Dust2 world mesh source SHA-256 must match the source manifest.');
   }
 
   const geometryManifest = resource.source.manifest?.geometry;
@@ -77,8 +110,42 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
     throw new Error('Dust2 world mesh resource must include source geometry manifest counts.');
   }
 
+  if ((geometryManifest.exportedMeshVertexCount ?? 0) <= 0 || (geometryManifest.exportedMeshTriangleCount ?? 0) <= 0) {
+    throw new Error('Dust2 world mesh resource must include exported BSP model mesh counts.');
+  }
+
+  if (!Array.isArray(geometryManifest.modelMeshes) || geometryManifest.modelMeshes.length <= 0) {
+    throw new Error('Dust2 world mesh resource must include BSP model mesh manifests.');
+  }
+
+  if (!Array.isArray(geometryManifest.exportedModelIndexes) || !geometryManifest.exportedModelIndexes.includes(0)) {
+    throw new Error('Dust2 world mesh resource must include exported BSP model indexes with world model 0.');
+  }
+
   if (!Array.isArray(geometryManifest.collision?.worldHullSummaries)) {
     throw new Error('Dust2 world mesh resource must include source collision hull summaries.');
+  }
+
+  if (!Array.isArray(geometryManifest.collision?.modelHullSummaries)) {
+    throw new Error('Dust2 world mesh resource must include per-model collision hull summaries.');
+  }
+
+  const exportedModelIndexes = new Set(geometryManifest.exportedModelIndexes);
+  const exportedHullSummaries = geometryManifest.collision.modelHullSummaries.filter(summary =>
+    typeof summary.modelIndex === 'number' && exportedModelIndexes.has(summary.modelIndex)
+  );
+  if (exportedHullSummaries.length !== exportedModelIndexes.size) {
+    throw new Error('Dust2 world mesh resource must include collision hull summaries for every exported BSP model.');
+  }
+
+  for (const summary of exportedHullSummaries) {
+    if (!summary.hulls?.some(hull => (hull.contents?.solid ?? 0) > 0)) {
+      throw new Error(`Dust2 world mesh exported model ${summary.modelIndex} must include solid collision hull contents.`);
+    }
+  }
+
+  if (sourceKind === 'map' && (geometryManifest.collision.brushSolidCount ?? 0) <= 0) {
+    throw new Error('Dust2 world mesh MAP resource must include solid brush collision evidence.');
   }
 
   const entityManifest = resource.source.manifest?.entities;
@@ -94,16 +161,24 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
     throw new Error('Dust2 world mesh resource must include source T and CT player spawns.');
   }
 
-  if (!Array.isArray(entityManifest.bombTargets) || entityManifest.bombTargets.length <= 0) {
-    throw new Error('Dust2 world mesh resource must include source bomb target entities.');
+  if (!Array.isArray(entityManifest.bombTargets) || entityManifest.bombTargets.length < 2) {
+    throw new Error('Dust2 world mesh resource must include source A/B bomb target entities.');
   }
 
   if (!Array.isArray(resource.mesh.positions) || resource.mesh.positions.length === 0) {
     throw new Error('Dust2 world mesh resource must include at least one position.');
   }
 
+  if (resource.mesh.positions.length !== geometryManifest.exportedMeshVertexCount) {
+    throw new Error('Dust2 world mesh positions must match exported BSP model mesh vertex count.');
+  }
+
   if (!Array.isArray(resource.mesh.indices) || resource.mesh.indices.length % 3 !== 0) {
     throw new Error('Dust2 world mesh indices must be an array of triangles.');
+  }
+
+  if (resource.mesh.indices.length !== geometryManifest.exportedMeshTriangleCount * 3) {
+    throw new Error('Dust2 world mesh indices must match exported BSP model mesh triangle count.');
   }
 
   resource.mesh.positions.forEach((position, index) => {

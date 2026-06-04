@@ -2,7 +2,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export const SUPPORTED_DUST2_SOURCE_EXTENSIONS = new Set(['.bsp', '.map', '.rmf']);
+export const IMPORTABLE_DUST2_SOURCE_KINDS = new Set(['bsp', 'map']);
 export const GOLD_SRC_BSP_VERSION = 30;
+
+export function isImportableDust2SourceKind(kind) {
+  return IMPORTABLE_DUST2_SOURCE_KINDS.has(kind);
+}
+
+export function formatNonImportableDust2SourceMessage(inspection) {
+  if (inspection?.kind === 'rmf') {
+    return [
+      'CS1.6 Dust2 RMF source was found, but RMF mesh export is not implemented in this pipeline.',
+      'Convert de_dust2.rmf to de_dust2.map with a legal Worldcraft/Hammer-compatible tool, or provide the original de_dust2.bsp.',
+      `Found RMF: ${inspection.path}`,
+    ].join('\n');
+  }
+
+  return `Dust2 source kind is not importable: ${inspection?.kind ?? '<missing>'}`;
+}
 
 const DEFAULT_RELATIVE_CANDIDATES = [
   'de_dust2.bsp',

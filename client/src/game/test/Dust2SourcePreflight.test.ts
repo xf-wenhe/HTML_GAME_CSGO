@@ -8,6 +8,7 @@ import {
   findDust2Source,
   getDust2SourceCandidates,
   inspectDust2Source,
+  isImportableDust2SourceKind,
 } from '../../../../scripts/lib/dust2-source-preflight.mjs';
 import {
   GOLD_SRC_BSP_HEADER_BYTES,
@@ -27,11 +28,17 @@ import {
   createDust2MeshResource,
   createDust2MeshResourceModule,
   writeDust2MeshResourceModuleFromBsp,
+  writeDust2MeshResourceModuleFromMap,
 } from '../../../../scripts/lib/dust2-mesh-export.mjs';
+import {
+  createGoldSrcMapManifest,
+  parseGoldSrcMapSource,
+} from '../../../../scripts/lib/goldsrc-map.mjs';
 import {
   parseDust2GeneratedMeshModule,
   verifyDust2GeneratedMeshResource,
 } from '../../../../scripts/lib/dust2-generated-verify.mjs';
+import { createDust2Status } from '../../../../scripts/lib/dust2-status.mjs';
 
 let tempDirs: string[] = [];
 
@@ -131,6 +138,21 @@ describe('CS1.6 Dust2 source preflight', () => {
     });
   });
 
+  it('recognizes RMF headers but does not treat RMF as directly importable', () => {
+    const dir = makeTempDir();
+    const source = path.join(dir, 'de_dust2.rmf');
+    fs.writeFileSync(source, Buffer.from('Worldcraft RMF\0'.padEnd(64, '\0'), 'latin1'));
+
+    const inspection = inspectDust2Source(source);
+
+    expect(inspection).toMatchObject({
+      kind: 'rmf',
+      engine: 'goldsrc',
+      path: source,
+    });
+    expect(isImportableDust2SourceKind(inspection.kind)).toBe(false);
+  });
+
   it('reports deterministic source search candidates', () => {
     const dir = makeTempDir();
     const candidates = getDust2SourceCandidates({
@@ -156,15 +178,18 @@ describe('CS1.6 Dust2 source preflight', () => {
       length: createSyntheticEntityLump().length,
     });
     expect(parsed.entitiesText).toContain('"classname" "worldspawn"');
-    expect(parsed.entities).toHaveLength(4);
+    expect(parsed.entities).toHaveLength(6);
+    expect(parsed.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(manifest.sha256).toBe(parsed.sha256);
     expect(manifest.worldspawnPresent).toBe(true);
     expect(manifest.entities).toMatchObject({
-      entityCount: 4,
+      entityCount: 6,
       classCounts: {
         worldspawn: 1,
         info_player_start: 1,
         info_player_deathmatch: 1,
-        func_bomb_target: 1,
+        func_door: 1,
+        func_bomb_target: 2,
       },
       playerSpawns: [
         {
@@ -183,8 +208,33 @@ describe('CS1.6 Dust2 source preflight', () => {
       bombTargets: [
         {
           classname: 'func_bomb_target',
-          model: '*1',
+          model: '*2',
           targetname: 'bombsite_a',
+        },
+        {
+          classname: 'func_bomb_target',
+          model: '*3',
+          targetname: 'bombsite_b',
+        },
+      ],
+      brushEntities: [
+        {
+          classname: 'func_door',
+          model: '*1',
+          modelIndex: 1,
+          brushKind: 'structural',
+        },
+        {
+          classname: 'func_bomb_target',
+          model: '*2',
+          modelIndex: 2,
+          brushKind: 'trigger',
+        },
+        {
+          classname: 'func_bomb_target',
+          model: '*3',
+          modelIndex: 3,
+          brushKind: 'trigger',
         },
       ],
     });
@@ -197,6 +247,8 @@ describe('CS1.6 Dust2 source preflight', () => {
       'worldspawn',
       'info_player_start',
       'info_player_deathmatch',
+      'func_door',
+      'func_bomb_target',
       'func_bomb_target',
     ]);
     expect(parseHammerOrigin('1 2 3')).toEqual({ x: 1, y: 2, z: 3 });
@@ -240,7 +292,32 @@ describe('CS1.6 Dust2 source preflight', () => {
       worldPolygonCount: 1,
       worldMeshVertexCount: 4,
       worldMeshTriangleCount: 2,
-      modelCount: 1,
+      modelCount: 4,
+      exportedMeshVertexCount: 16,
+      exportedMeshTriangleCount: 8,
+      exportedModelIndexes: [0, 1, 2, 3],
+      modelMeshes: [
+        {
+          modelIndex: 0,
+          vertexCount: 4,
+          triangleCount: 2,
+        },
+        {
+          modelIndex: 1,
+          vertexCount: 4,
+          triangleCount: 2,
+        },
+        {
+          modelIndex: 2,
+          vertexCount: 4,
+          triangleCount: 2,
+        },
+        {
+          modelIndex: 3,
+          vertexCount: 4,
+          triangleCount: 2,
+        },
+      ],
       worldModel: {
         gameBounds: {
           mins: { x: 0, y: 0, z: -0 },
@@ -316,6 +393,12 @@ describe('CS1.6 Dust2 source preflight', () => {
       nodeCount: 1,
       contents: { empty: 1, solid: 1 },
     });
+    expect(manifest.geometry.collision.modelHullSummaries).toHaveLength(4);
+    expect(manifest.geometry.collision.modelHullSummaries.map(summary => summary.modelIndex)).toEqual([0, 1, 2, 3]);
+    expect(manifest.geometry.collision.modelHullSummaries[1].hulls[0]).toMatchObject({
+      hull: 0,
+      contents: { empty: 1, solid: 1 },
+    });
   });
 
   it('triangulates world face polygons into renderable mesh data', () => {
@@ -368,11 +451,15 @@ describe('CS1.6 Dust2 source preflight', () => {
         engine: 'goldsrc',
         kind: 'bsp',
         version: GOLD_SRC_BSP_VERSION,
+        sha256: parsed.sha256,
         path: '/legal/cstrike/maps/de_dust2.bsp',
         manifest: {
+          sha256: parsed.sha256,
           geometry: {
             worldMeshVertexCount: 4,
             worldMeshTriangleCount: 2,
+            exportedMeshVertexCount: 8,
+            exportedMeshTriangleCount: 4,
           },
         },
       },
@@ -383,8 +470,12 @@ describe('CS1.6 Dust2 source preflight', () => {
           [1.28, 0, -0],
           [1.28, 0, -1.28],
           [0, 0, -1.28],
+          [0, 0, -0],
+          [1.28, 0, -0],
+          [1.28, 0, -1.28],
+          [0, 0, -1.28],
         ],
-        indices: [0, 1, 2, 0, 2, 3],
+        indices: [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7],
       },
     });
   });
@@ -410,11 +501,87 @@ describe('CS1.6 Dust2 source preflight', () => {
     const resource = writeDust2MeshResourceModuleFromBsp(source, out);
     const moduleSource = fs.readFileSync(out, 'utf8');
 
-    expect(resource.mesh.positions).toHaveLength(4);
-    expect(resource.mesh.indices).toEqual([0, 1, 2, 0, 2, 3]);
+    expect(resource.mesh.positions).toHaveLength(8);
+    expect(resource.mesh.indices).toEqual([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
     expect(moduleSource).toContain('export const DUST2_WORLD_MESH_RESOURCE: Dust2WorldMeshResource | null =');
     expect(moduleSource).toContain(`"path": "${source}"`);
-    expect(moduleSource).toContain('"worldMeshTriangleCount": 2');
+    expect(moduleSource).toContain('"exportedMeshTriangleCount": 4');
+  });
+
+  it('parses a GoldSrc MAP source into structural brush geometry', () => {
+    const parsed = parseGoldSrcMapSource(createSyntheticMapSource(), { sourcePath: '/legal/cstrike/maps/de_dust2.map' });
+    const manifest = createGoldSrcMapManifest(parsed);
+
+    expect(parsed).toMatchObject({
+      kind: 'map',
+      engine: 'goldsrc',
+      version: null,
+      sourcePath: '/legal/cstrike/maps/de_dust2.map',
+    });
+    expect(parsed.mapEntities.map(entity => entity.classname)).toEqual([
+      'worldspawn',
+      'info_player_start',
+      'info_player_deathmatch',
+      'func_door',
+      'func_bomb_target',
+      'func_bomb_target',
+    ]);
+    expect(manifest.entities).toMatchObject({
+      entityCount: 6,
+      classCounts: {
+        worldspawn: 1,
+        info_player_start: 1,
+        info_player_deathmatch: 1,
+        func_door: 1,
+        func_bomb_target: 2,
+      },
+    });
+    expect(manifest.entities.brushEntities).toEqual([
+      expect.objectContaining({ classname: 'func_door', brushKind: 'structural', model: null, modelIndex: null }),
+      expect.objectContaining({ classname: 'func_bomb_target', brushKind: 'trigger', model: null, modelIndex: null }),
+      expect.objectContaining({ classname: 'func_bomb_target', brushKind: 'trigger', model: null, modelIndex: null }),
+    ]);
+    expect(manifest.geometry).toMatchObject({
+      brushCount: 4,
+      structuralBrushCount: 2,
+      triggerBrushCount: 2,
+      worldMeshTriangleCount: 12,
+      exportedMeshTriangleCount: 24,
+      collision: {
+        brushSolidCount: 2,
+      },
+    });
+  });
+
+  it('writes and verifies a generated TypeScript mesh module from a MAP file', () => {
+    const dir = makeTempDir();
+    const source = path.join(dir, 'de_dust2.map');
+    const out = path.join(dir, 'generated', 'dust2-world-mesh.ts');
+    fs.writeFileSync(source, createSyntheticMapSource());
+
+    const resource = writeDust2MeshResourceModuleFromMap(source, out);
+    const moduleSource = fs.readFileSync(out, 'utf8');
+    const verification = verifyDust2GeneratedMeshResource(parseDust2GeneratedMeshModule(moduleSource));
+
+    expect(resource.source).toMatchObject({
+      kind: 'map',
+      version: null,
+      path: source,
+    });
+    expect(resource.mesh.indices).toHaveLength(72);
+    expect(moduleSource).toContain('"kind": "map"');
+    expect(verification).toMatchObject({
+      sourcePath: source,
+      vertexCount: 48,
+      triangleCount: 24,
+      hullCount: 1,
+      modelMeshCount: 1,
+      exportedModelCount: 1,
+      entityCount: 6,
+      tSpawnCount: 1,
+      ctSpawnCount: 1,
+      bombTargetCount: 2,
+    });
   });
 
   it('runs the Dust2 import CLI end-to-end and verifies the generated module', () => {
@@ -433,14 +600,137 @@ describe('CS1.6 Dust2 source preflight', () => {
     expect(output).toContain('"kind": "bsp"');
     expect(output).toContain('"worldMeshTriangleCount": 2');
     expect(output).toContain('"verified": true');
-    expect(output).toContain('"vertexCount": 4');
+    expect(output).toContain('"vertexCount": 8');
+    expect(output).toContain('"exportedModelCount": 2');
+    expect(moduleSource).toContain(`"path": "${source}"`);
+    expect(moduleSource).toContain('"exportedMeshTriangleCount": 4');
+    expect(moduleSource).toContain('"exportedModelIndexes": [');
+    expect(verifyDust2GeneratedMeshResource(parseDust2GeneratedMeshModule(moduleSource))).toMatchObject({
+      sourcePath: source,
+      vertexCount: 8,
+      triangleCount: 4,
+      hullCount: 4,
+      modelMeshCount: 4,
+      exportedModelCount: 2,
+    });
+  });
+
+  it('runs the Dust2 MAP import CLI end-to-end and verifies the generated module', () => {
+    const dir = makeTempDir();
+    const source = path.join(dir, 'de_dust2.map');
+    const out = path.join(dir, 'generated', 'dust2-world-mesh.ts');
+    fs.writeFileSync(source, createSyntheticMapSource());
+
+    const output = execFileSync(
+      'node',
+      ['scripts/import-dust2-goldsrc.mjs', '--source', source, '--out-ts', out],
+      { cwd: process.cwd(), encoding: 'utf8' }
+    );
+    const moduleSource = fs.readFileSync(out, 'utf8');
+
+    expect(output).toContain('"kind": "map"');
+    expect(output).toContain('"brushCount": 4');
+    expect(output).toContain('"verified": true');
+    expect(output).toContain('"vertexCount": 48');
+    expect(output).toContain('"exportedModelCount": 1');
     expect(moduleSource).toContain(`"path": "${source}"`);
     expect(verifyDust2GeneratedMeshResource(parseDust2GeneratedMeshModule(moduleSource))).toMatchObject({
       sourcePath: source,
-      vertexCount: 4,
-      triangleCount: 2,
-      hullCount: 4,
+      vertexCount: 48,
+      triangleCount: 24,
+      hullCount: 1,
+      modelMeshCount: 1,
+      exportedModelCount: 1,
     });
+  });
+
+  it('refuses to export RMF directly and tells the caller to convert it first', () => {
+    const dir = makeTempDir();
+    const source = path.join(dir, 'de_dust2.rmf');
+    const out = path.join(dir, 'generated', 'dust2-world-mesh.ts');
+    fs.writeFileSync(source, Buffer.from('Worldcraft RMF\0'.padEnd(64, '\0'), 'latin1'));
+
+    expect(() =>
+      execFileSync(
+        'node',
+        ['scripts/import-dust2-goldsrc.mjs', '--source', source, '--out-ts', out],
+        { cwd: process.cwd(), encoding: 'utf8', stdio: 'pipe' }
+      )
+    ).toThrow(/RMF mesh export is not implemented/);
+    expect(fs.existsSync(out)).toBe(false);
+  });
+
+  it('reports Dust2 status without treating synthetic source-backed data as strict 1:1 Dust2', () => {
+    const dir = makeTempDir();
+    const source = path.join(dir, 'de_dust2.bsp');
+    const out = path.join(dir, 'generated', 'dust2-world-mesh.ts');
+    fs.writeFileSync(source, createSyntheticBspBuffer());
+    writeDust2MeshResourceModuleFromBsp(source, out);
+
+    const status = createDust2Status({
+      cwd: dir,
+      sourcePath: source,
+      generatedModule: out,
+      env: {},
+    });
+
+    expect(status.sourceBacked).toBe(true);
+    expect(status.classicDust2Strict).toBe(false);
+    expect(status.gates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'strict-bomb-sites', passed: true }),
+        expect.objectContaining({ id: 'strict-map-scale', passed: false }),
+        expect.objectContaining({ id: 'strict-structural-brushes', passed: true }),
+      ])
+    );
+  });
+
+  it('reports RMF sources as found but not directly importable', () => {
+    const dir = makeTempDir();
+    const source = path.join(dir, 'de_dust2.rmf');
+    const generatedModule = path.join(dir, 'generated', 'dust2-world-mesh.ts');
+    fs.mkdirSync(path.dirname(generatedModule), { recursive: true });
+    fs.writeFileSync(source, Buffer.from('Worldcraft RMF\0'.padEnd(64, '\0'), 'latin1'));
+    fs.writeFileSync(
+      generatedModule,
+      "import type { Dust2WorldMeshResource } from '../Dust2MeshResource.js';\n\nexport const DUST2_WORLD_MESH_RESOURCE: Dust2WorldMeshResource | null = null;\n"
+    );
+
+    const status = createDust2Status({
+      cwd: dir,
+      sourcePath: source,
+      generatedModule,
+      env: {},
+    });
+
+    expect(status.source.found).toBe(true);
+    expect(status.sourceBacked).toBe(false);
+    expect(status.gates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'source-file', passed: true }),
+        expect.objectContaining({ id: 'source-importable', passed: false }),
+        expect.objectContaining({ id: 'generated-resource', passed: false }),
+      ])
+    );
+    expect(status.nextAction).toContain('convert de_dust2.rmf to de_dust2.map');
+  });
+
+  it('reports Dust2 status as not ready while source and generated resource are missing', () => {
+    const dir = makeTempDir();
+    const status = createDust2Status({
+      cwd: dir,
+      generatedModule: path.join(dir, 'missing-dust2-world-mesh.ts'),
+      env: {},
+    });
+
+    expect(status.sourceBacked).toBe(false);
+    expect(status.classicDust2Strict).toBe(false);
+    expect(status.gates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'source-file', passed: false }),
+        expect.objectContaining({ id: 'generated-resource', passed: false }),
+      ])
+    );
   });
 
   it('refuses Dust2 screenshots until a source-backed generated resource exists', () => {
@@ -462,15 +752,29 @@ describe('CS1.6 Dust2 source preflight', () => {
     expect(verifyDust2GeneratedMeshResource(parseDust2GeneratedMeshModule(moduleSource))).toEqual({
       schema: 'fps-web-game/dust2-world-mesh/v1',
       sourcePath: '/legal/cstrike/maps/de_dust2.bsp',
-      vertexCount: 4,
-      triangleCount: 2,
+      vertexCount: 8,
+      triangleCount: 4,
       hullCount: 4,
-      entityCount: 4,
+      modelMeshCount: 4,
+      exportedModelCount: 2,
+      entityCount: 6,
       tSpawnCount: 1,
       ctSpawnCount: 1,
-      bombTargetCount: 1,
+      bombTargetCount: 2,
     });
     expect(() => verifyDust2GeneratedMeshResource(null)).toThrow(/resource is null/);
+    expect(() =>
+      verifyDust2GeneratedMeshResource({
+        ...resource,
+        source: {
+          ...resource.source,
+          manifest: {
+            ...resource.source.manifest,
+            sha256: 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+          },
+        },
+      })
+    ).toThrow(/SHA-256/);
     expect(() =>
       verifyDust2GeneratedMeshResource({
         ...resource,
@@ -480,6 +784,32 @@ describe('CS1.6 Dust2 source preflight', () => {
         },
       })
     ).toThrow(/indices do not match/);
+    expect(() =>
+      verifyDust2GeneratedMeshResource({
+        ...resource,
+        source: {
+          ...resource.source,
+          manifest: {
+            ...resource.source.manifest,
+            geometry: {
+              ...resource.source.manifest.geometry,
+              collision: {
+                ...resource.source.manifest.geometry.collision,
+                modelHullSummaries: [
+                  {
+                    modelIndex: 0,
+                    hulls: [
+                      { hull: 0, contents: { solid: 1 }, missingNodes: [9], cycles: [] },
+                    ],
+                  },
+                  ...resource.source.manifest.geometry.collision.modelHullSummaries.slice(1),
+                ],
+              },
+            },
+          },
+        },
+      })
+    ).toThrow(/unresolved clipnode/);
   });
 
   it('assembles face polygons from signed surfedges', () => {
@@ -602,7 +932,7 @@ function createSyntheticBspBuffer({ signedSurfEdges = [0, 1, 2, 3], faceEdgeCoun
     surfaceEdges.writeInt32LE(edgeIndex, index * GOLD_SRC_BSP_STRUCT_SIZES.surfEdge);
   });
 
-  const models = Buffer.alloc(GOLD_SRC_BSP_STRUCT_SIZES.model);
+  const models = Buffer.alloc(GOLD_SRC_BSP_STRUCT_SIZES.model * 4);
   writeVector(models, 0, 0, 0, 0);
   writeVector(models, 12, 128, 128, 64);
   writeVector(models, 24, 0, 0, 0);
@@ -613,6 +943,39 @@ function createSyntheticBspBuffer({ signedSurfEdges = [0, 1, 2, 3], faceEdgeCoun
   models.writeInt32LE(1, 52);
   models.writeInt32LE(0, 56);
   models.writeInt32LE(1, 60);
+
+  writeVector(models, 64, 0, 0, 0);
+  writeVector(models, 76, 128, 128, 64);
+  writeVector(models, 88, 0, 0, 0);
+  models.writeInt32LE(0, 100);
+  models.writeInt32LE(-1, 104);
+  models.writeInt32LE(-1, 108);
+  models.writeInt32LE(-1, 112);
+  models.writeInt32LE(1, 116);
+  models.writeInt32LE(0, 120);
+  models.writeInt32LE(1, 124);
+
+  writeVector(models, 128, 0, 0, 0);
+  writeVector(models, 140, 128, 128, 64);
+  writeVector(models, 152, 0, 0, 0);
+  models.writeInt32LE(0, 164);
+  models.writeInt32LE(-1, 168);
+  models.writeInt32LE(-1, 172);
+  models.writeInt32LE(-1, 176);
+  models.writeInt32LE(1, 180);
+  models.writeInt32LE(0, 184);
+  models.writeInt32LE(1, 188);
+
+  writeVector(models, 192, 0, 0, 0);
+  writeVector(models, 204, 128, 128, 64);
+  writeVector(models, 216, 0, 0, 0);
+  models.writeInt32LE(0, 228);
+  models.writeInt32LE(-1, 232);
+  models.writeInt32LE(-1, 236);
+  models.writeInt32LE(-1, 240);
+  models.writeInt32LE(1, 244);
+  models.writeInt32LE(0, 248);
+  models.writeInt32LE(1, 252);
 
   const lumps = new Map([
     [0, entities],
@@ -655,14 +1018,70 @@ function createSyntheticEntityLump() {
       '"origin" "-128 -256 32"',
       '}',
       '{',
-      '"classname" "func_bomb_target"',
+      '"classname" "func_door"',
       '"model" "*1"',
+      '"targetname" "a_door"',
+      '}',
+      '{',
+      '"classname" "func_bomb_target"',
+      '"model" "*2"',
       '"targetname" "bombsite_a"',
+      '}',
+      '{',
+      '"classname" "func_bomb_target"',
+      '"model" "*3"',
+      '"targetname" "bombsite_b"',
       '}',
       '',
     ].join('\n'),
     'latin1'
   );
+}
+
+function createSyntheticMapSource() {
+  return [
+    '{',
+    '"classname" "worldspawn"',
+    createCubeBrush(0, 0, 0, 128, 128, 64),
+    '}',
+    '{',
+    '"classname" "info_player_start"',
+    '"origin" "128 256 64"',
+    '}',
+    '{',
+    '"classname" "info_player_deathmatch"',
+    '"origin" "-128 -256 32"',
+    '}',
+    '{',
+    '"classname" "func_door"',
+    '"targetname" "a_door"',
+    createCubeBrush(160, 0, 0, 192, 128, 64),
+    '}',
+    '{',
+    '"classname" "func_bomb_target"',
+    '"targetname" "bombsite_a"',
+    createCubeBrush(0, 160, 0, 128, 192, 32),
+    '}',
+    '{',
+    '"classname" "func_bomb_target"',
+    '"targetname" "bombsite_b"',
+    createCubeBrush(160, 160, 0, 192, 192, 32),
+    '}',
+    '',
+  ].join('\n');
+}
+
+function createCubeBrush(minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number) {
+  return [
+    '{',
+    `( ${minX} ${minY} ${minZ} ) ( ${maxX} ${maxY} ${minZ} ) ( ${maxX} ${minY} ${minZ} ) DUSTWALL 0 0 0 1 1`,
+    `( ${minX} ${minY} ${maxZ} ) ( ${maxX} ${minY} ${maxZ} ) ( ${maxX} ${maxY} ${maxZ} ) DUSTWALL 0 0 0 1 1`,
+    `( ${minX} ${minY} ${minZ} ) ( ${minX} ${minY} ${maxZ} ) ( ${minX} ${maxY} ${maxZ} ) DUSTWALL 0 0 0 1 1`,
+    `( ${maxX} ${minY} ${minZ} ) ( ${maxX} ${maxY} ${maxZ} ) ( ${maxX} ${minY} ${maxZ} ) DUSTWALL 0 0 0 1 1`,
+    `( ${minX} ${minY} ${minZ} ) ( ${maxX} ${minY} ${maxZ} ) ( ${minX} ${minY} ${maxZ} ) DUSTWALL 0 0 0 1 1`,
+    `( ${minX} ${maxY} ${minZ} ) ( ${minX} ${maxY} ${maxZ} ) ( ${maxX} ${maxY} ${maxZ} ) DUSTWALL 0 0 0 1 1`,
+    '}',
+  ].join('\n');
 }
 
 function writeVector(buffer: Buffer, offset: number, x: number, y: number, z: number) {

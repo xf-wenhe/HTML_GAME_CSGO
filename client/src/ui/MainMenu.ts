@@ -1,7 +1,21 @@
 import type { MapId, RoomListItem } from '../game/types.js';
+import { MULTIPLAYER_MAPS } from '../game/config/maps.js';
 
-const MAP_OPTIONS: Array<{ id: MapId; label: string; desc: string; accent: string; sites: string; tdmOnly?: boolean }> = [
-  { id: 'dust2',       label: 'Dust2',        desc: '中东沙漠 · 经典三路',       accent: '#d4a45a', sites: 'A·B' },
+type GameMode = 'solo' | 'tdm' | 'defusal';
+type MenuMapOption = {
+  id: MapId;
+  label: string;
+  desc: string;
+  accent: string;
+  sites: string;
+  tdmOnly?: boolean;
+  sourceRequired?: boolean;
+};
+
+const DUST2_SOURCE_BACKED = MULTIPLAYER_MAPS.dust2.source?.sourceBacked === true;
+
+const MAP_OPTIONS: MenuMapOption[] = [
+  { id: 'dust2',       label: 'Dust2',        desc: DUST2_SOURCE_BACKED ? 'CS1.6 源文件导入' : '待导入原版 BSP', accent: '#d4a45a', sites: 'A·B', sourceRequired: !DUST2_SOURCE_BACKED },
   { id: 'mirage',      label: 'Mirage',       desc: '中东市集 · 中路对决',       accent: '#c4a96b', sites: 'A·B' },
   { id: 'inferno',     label: 'Inferno',      desc: '欧洲小镇 · 香蕉走廊',       accent: '#b08c58', sites: 'A·B' },
   { id: 'nuke',        label: 'Nuke',         desc: '核电设施 · 双层结构',       accent: '#5c8aa8', sites: 'A·B' },
@@ -12,13 +26,21 @@ const MAP_OPTIONS: Array<{ id: MapId; label: string; desc: string; accent: strin
   { id: 'bloodstrike', label: 'Blood Strike', desc: '经典死斗 · 十字走廊混战',   accent: '#c0282a', sites: '死斗', tdmOnly: true },
 ];
 
+const isMapSelectable = (mapId: MapId, mode: GameMode): boolean => {
+  const option = MAP_OPTIONS.find(item => item.id === mapId);
+  return Boolean(option && !option.sourceRequired && (!option.tdmOnly || mode === 'tdm'));
+};
+
+const getDefaultMapId = (mode: GameMode): MapId =>
+  MAP_OPTIONS.find(item => !item.sourceRequired && (!item.tdmOnly || mode === 'tdm'))?.id ?? 'mirage';
+
 export class MainMenu {
   private element: HTMLElement;
   private eventHandlers: Map<string, Array<(payload?: unknown) => void>> = new Map();
   private buttons: Map<string, HTMLButtonElement> = new Map();
   private difficulty: 'easy' | 'normal' | 'hard' | 'expert' = 'normal';
-  private mapId: MapId = 'dust2';
-  private selectedMode: 'solo' | 'tdm' | 'defusal' = 'tdm';
+  private selectedMode: GameMode = 'tdm';
+  private mapId: MapId = getDefaultMapId(this.selectedMode);
 
   constructor() {
     this.element = this.createElement();
@@ -126,12 +148,12 @@ export class MainMenu {
     menu.setAttribute('aria-label', '锻点行动 - 主菜单');
     menu.setAttribute('aria-modal', 'true');
     const mapButtons = MAP_OPTIONS.map(m =>
-      `<button class="map-option${m.id === 'dust2' ? ' active' : ''}${m.tdmOnly ? ' tdm-only-map' : ''}" data-map="${m.id}" data-tdm-only="${m.tdmOnly ? '1' : '0'}" type="button" title="${m.desc}">
+      `<button class="map-option${m.id === this.mapId ? ' active' : ''}${m.tdmOnly ? ' tdm-only-map' : ''}${m.sourceRequired ? ' source-required-map' : ''}" data-map="${m.id}" data-tdm-only="${m.tdmOnly ? '1' : '0'}" data-source-required="${m.sourceRequired ? '1' : '0'}" type="button" title="${m.desc}" aria-disabled="${m.sourceRequired ? 'true' : 'false'}"${m.sourceRequired ? ' disabled' : ''}>
         <span class="map-accent-bar" style="background:${m.accent}"></span>
         <span class="map-card-body">
           <span class="map-card-name">${m.label}${m.tdmOnly ? ' <span class="map-tdm-badge">死斗专属</span>' : ''}</span>
           <span class="map-card-desc">${m.desc}</span>
-          <span class="map-card-sites">${m.tdmOnly ? '团队死斗' : '炸点 ' + m.sites + ' · 5v5'}</span>
+          <span class="map-card-sites">${m.sourceRequired ? '需要 CS1.6 原版 de_dust2.bsp' : (m.tdmOnly ? '团队死斗' : '炸点 ' + m.sites + ' · 5v5')}</span>
         </span>
       </button>`
     ).join('');
@@ -222,7 +244,7 @@ export class MainMenu {
         const action = (e.currentTarget as HTMLElement).getAttribute('data-action');
         if (action) {
           if (action === 'solo' || action === 'tdm' || action === 'defusal') {
-            this.selectedMode = action as 'solo' | 'tdm' | 'defusal';
+            this.selectedMode = action as GameMode;
             this.updateMapVisibility();
           }
           this.emit(action);
@@ -249,9 +271,10 @@ export class MainMenu {
         const selected = button.dataset.map as MapId | undefined;
         if (!selected) return;
         const isTdmOnly = button.dataset.tdmOnly === '1';
-        if (isTdmOnly && this.selectedMode !== 'tdm') return;
+        const needsSource = button.dataset.sourceRequired === '1';
+        if (needsSource || (isTdmOnly && this.selectedMode !== 'tdm')) return;
         this.mapId = selected;
-        this.element.querySelectorAll('.map-option').forEach(item => item.classList.toggle('active', item === button));
+        this.syncActiveMapButton();
       });
     });
     this.element.querySelector<HTMLButtonElement>('.menu-settings-btn')?.addEventListener('click', () => this.emit('settings'));
@@ -285,6 +308,10 @@ export class MainMenu {
   }
 
   getMapId(): MapId {
+    if (!isMapSelectable(this.mapId, this.selectedMode)) {
+      this.mapId = getDefaultMapId(this.selectedMode);
+      this.syncActiveMapButton();
+    }
     return this.mapId;
   }
 
@@ -363,19 +390,23 @@ export class MainMenu {
       const tdmOnly = button.dataset.tdmOnly === '1';
       if (tdmOnly) {
         button.style.display = isTdm ? '' : 'none';
-        if (!isTdm && this.mapId === (button.dataset.map as MapId)) {
-          this.mapId = 'dust2';
-          this.element.querySelectorAll<HTMLButtonElement>('.map-option').forEach(b => {
-            b.classList.toggle('active', b.dataset.map === 'dust2');
-          });
-        }
       }
     });
+    if (!isMapSelectable(this.mapId, this.selectedMode)) {
+      this.mapId = getDefaultMapId(this.selectedMode);
+    }
+    this.syncActiveMapButton();
     const countEl = this.element.querySelector('.map-count');
     if (countEl) {
       const visible = MAP_OPTIONS.filter(m => !m.tdmOnly || isTdm).length;
       countEl.textContent = `${visible} 张地图`;
     }
+  }
+
+  private syncActiveMapButton(): void {
+    this.element.querySelectorAll<HTMLButtonElement>('.map-option').forEach(button => {
+      button.classList.toggle('active', button.dataset.map === this.mapId && button.dataset.sourceRequired !== '1');
+    });
   }
 
   private roomModeLabel(mode: string): string {

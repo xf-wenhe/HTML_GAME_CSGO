@@ -2,12 +2,20 @@
 import {
   findDust2Source,
   formatMissingDust2SourceMessage,
+  formatNonImportableDust2SourceMessage,
   getDust2SourceCandidates,
   inspectDust2Source,
+  isImportableDust2SourceKind,
 } from './lib/dust2-source-preflight.mjs';
 import { createGoldSrcBspManifest, parseGoldSrcBspFile } from './lib/goldsrc-bsp.mjs';
-import { writeDust2MeshResourceFromBsp, writeDust2MeshResourceModuleFromBsp } from './lib/dust2-mesh-export.mjs';
+import {
+  writeDust2MeshResourceFromBsp,
+  writeDust2MeshResourceFromMap,
+  writeDust2MeshResourceModuleFromBsp,
+  writeDust2MeshResourceModuleFromMap,
+} from './lib/dust2-mesh-export.mjs';
 import { readDust2GeneratedMeshResource, verifyDust2GeneratedMeshResource } from './lib/dust2-generated-verify.mjs';
+import { createGoldSrcMapManifest, parseGoldSrcMapFile } from './lib/goldsrc-map.mjs';
 
 const args = new Set(process.argv.slice(2));
 const checkOnly = args.has('--check');
@@ -54,17 +62,24 @@ console.log(JSON.stringify(inspection, null, 2));
 if (inspection.kind === 'bsp') {
   const parsedBsp = parseGoldSrcBspFile(inspection.path);
   console.log(JSON.stringify(createGoldSrcBspManifest(parsedBsp), null, 2));
+} else if (inspection.kind === 'map') {
+  const parsedMap = parseGoldSrcMapFile(inspection.path);
+  console.log(JSON.stringify(createGoldSrcMapManifest(parsedMap), null, 2));
 }
 
 if (outPath || outTsPath) {
-  if (inspection.kind !== 'bsp') {
-    console.error('Mesh export currently requires a GoldSrc .bsp source.');
+  if (!isImportableDust2SourceKind(inspection.kind)) {
+    console.error(formatNonImportableDust2SourceMessage(inspection));
     process.exit(5);
   }
 
-  const resource = outTsPath
-    ? writeDust2MeshResourceModuleFromBsp(inspection.path, outTsPath)
-    : writeDust2MeshResourceFromBsp(inspection.path, outPath);
+  const resource = inspection.kind === 'bsp'
+    ? (outTsPath
+        ? writeDust2MeshResourceModuleFromBsp(inspection.path, outTsPath)
+        : writeDust2MeshResourceFromBsp(inspection.path, outPath))
+    : (outTsPath
+        ? writeDust2MeshResourceModuleFromMap(inspection.path, outTsPath)
+        : writeDust2MeshResourceFromMap(inspection.path, outPath));
   const verification = outTsPath
     ? verifyDust2GeneratedMeshResource(readDust2GeneratedMeshResource(outTsPath))
     : verifyDust2GeneratedMeshResource(resource);
@@ -75,6 +90,12 @@ if (outPath || outTsPath) {
     vertexCount: verification.vertexCount,
     triangleCount: verification.triangleCount,
     hullCount: verification.hullCount,
+    modelMeshCount: verification.modelMeshCount,
+    exportedModelCount: verification.exportedModelCount,
+    entityCount: verification.entityCount,
+    tSpawnCount: verification.tSpawnCount,
+    ctSpawnCount: verification.ctSpawnCount,
+    bombTargetCount: verification.bombTargetCount,
   }, null, 2));
   process.exit(0);
 }

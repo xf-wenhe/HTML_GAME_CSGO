@@ -56,6 +56,8 @@ describe('Forgepoint map scale and tactical layout', () => {
   it('has two bomb sites, spawns, and readable callouts', () => {
     const map = MULTIPLAYER_MAPS.dust2;
 
+    expect(ARENA_MAPS.dust2.source?.sourceBacked).toBe(false);
+    expect(map.source?.sourceBacked).toBe(false);
     expect(map.bombSites.map(site => site.id).sort()).toEqual(['A', 'B']);
     expect(map.spawns.attackers).toHaveLength(5);
     expect(map.spawns.defenders).toHaveLength(5);

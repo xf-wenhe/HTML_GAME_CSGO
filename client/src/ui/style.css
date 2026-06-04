@@ -1534,6 +1534,32 @@ body {
   color: #c0282a;
 }
 
+.map-option.source-required-map,
+.map-option:disabled {
+  cursor: not-allowed;
+  border-color: rgba(212, 164, 90, 0.24);
+  background: rgba(45, 34, 22, 0.35);
+  color: rgba(150, 160, 170, 0.7);
+}
+
+.map-option.source-required-map .map-card-name,
+.map-option:disabled .map-card-name {
+  color: rgba(215, 185, 130, 0.74);
+}
+
+.map-option.source-required-map .map-card-desc,
+.map-option:disabled .map-card-desc,
+.map-option.source-required-map .map-card-sites,
+.map-option:disabled .map-card-sites {
+  color: rgba(210, 175, 120, 0.72);
+  opacity: 0.86;
+}
+
+.map-option.source-required-map .map-accent-bar,
+.map-option:disabled .map-accent-bar {
+  opacity: 0.42;
+}
+
 .map-option.tdm-only-map:not([style*="display: none"]):hover,
 .map-option.tdm-only-map.active {
   border-color: #c0282a;
@@ -1541,26 +1567,26 @@ body {
 }
 
 .map-option.active,
-.map-option:hover {
+.map-option:not(:disabled):hover {
   border-color: var(--ct-blue);
   background: rgba(75, 105, 255, 0.12);
   color: var(--text-primary);
 }
 
 .map-option.active .map-accent-bar,
-.map-option:hover .map-accent-bar {
+.map-option:not(:disabled):hover .map-accent-bar {
   opacity: 1;
   width: 5px;
 }
 
 .map-option.active .map-card-desc,
-.map-option:hover .map-card-desc {
+.map-option:not(:disabled):hover .map-card-desc {
   opacity: 1;
   color: var(--text-secondary);
 }
 
 .map-option.active .map-card-sites,
-.map-option:hover .map-card-sites {
+.map-option:not(:disabled):hover .map-card-sites {
   opacity: 0.9;
 }
 
@@ -2650,4 +2676,3 @@ body {
     display: none !important;
   }
 }
-

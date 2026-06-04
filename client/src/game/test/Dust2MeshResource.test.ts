@@ -15,14 +15,16 @@ const resource = (overrides: Partial<Dust2WorldMeshResource> = {}): Dust2WorldMe
     kind: 'bsp',
     version: 30,
     path: '/legal/cstrike/maps/de_dust2.bsp',
+    sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     manifest: {
+      sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       entities: {
-        entityCount: 4,
+        entityCount: 5,
         classCounts: {
           worldspawn: 1,
           info_player_start: 1,
           info_player_deathmatch: 1,
-          func_bomb_target: 1,
+          func_bomb_target: 2,
         },
         playerSpawns: [
           {
@@ -47,14 +49,38 @@ const resource = (overrides: Partial<Dust2WorldMeshResource> = {}): Dust2WorldMe
             model: '*1',
             targetname: 'bombsite_a',
           },
+          {
+            entityIndex: 4,
+            classname: 'func_bomb_target',
+            model: '*2',
+            targetname: 'bombsite_b',
+          },
         ],
       },
       geometry: {
         worldMeshVertexCount: 3,
         worldMeshTriangleCount: 1,
+        exportedMeshVertexCount: 3,
+        exportedMeshTriangleCount: 1,
+        exportedModelIndexes: [0],
+        modelMeshes: [
+          {
+            modelIndex: 0,
+            vertexCount: 3,
+            triangleCount: 1,
+          },
+        ],
         collision: {
           worldHullSummaries: [
             { hull: 0, contents: { empty: 1, solid: 1 } },
+          ],
+          modelHullSummaries: [
+            {
+              modelIndex: 0,
+              hulls: [
+                { hull: 0, contents: { empty: 1, solid: 1 }, missingNodes: [], cycles: [] },
+              ],
+            },
           ],
         },
       },
@@ -73,10 +99,33 @@ const resource = (overrides: Partial<Dust2WorldMeshResource> = {}): Dust2WorldMe
   ...overrides,
 });
 
+const mapResource = (overrides: Partial<Dust2WorldMeshResource> = {}): Dust2WorldMeshResource => resource({
+  source: {
+    ...resource().source,
+    kind: 'map',
+    version: null,
+    path: '/legal/cstrike/maps/de_dust2.map',
+    manifest: {
+      ...resource().source.manifest,
+      geometry: {
+        ...resource().source.manifest.geometry!,
+        collision: {
+          ...resource().source.manifest.geometry!.collision!,
+          brushSolidCount: 1,
+        },
+      },
+    },
+  },
+  ...overrides,
+});
+
 describe('Dust2 mesh resource conversion', () => {
   it('keeps Dust2 mesh disabled until a generated source-backed resource exists', () => {
     expect(DUST2_WORLD_MESH_RESOURCE).toBeNull();
     expect(ARENA_MAPS.dust2.meshes).toEqual([]);
+    expect(ARENA_MAPS.dust2.source).toMatchObject({
+      sourceBacked: false,
+    });
   });
 
   it('replaces hand-authored Dust2 placeholder geometry when a source-backed mesh exists', () => {
@@ -123,6 +172,17 @@ describe('Dust2 mesh resource conversion', () => {
     ]);
   });
 
+  it('accepts source-backed MAP mesh resources generated from brush planes', () => {
+    const mesh = meshSpecFromDust2WorldMeshResource(mapResource());
+
+    expect(mesh.indices).toEqual([0, 1, 2]);
+    expect(mesh.positions.map(position => position.toArray())).toEqual([
+      [0, 0, 0],
+      [1, 0, 0],
+      [0, 0, -1],
+    ]);
+  });
+
   it('uses source entity spawns when a source-backed Dust2 resource exists', () => {
     const fallbackPlayerSpawn = meshSpecFromDust2WorldMeshResource(resource()).positions[0];
     const fallbackEnemySpawns = [
@@ -160,7 +220,7 @@ describe('Dust2 mesh resource conversion', () => {
     );
   });
 
-  it('rejects mesh resources that are not backed by a GoldSrc BSP30 manifest', () => {
+  it('rejects mesh resources that are not backed by a GoldSrc BSP30 or MAP manifest', () => {
     expect(() =>
       meshSpecFromDust2WorldMeshResource(resource({
         source: {
@@ -168,19 +228,70 @@ describe('Dust2 mesh resource conversion', () => {
           version: 29,
         },
       }))
-    ).toThrow(/GoldSrc BSP30/);
+    ).toThrow(/GoldSrc BSP30 or MAP/);
 
     expect(() =>
       meshSpecFromDust2WorldMeshResource(resource({
         source: {
           ...resource().source,
           manifest: {
+            sha256: resource().source.manifest.sha256,
             entities: resource().source.manifest.entities,
-            geometry: { worldMeshVertexCount: 3, worldMeshTriangleCount: 1 },
+            geometry: {
+              worldMeshVertexCount: 3,
+              worldMeshTriangleCount: 1,
+              exportedMeshVertexCount: 3,
+              exportedMeshTriangleCount: 1,
+              exportedModelIndexes: [0],
+              modelMeshes: resource().source.manifest.geometry?.modelMeshes,
+            },
           },
         },
       }))
     ).toThrow(/collision hull summaries/);
+  });
+
+  it('rejects mesh resources without matching source fingerprints', () => {
+    expect(() =>
+      meshSpecFromDust2WorldMeshResource(resource({
+        source: {
+          ...resource().source,
+          sha256: '',
+        },
+      }))
+    ).toThrow(/SHA-256/);
+
+    expect(() =>
+      meshSpecFromDust2WorldMeshResource(resource({
+        source: {
+          ...resource().source,
+          manifest: {
+            ...resource().source.manifest,
+            sha256: 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+          },
+        },
+      }))
+    ).toThrow(/SHA-256 must match/);
+  });
+
+  it('rejects mesh resources whose source is not named de_dust2 source file', () => {
+    expect(() =>
+      meshSpecFromDust2WorldMeshResource(resource({
+        source: {
+          ...resource().source,
+          path: '/legal/cstrike/maps/not_dust2.bsp',
+        },
+      }))
+    ).toThrow(/de_dust2\.bsp/);
+
+    expect(() =>
+      meshSpecFromDust2WorldMeshResource(mapResource({
+        source: {
+          ...mapResource().source,
+          path: '/legal/cstrike/maps/not_dust2.map',
+        },
+      }))
+    ).toThrow(/de_dust2\.map/);
   });
 
   it('rejects mesh resources without source entity evidence', () => {
@@ -219,6 +330,33 @@ describe('Dust2 mesh resource conversion', () => {
         },
       }))
     ).toThrow(/T and CT player spawns/);
+  });
+
+  it('rejects exported source models without solid collision contents', () => {
+    expect(() =>
+      meshSpecFromDust2WorldMeshResource(resource({
+        source: {
+          ...resource().source,
+          manifest: {
+            ...resource().source.manifest,
+            geometry: {
+              ...resource().source.manifest.geometry!,
+              collision: {
+                worldHullSummaries: resource().source.manifest.geometry!.collision!.worldHullSummaries,
+                modelHullSummaries: [
+                  {
+                    modelIndex: 0,
+                    hulls: [
+                      { hull: 0, contents: { empty: 1 }, missingNodes: [], cycles: [] },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }))
+    ).toThrow(/solid collision hull/);
   });
 
   it('rejects indices that are not complete triangles', () => {

@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { GOLD_SRC_BSP_VERSION } from './dust2-source-preflight.mjs';
 
 export const GOLD_SRC_BSP_LUMP_NAMES = [
@@ -86,6 +87,7 @@ export function parseGoldSrcBspBuffer(buffer, { sourcePath = '<buffer>' } = {}) 
     version,
     sourcePath,
     size: buffer.length,
+    sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
     lumps,
     entitiesText: readEntityLump(buffer, lumps[0]),
     entities: parseGoldSrcEntities(readEntityLump(buffer, lumps[0])),
@@ -97,13 +99,14 @@ export function parseGoldSrcBspFile(sourcePath) {
   return parseGoldSrcBspBuffer(fs.readFileSync(sourcePath), { sourcePath });
 }
 
-export function createGoldSrcBspManifest(parsedBsp) {
+export function createGoldSrcBspManifest(parsedBsp, { exportedMesh = parsedBsp.geometry.combinedMesh, exportedModelIndexes = parsedBsp.geometry.modelMeshes.map(modelMesh => modelMesh.modelIndex) } = {}) {
   return {
     kind: parsedBsp.kind,
     engine: parsedBsp.engine,
     version: parsedBsp.version,
     path: parsedBsp.sourcePath,
     size: parsedBsp.size,
+    sha256: parsedBsp.sha256,
     lumps: parsedBsp.lumps.map(lump => ({
       index: lump.index,
       name: lump.name,
@@ -113,7 +116,7 @@ export function createGoldSrcBspManifest(parsedBsp) {
     entityBytes: parsedBsp.entitiesText.length,
     entities: summarizeGoldSrcEntities(parsedBsp.entities),
     worldspawnPresent: /"classname"\s+"worldspawn"/.test(parsedBsp.entitiesText),
-    geometry: createGeometryManifest(parsedBsp.geometry),
+    geometry: createGeometryManifest(parsedBsp.geometry, { exportedMesh, exportedModelIndexes }),
   };
 }
 
@@ -196,10 +199,23 @@ export function summarizeGoldSrcEntities(entities) {
   const classCounts = {};
   const playerSpawns = [];
   const bombTargets = [];
+  const brushEntities = [];
 
   for (const entity of entities) {
     const classname = entity.classname || '<missing>';
     classCounts[classname] = (classCounts[classname] ?? 0) + 1;
+    const modelIndex = parseBrushModelIndex(entity.properties.model);
+
+    if (modelIndex !== null) {
+      brushEntities.push({
+        entityIndex: entity.index,
+        classname,
+        model: entity.properties.model,
+        modelIndex,
+        brushKind: classifyGoldSrcBrushEntity(classname),
+        targetname: entity.properties.targetname ?? null,
+      });
+    }
 
     if (classname === 'info_player_start' || classname === 'info_player_deathmatch') {
       const hammerOrigin = parseHammerOrigin(entity.properties.origin);
@@ -228,7 +244,47 @@ export function summarizeGoldSrcEntities(entities) {
     classCounts,
     playerSpawns,
     bombTargets,
+    brushEntities,
   };
+}
+
+export function parseBrushModelIndex(model) {
+  if (typeof model !== 'string') {
+    return null;
+  }
+
+  const match = model.match(/^\*(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
+export function classifyGoldSrcBrushEntity(classname) {
+  if (classname.startsWith('trigger_')) {
+    return 'trigger';
+  }
+
+  if ([
+    'func_bomb_target',
+    'func_buyzone',
+    'func_escapezone',
+    'func_hostage_rescue',
+    'func_ladder',
+    'func_vip_safetyzone',
+  ].includes(classname)) {
+    return 'trigger';
+  }
+
+  if ([
+    'func_breakable',
+    'func_door',
+    'func_door_rotating',
+    'func_train',
+    'func_wall',
+    'func_wall_toggle',
+  ].includes(classname)) {
+    return 'structural';
+  }
+
+  return 'unknown';
 }
 
 function parseGoldSrcGeometry(buffer, lumps) {
@@ -240,9 +296,16 @@ function parseGoldSrcGeometry(buffer, lumps) {
   const surfaceEdges = readStructArray(buffer, lumps[13], GOLD_SRC_BSP_STRUCT_SIZES.surfEdge, readSurfaceEdge);
   const models = readStructArray(buffer, lumps[14], GOLD_SRC_BSP_STRUCT_SIZES.model, readModel);
   const facePolygons = buildFacePolygons({ vertices, edges, surfaceEdges, faces });
-  const worldFacePolygons = buildWorldFacePolygons(facePolygons, models[0] ?? null);
+  const modelMeshes = buildModelMeshes(facePolygons, models);
+  const worldFacePolygons = modelMeshes[0]?.facePolygons ?? [];
   const worldMesh = buildTriangleMeshFromPolygons(worldFacePolygons);
-  const worldHullSummaries = (models[0]?.headnodes ?? []).map((headnode, hull) => summarizeClipTree(clipNodes, headnode, hull));
+  const combinedMesh = combineModelMeshes(modelMeshes);
+  const modelHullSummaries = models.map(model => ({
+    modelIndex: model.index,
+    headnodes: model.headnodes,
+    hulls: model.headnodes.map((headnode, hull) => summarizeClipTree(clipNodes, headnode, hull)),
+  }));
+  const worldHullSummaries = modelHullSummaries[0]?.hulls ?? [];
 
   return {
     planes,
@@ -254,18 +317,21 @@ function parseGoldSrcGeometry(buffer, lumps) {
     facePolygons,
     worldFacePolygons,
     worldMesh,
+    modelMeshes,
+    combinedMesh,
     collision: {
       planes,
       clipNodes,
       worldHeadnodes: models[0]?.headnodes ?? [],
       worldHullSummaries,
+      modelHullSummaries,
     },
     models,
     worldModel: models[0] ?? null,
   };
 }
 
-function createGeometryManifest(geometry) {
+function createGeometryManifest(geometry, { exportedMesh, exportedModelIndexes }) {
   return {
     vertexCount: geometry.vertices.length,
     planeCount: geometry.planes.length,
@@ -278,6 +344,19 @@ function createGeometryManifest(geometry) {
     worldMeshVertexCount: geometry.worldMesh.positions.length,
     worldMeshTriangleCount: geometry.worldMesh.indices.length / 3,
     modelCount: geometry.models.length,
+    exportedMeshVertexCount: exportedMesh.positions.length,
+    exportedMeshTriangleCount: exportedMesh.indices.length / 3,
+    exportedModelIndexes,
+    modelMeshes: geometry.modelMeshes.map(modelMesh => ({
+      modelIndex: modelMesh.modelIndex,
+      faceCount: modelMesh.facePolygons.length,
+      vertexCount: modelMesh.mesh.positions.length,
+      triangleCount: modelMesh.mesh.indices.length / 3,
+      firstFace: modelMesh.model.firstFace,
+      modelFaceCount: modelMesh.model.faceCount,
+      origin: modelMesh.model.origin,
+      gameOrigin: hammerVectorToGame(modelMesh.model.origin),
+    })),
     worldModel: geometry.worldModel
       ? {
           mins: geometry.worldModel.mins,
@@ -294,6 +373,7 @@ function createGeometryManifest(geometry) {
       : null,
     collision: {
       worldHullSummaries: geometry.collision.worldHullSummaries,
+      modelHullSummaries: geometry.collision.modelHullSummaries,
     },
   };
 }
@@ -412,6 +492,56 @@ function buildWorldFacePolygons(facePolygons, worldModel) {
   const firstFace = worldModel.firstFace;
   const lastFaceExclusive = firstFace + worldModel.faceCount;
   return facePolygons.filter(polygon => polygon.faceIndex >= firstFace && polygon.faceIndex < lastFaceExclusive);
+}
+
+function buildModelMeshes(facePolygons, models) {
+  return models.map((model, modelIndex) => {
+    const firstFace = model.firstFace;
+    const lastFaceExclusive = firstFace + model.faceCount;
+    const modelFacePolygons = facePolygons.filter(polygon => polygon.faceIndex >= firstFace && polygon.faceIndex < lastFaceExclusive);
+
+    return {
+      modelIndex,
+      model,
+      facePolygons: modelFacePolygons,
+      mesh: buildTriangleMeshFromPolygons(modelFacePolygons),
+    };
+  });
+}
+
+export function combineModelMeshes(modelMeshes) {
+  const positions = [];
+  const indices = [];
+  const faceRanges = [];
+  const modelRanges = [];
+
+  for (const modelMesh of modelMeshes) {
+    const firstVertex = positions.length;
+    const firstIndex = indices.length;
+
+    positions.push(...modelMesh.mesh.positions);
+    indices.push(...modelMesh.mesh.indices.map(index => firstVertex + index));
+    faceRanges.push(...modelMesh.mesh.faceRanges.map(range => ({
+      ...range,
+      firstVertex: range.firstVertex + firstVertex,
+      firstIndex: range.firstIndex + firstIndex,
+      modelIndex: modelMesh.modelIndex,
+    })));
+    modelRanges.push({
+      modelIndex: modelMesh.modelIndex,
+      firstVertex,
+      vertexCount: modelMesh.mesh.positions.length,
+      firstIndex,
+      indexCount: modelMesh.mesh.indices.length,
+    });
+  }
+
+  return {
+    positions,
+    indices,
+    faceRanges,
+    modelRanges,
+  };
 }
 
 function readStructArray(buffer, lump, structSize, reader) {

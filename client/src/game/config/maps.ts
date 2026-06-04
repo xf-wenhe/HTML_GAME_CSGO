@@ -53,6 +53,7 @@ import {
   BLOODSTRIKE_BOMB_SITES,
   BLOODSTRIKE_CALLOUTS
 } from '../BloodStrikeLayout.js';
+import { DUST2_WORLD_MESH_RESOURCE } from '../generated/dust2-world-mesh.js';
 
 
 export interface BombSiteConfig {
@@ -68,6 +69,14 @@ export interface MultiplayerMapConfig {
   tdmSpawns: Vector3[];
   bombSites: BombSiteConfig[];
   callouts: Array<{ name: string; position: Vector3; radius: number }>;
+  source?: {
+    sourceBacked: boolean;
+    engine?: 'goldsrc';
+    kind?: 'bsp' | 'map';
+    path?: string;
+    sha256?: string;
+    note?: string;
+  };
 }
 
 export const MULTIPLAYER_MAPS: Record<MapId, MultiplayerMapConfig> = {
@@ -83,7 +92,19 @@ export const MULTIPLAYER_MAPS: Record<MapId, MultiplayerMapConfig> = {
       { id: 'A', position: DUST2_BOMB_SITES.A.position, radius: DUST2_BOMB_SITES.A.radius },
       { id: 'B', position: DUST2_BOMB_SITES.B.position, radius: DUST2_BOMB_SITES.B.radius }
     ],
-    callouts: DUST2_CALLOUTS
+    callouts: DUST2_CALLOUTS,
+    source: DUST2_WORLD_MESH_RESOURCE
+      ? {
+          sourceBacked: true,
+          engine: 'goldsrc',
+          kind: DUST2_WORLD_MESH_RESOURCE.source.kind,
+          path: DUST2_WORLD_MESH_RESOURCE.source.path,
+          sha256: DUST2_WORLD_MESH_RESOURCE.source.sha256,
+        }
+      : {
+          sourceBacked: false,
+          note: 'Dust2 multiplayer metadata is legacy placeholder data until a legal CS1.6 de_dust2.bsp or de_dust2.map is imported.',
+        }
   },
   warehouse: {
     id: 'warehouse',

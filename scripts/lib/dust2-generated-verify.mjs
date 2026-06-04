@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 export function readDust2GeneratedMeshResource(modulePath) {
   const source = fs.readFileSync(modulePath, 'utf8');
@@ -25,15 +26,32 @@ export function parseDust2GeneratedMeshModule(source) {
 
 export function verifyDust2GeneratedMeshResource(resource) {
   if (!resource) {
-    throw new Error('Dust2 generated mesh resource is null; run dust2:import with a legal CS1.6 de_dust2.bsp first.');
+    throw new Error('Dust2 generated mesh resource is null; run dust2:import with a legal CS1.6 de_dust2.bsp or de_dust2.map first.');
   }
 
   if (resource.schema !== 'fps-web-game/dust2-world-mesh/v1') {
     throw new Error(`Unsupported Dust2 generated mesh schema: ${resource.schema}`);
   }
 
-  if (resource.source?.engine !== 'goldsrc' || resource.source?.kind !== 'bsp' || resource.source?.version !== 30) {
-    throw new Error('Dust2 generated mesh must be backed by a GoldSrc BSP30 source.');
+  const sourceKind = resource.source?.kind;
+  if (
+    resource.source?.engine !== 'goldsrc'
+    || !['bsp', 'map'].includes(sourceKind)
+    || (sourceKind === 'bsp' && resource.source?.version !== 30)
+  ) {
+    throw new Error('Dust2 generated mesh must be backed by a GoldSrc BSP30 or MAP source.');
+  }
+
+  if (path.basename(resource.source.path ?? '').toLowerCase() !== `de_dust2.${sourceKind}`) {
+    throw new Error(`Dust2 generated mesh source path must be named de_dust2.${sourceKind}.`);
+  }
+
+  if (!/^[a-f0-9]{64}$/i.test(resource.source.sha256 ?? '')) {
+    throw new Error('Dust2 generated mesh source must include a SHA-256 fingerprint.');
+  }
+
+  if (resource.source.manifest?.sha256 !== resource.source.sha256) {
+    throw new Error('Dust2 generated mesh source SHA-256 does not match the source manifest.');
   }
 
   const geometry = resource.source?.manifest?.geometry;
@@ -41,9 +59,23 @@ export function verifyDust2GeneratedMeshResource(resource) {
     throw new Error('Dust2 generated mesh manifest is missing world mesh counts.');
   }
 
+  if ((geometry?.exportedMeshVertexCount ?? 0) <= 0 || (geometry?.exportedMeshTriangleCount ?? 0) <= 0) {
+    throw new Error('Dust2 generated mesh manifest is missing exported BSP model mesh counts.');
+  }
+
+  if (!Array.isArray(geometry?.modelMeshes) || geometry.modelMeshes.length <= 0) {
+    throw new Error('Dust2 generated mesh manifest is missing BSP model mesh manifests.');
+  }
+
   if (!Array.isArray(geometry?.collision?.worldHullSummaries)) {
     throw new Error('Dust2 generated mesh manifest is missing collision hull summaries.');
   }
+
+  if (!Array.isArray(geometry?.collision?.modelHullSummaries)) {
+    throw new Error('Dust2 generated mesh manifest is missing per-model collision hull summaries.');
+  }
+
+  assertExportedModelHullIntegrity(geometry, sourceKind);
 
   const entities = resource.source?.manifest?.entities;
   if ((entities?.entityCount ?? 0) <= 0) {
@@ -56,16 +88,16 @@ export function verifyDust2GeneratedMeshResource(resource) {
     throw new Error('Dust2 generated mesh manifest is missing source T/CT spawn entities.');
   }
 
-  if (!Array.isArray(entities.bombTargets) || entities.bombTargets.length <= 0) {
-    throw new Error('Dust2 generated mesh manifest is missing source bomb target entities.');
+  if (!Array.isArray(entities.bombTargets) || entities.bombTargets.length < 2) {
+    throw new Error('Dust2 generated mesh manifest is missing source A/B bomb target entities.');
   }
 
-  if (!Array.isArray(resource.mesh?.positions) || resource.mesh.positions.length !== geometry.worldMeshVertexCount) {
-    throw new Error('Dust2 generated mesh positions do not match the source manifest vertex count.');
+  if (!Array.isArray(resource.mesh?.positions) || resource.mesh.positions.length !== geometry.exportedMeshVertexCount) {
+    throw new Error('Dust2 generated mesh positions do not match the exported BSP model mesh vertex count.');
   }
 
-  if (!Array.isArray(resource.mesh?.indices) || resource.mesh.indices.length !== geometry.worldMeshTriangleCount * 3) {
-    throw new Error('Dust2 generated mesh indices do not match the source manifest triangle count.');
+  if (!Array.isArray(resource.mesh?.indices) || resource.mesh.indices.length !== geometry.exportedMeshTriangleCount * 3) {
+    throw new Error('Dust2 generated mesh indices do not match the exported BSP model mesh triangle count.');
   }
 
   return {
@@ -74,9 +106,36 @@ export function verifyDust2GeneratedMeshResource(resource) {
     vertexCount: resource.mesh.positions.length,
     triangleCount: resource.mesh.indices.length / 3,
     hullCount: geometry.collision.worldHullSummaries.length,
+    modelMeshCount: geometry.modelMeshes.length,
+    exportedModelCount: geometry.exportedModelIndexes.length,
     entityCount: entities.entityCount,
     tSpawnCount,
     ctSpawnCount,
     bombTargetCount: entities.bombTargets.length,
   };
+}
+
+function assertExportedModelHullIntegrity(geometry, sourceKind) {
+  const exportedModelIndexes = new Set(geometry.exportedModelIndexes);
+  const exportedHullSummaries = geometry.collision.modelHullSummaries.filter(summary => exportedModelIndexes.has(summary.modelIndex));
+
+  if (exportedHullSummaries.length !== exportedModelIndexes.size) {
+    throw new Error('Dust2 generated mesh manifest is missing collision summaries for exported source models.');
+  }
+
+  for (const modelSummary of exportedHullSummaries) {
+    for (const hull of modelSummary.hulls ?? []) {
+      if ((hull.missingNodes?.length ?? 0) > 0 || (hull.cycles?.length ?? 0) > 0) {
+        throw new Error(`Dust2 generated mesh collision hull ${hull.hull} for model ${modelSummary.modelIndex} has unresolved clipnode references.`);
+      }
+    }
+
+    if (!modelSummary.hulls?.some(hull => (hull.contents?.solid ?? 0) > 0)) {
+      throw new Error(`Dust2 generated mesh exported model ${modelSummary.modelIndex} has no solid collision hull contents.`);
+    }
+  }
+
+  if (sourceKind === 'map' && (geometry.collision?.brushSolidCount ?? 0) <= 0) {
+    throw new Error('Dust2 generated MAP mesh manifest is missing solid brush collision evidence.');
+  }
 }
