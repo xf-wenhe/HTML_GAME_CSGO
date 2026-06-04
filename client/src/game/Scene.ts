@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ARENA_MAPS, ArenaData, BoxSpec, MeshSpec } from './MapData.js';
 import { MapId } from './types.js';
+import { PLAYER_EYE_HEIGHT } from './constants/MapUnits.js';
 import { getTexture, loadPBRTextureSet, PBRTextureKey } from './ProceduralTextures.js';
 
 export class Scene {
@@ -143,6 +144,30 @@ export class Scene {
     const isD2 = arena.name === 'Dust2';
 
     if (isD2) {
+      if (arena.source?.sourceBacked) {
+        const addLight = (position: THREE.Vector3, color: number, intensity: number, distance: number) => {
+          const light = new THREE.PointLight(color, intensity, distance, 1.9);
+          light.position.copy(position);
+          this.addArenaObject(light);
+        };
+        const ctCenter = arena.enemySpawns.length > 0
+          ? arena.enemySpawns
+              .reduce((sum, spawn) => sum.add(spawn.position), new THREE.Vector3())
+              .multiplyScalar(1 / arena.enemySpawns.length)
+          : new THREE.Vector3(2.5, PLAYER_EYE_HEIGHT, -22.4);
+        const tSpawn = arena.playerSpawn.clone();
+        const aSite = arena.bombSites?.A.clone() ?? new THREE.Vector3(-15.36, 0.04, -26.88);
+        const bSite = arena.bombSites?.B.clone() ?? new THREE.Vector3(11.52, 0.04, -24.64);
+
+        addLight(new THREE.Vector3(tSpawn.x, 4.2, tSpawn.z), 0xffeebb, 1.7, 20);
+        addLight(new THREE.Vector3(ctCenter.x, 3.8, ctCenter.z), 0xfffae8, 1.9, 20);
+        addLight(new THREE.Vector3(aSite.x, 4.8, aSite.z), 0xffefdc, 2.0, 18);
+        addLight(new THREE.Vector3(bSite.x, 4.8, bSite.z), 0xffeedd, 1.8, 18);
+        addLight(new THREE.Vector3(-3.2, 3.4, -11.8), 0xffd8a0, 1.4, 16);
+        addLight(new THREE.Vector3(-9.6, 3.2, -15.1), 0xffe2b0, 1.1, 12);
+        addLight(new THREE.Vector3(5.2, 2.7, -5.1), 0xff9930, 1.0, 10);
+        addLight(new THREE.Vector3(12.8, 3.0, -1.5), 0x8090a0, 0.7, 10);
+      } else {
       // ── Dust2 专用灯光 ──────────────────────────────────────
       // CT Spawn 路灯（明亮白光）
       const ctLamps = [
@@ -219,6 +244,7 @@ export class Scene {
       const tSpawnLight = new THREE.PointLight(0xffeebb, 1.6, 20, 1.8);
       tSpawnLight.position.set(0, 4.0, -61.44);
       this.addArenaObject(tSpawnLight);
+      }
 
     } else {
       // 其他地图通用灯光
@@ -252,14 +278,17 @@ export class Scene {
       }
     }
 
-    // Dust2: place bomb markers at correct Hammer-mapped positions
-    // A site center: Hammer(-2560, z-1280) → game(-25.6, z+12.8)
-    // B site center: Hammer(2560, z-1280)  → game(25.6,  z+12.8)
+    const dust2BombSites = isD2 && arena.bombSites
+      ? arena.bombSites
+      : {
+          A: new THREE.Vector3(-25.6, 0.04, 12.8),
+          B: new THREE.Vector3(25.6, 0.04, 12.8),
+        };
     this.addBombSiteMarker('A', isD2
-      ? new THREE.Vector3(-25.6, 0.04,  12.8)
+      ? dust2BombSites.A
       : new THREE.Vector3(-24,   0.04, -27));
     this.addBombSiteMarker('B', isD2
-      ? new THREE.Vector3( 25.6, 0.04,  12.8)
+      ? dust2BombSites.B
       : new THREE.Vector3( 24,   0.04, -27));
 
     const particleGeometry = new THREE.BufferGeometry();

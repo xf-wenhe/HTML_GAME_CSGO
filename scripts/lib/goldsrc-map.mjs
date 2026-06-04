@@ -34,7 +34,12 @@ export function parseGoldSrcMapSource(source, { sourcePath = '<source>' } = {}) 
   };
 }
 
-export function createGoldSrcMapManifest(parsedMap, { exportedMesh = parsedMap.geometry.combinedMesh, exportedModelIndexes = [0] } = {}) {
+export function createGoldSrcMapManifest(parsedMap, {
+  exportedMesh = parsedMap.geometry.combinedMesh,
+  exportedModelIndexes = [0],
+  collisionMesh = exportedMesh,
+  collisionModelIndexes = exportedModelIndexes,
+} = {}) {
   return {
     kind: parsedMap.kind,
     engine: parsedMap.engine,
@@ -59,12 +64,19 @@ export function createGoldSrcMapManifest(parsedMap, { exportedMesh = parsedMap.g
       exportedMeshVertexCount: exportedMesh.positions.length,
       exportedMeshTriangleCount: exportedMesh.indices.length / 3,
       exportedModelIndexes,
+      collisionMeshVertexCount: collisionMesh.positions.length,
+      collisionMeshTriangleCount: collisionMesh.indices.length / 3,
+      collisionModelIndexes,
       modelMeshes: [{
         modelIndex: 0,
         brushCount: parsedMap.geometry.structuralBrushes.length,
         faceCount: parsedMap.geometry.polygons.length,
         vertexCount: exportedMesh.positions.length,
         triangleCount: exportedMesh.indices.length / 3,
+        gameBounds: {
+          mins: hammerVectorToGame(parsedMap.geometry.bounds.mins),
+          maxs: hammerVectorToGame(parsedMap.geometry.bounds.maxs),
+        },
       }],
       worldModel: {
         mins: parsedMap.geometry.bounds.mins,

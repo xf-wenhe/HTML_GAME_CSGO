@@ -212,8 +212,10 @@ function syncArenaPhysics(): void {
     return body;
   });
   const meshBodies = scene.getArenaMeshes().map(mesh => {
-    const vertices = mesh.positions.flatMap(position => [position.x, position.y, position.z]);
-    return physics.addStaticTrimesh(vertices, mesh.indices, mesh.name);
+    const collisionPositions = mesh.collisionPositions ?? mesh.positions;
+    const collisionIndices = mesh.collisionIndices ?? mesh.indices;
+    const vertices = collisionPositions.flatMap(position => [position.x, position.y, position.z]);
+    return physics.addStaticTrimesh(vertices, collisionIndices, mesh.name);
   });
   arenaColliderBodies = [...boxBodies, ...meshBodies];
   enemyManager.setLineOfSightColliders(scene.getArenaColliders());

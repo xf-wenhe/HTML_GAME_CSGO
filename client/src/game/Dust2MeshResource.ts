@@ -37,7 +37,16 @@ export interface Dust2WorldMeshResource {
         exportedMeshVertexCount?: number;
         exportedMeshTriangleCount?: number;
         exportedModelIndexes?: number[];
-        modelMeshes?: unknown[];
+        collisionMeshVertexCount?: number;
+        collisionMeshTriangleCount?: number;
+        collisionModelIndexes?: number[];
+        modelMeshes?: Array<{
+          modelIndex?: number;
+          gameBounds?: {
+            mins?: { x?: number; y?: number; z?: number };
+            maxs?: { x?: number; y?: number; z?: number };
+          } | null;
+        }>;
         collision?: {
           worldHullSummaries?: unknown[];
           modelHullSummaries?: Array<{
@@ -60,6 +69,11 @@ export interface Dust2WorldMeshResource {
     positions: Array<[number, number, number]>;
     indices: number[];
   };
+  collisionMesh?: {
+    name?: string;
+    positions: Array<[number, number, number]>;
+    indices: number[];
+  };
 }
 
 export function meshSpecFromDust2WorldMeshResource(resource: Dust2WorldMeshResource): MeshSpec {
@@ -70,6 +84,8 @@ export function meshSpecFromDust2WorldMeshResource(resource: Dust2WorldMeshResou
     color: resource.mesh.color,
     positions: resource.mesh.positions.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
     indices: [...resource.mesh.indices],
+    collisionPositions: (resource.collisionMesh?.positions ?? resource.mesh.positions).map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+    collisionIndices: [...(resource.collisionMesh?.indices ?? resource.mesh.indices)],
     roughness: 0.82,
     metalness: 0.04,
   };
@@ -114,6 +130,10 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
     throw new Error('Dust2 world mesh resource must include exported BSP model mesh counts.');
   }
 
+  if ((geometryManifest.collisionMeshVertexCount ?? geometryManifest.exportedMeshVertexCount ?? 0) <= 0 || (geometryManifest.collisionMeshTriangleCount ?? geometryManifest.exportedMeshTriangleCount ?? 0) <= 0) {
+    throw new Error('Dust2 world mesh resource must include collision mesh counts.');
+  }
+
   if (!Array.isArray(geometryManifest.modelMeshes) || geometryManifest.modelMeshes.length <= 0) {
     throw new Error('Dust2 world mesh resource must include BSP model mesh manifests.');
   }
@@ -130,7 +150,7 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
     throw new Error('Dust2 world mesh resource must include per-model collision hull summaries.');
   }
 
-  const exportedModelIndexes = new Set(geometryManifest.exportedModelIndexes);
+  const exportedModelIndexes = new Set(geometryManifest.collisionModelIndexes ?? geometryManifest.exportedModelIndexes);
   const exportedHullSummaries = geometryManifest.collision.modelHullSummaries.filter(summary =>
     typeof summary.modelIndex === 'number' && exportedModelIndexes.has(summary.modelIndex)
   );
@@ -181,6 +201,16 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
     throw new Error('Dust2 world mesh indices must match exported BSP model mesh triangle count.');
   }
 
+  const collisionMesh = resource.collisionMesh ?? resource.mesh;
+  const collisionVertexCount = geometryManifest.collisionMeshVertexCount ?? geometryManifest.exportedMeshVertexCount;
+  const collisionTriangleCount = geometryManifest.collisionMeshTriangleCount ?? geometryManifest.exportedMeshTriangleCount;
+  if (!Array.isArray(collisionMesh.positions) || collisionMesh.positions.length !== collisionVertexCount) {
+    throw new Error('Dust2 world mesh collision positions must match source collision mesh vertex count.');
+  }
+  if (!Array.isArray(collisionMesh.indices) || collisionMesh.indices.length !== collisionTriangleCount * 3) {
+    throw new Error('Dust2 world mesh collision indices must match source collision mesh triangle count.');
+  }
+
   resource.mesh.positions.forEach((position, index) => {
     if (!Array.isArray(position) || position.length !== 3 || position.some(value => !Number.isFinite(value))) {
       throw new Error(`Dust2 world mesh position ${index} must be a finite [x, y, z] tuple.`);
@@ -190,6 +220,18 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
   resource.mesh.indices.forEach((vertexIndex, index) => {
     if (!Number.isInteger(vertexIndex) || vertexIndex < 0 || vertexIndex >= resource.mesh.positions.length) {
       throw new Error(`Dust2 world mesh index ${index} references missing vertex ${vertexIndex}.`);
+    }
+  });
+
+  collisionMesh.positions.forEach((position, index) => {
+    if (!Array.isArray(position) || position.length !== 3 || position.some(value => !Number.isFinite(value))) {
+      throw new Error(`Dust2 world mesh collision position ${index} must be a finite [x, y, z] tuple.`);
+    }
+  });
+
+  collisionMesh.indices.forEach((vertexIndex, index) => {
+    if (!Number.isInteger(vertexIndex) || vertexIndex < 0 || vertexIndex >= collisionMesh.positions.length) {
+      throw new Error(`Dust2 world mesh collision index ${index} references missing vertex ${vertexIndex}.`);
     }
   });
 }

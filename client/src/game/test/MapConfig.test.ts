@@ -56,11 +56,17 @@ describe('Forgepoint map scale and tactical layout', () => {
   it('has two bomb sites, spawns, and readable callouts', () => {
     const map = MULTIPLAYER_MAPS.dust2;
 
-    expect(ARENA_MAPS.dust2.source?.sourceBacked).toBe(false);
-    expect(map.source?.sourceBacked).toBe(false);
+    if (ARENA_MAPS.dust2.source?.sourceBacked) {
+      expect(map.source?.sourceBacked).toBe(true);
+      expect(ARENA_MAPS.dust2.meshes?.length).toBeGreaterThan(0);
+      expect(ARENA_MAPS.dust2.colliders).toEqual([]);
+      expect(ARENA_MAPS.dust2.props).toEqual([]);
+    } else {
+      expect(map.source?.sourceBacked).toBe(false);
+    }
     expect(map.bombSites.map(site => site.id).sort()).toEqual(['A', 'B']);
-    expect(map.spawns.attackers).toHaveLength(5);
-    expect(map.spawns.defenders).toHaveLength(5);
+    expect(map.spawns.attackers.length).toBeGreaterThanOrEqual(5);
+    expect(map.spawns.defenders.length).toBeGreaterThanOrEqual(5);
     expect(map.tdmSpawns.length).toBeGreaterThanOrEqual(8);
     expect(map.callouts.map(callout => callout.name)).toContain('Mid');
   });
@@ -96,11 +102,17 @@ describe('Forgepoint map scale and tactical layout', () => {
       expect(calloutNames.some(name => name.includes('mid')), `${mapId} needs a middle-route callout`).toBe(true);
       expect(calloutNames.some(name => name.includes('site') && name.includes('a')), `${mapId} needs an A site callout`).toBe(true);
       expect(calloutNames.some(name => name.includes('site') && name.includes('b')), `${mapId} needs a B site callout`).toBe(true);
-      expect(hasNamedElement(allBoxes, /(second-floor|catwalk|upper)/), `${mapId} needs an upper area`).toBe(true);
+      if (arena.source?.sourceBacked) {
+        expect(arena.meshes?.length, `${mapId} should use imported source mesh geometry`).toBeGreaterThan(0);
+      } else {
+        expect(hasNamedElement(allBoxes, /(second-floor|catwalk|upper)/), `${mapId} needs an upper area`).toBe(true);
+      }
       if (mapId !== 'dust2') {
         expect(hasNamedElement(allBoxes, /closed-room/), `${mapId} needs a closed room`).toBe(true);
       }
-      expect(arena.props.some(prop => /glass-window|window-glass/.test(prop.name ?? '') && prop.opacity !== undefined && prop.opacity < 0.5), `${mapId} needs transparent glass`).toBe(true);
+      if (!arena.source?.sourceBacked) {
+        expect(arena.props.some(prop => /glass-window|window-glass/.test(prop.name ?? '') && prop.opacity !== undefined && prop.opacity < 0.5), `${mapId} needs transparent glass`).toBe(true);
+      }
       expect(arena.materialZones?.length, `${mapId} needs material zones for footsteps/audio`).toBeGreaterThanOrEqual(3);
       if (mapId !== 'dust2') {
         expect(arena.materialZones?.map(zone => zone.material), `${mapId} needs a metal material zone`).toContain('metal');

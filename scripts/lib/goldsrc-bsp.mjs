@@ -99,7 +99,12 @@ export function parseGoldSrcBspFile(sourcePath) {
   return parseGoldSrcBspBuffer(fs.readFileSync(sourcePath), { sourcePath });
 }
 
-export function createGoldSrcBspManifest(parsedBsp, { exportedMesh = parsedBsp.geometry.combinedMesh, exportedModelIndexes = parsedBsp.geometry.modelMeshes.map(modelMesh => modelMesh.modelIndex) } = {}) {
+export function createGoldSrcBspManifest(parsedBsp, {
+  exportedMesh = parsedBsp.geometry.combinedMesh,
+  exportedModelIndexes = parsedBsp.geometry.modelMeshes.map(modelMesh => modelMesh.modelIndex),
+  collisionMesh = exportedMesh,
+  collisionModelIndexes = exportedModelIndexes,
+} = {}) {
   return {
     kind: parsedBsp.kind,
     engine: parsedBsp.engine,
@@ -116,7 +121,7 @@ export function createGoldSrcBspManifest(parsedBsp, { exportedMesh = parsedBsp.g
     entityBytes: parsedBsp.entitiesText.length,
     entities: summarizeGoldSrcEntities(parsedBsp.entities),
     worldspawnPresent: /"classname"\s+"worldspawn"/.test(parsedBsp.entitiesText),
-    geometry: createGeometryManifest(parsedBsp.geometry, { exportedMesh, exportedModelIndexes }),
+    geometry: createGeometryManifest(parsedBsp.geometry, { exportedMesh, exportedModelIndexes, collisionMesh, collisionModelIndexes }),
   };
 }
 
@@ -331,7 +336,7 @@ function parseGoldSrcGeometry(buffer, lumps) {
   };
 }
 
-function createGeometryManifest(geometry, { exportedMesh, exportedModelIndexes }) {
+function createGeometryManifest(geometry, { exportedMesh, exportedModelIndexes, collisionMesh, collisionModelIndexes }) {
   return {
     vertexCount: geometry.vertices.length,
     planeCount: geometry.planes.length,
@@ -347,6 +352,9 @@ function createGeometryManifest(geometry, { exportedMesh, exportedModelIndexes }
     exportedMeshVertexCount: exportedMesh.positions.length,
     exportedMeshTriangleCount: exportedMesh.indices.length / 3,
     exportedModelIndexes,
+    collisionMeshVertexCount: collisionMesh.positions.length,
+    collisionMeshTriangleCount: collisionMesh.indices.length / 3,
+    collisionModelIndexes,
     modelMeshes: geometry.modelMeshes.map(modelMesh => ({
       modelIndex: modelMesh.modelIndex,
       faceCount: modelMesh.facePolygons.length,
@@ -356,6 +364,7 @@ function createGeometryManifest(geometry, { exportedMesh, exportedModelIndexes }
       modelFaceCount: modelMesh.model.faceCount,
       origin: modelMesh.model.origin,
       gameOrigin: hammerVectorToGame(modelMesh.model.origin),
+      gameBounds: createMeshBounds(modelMesh.mesh.positions),
     })),
     worldModel: geometry.worldModel
       ? {
@@ -413,6 +422,26 @@ export function buildFacePolygons({ vertices, edges, surfaceEdges, faces }) {
       gamePositions,
     };
   });
+}
+
+function createMeshBounds(positions) {
+  if (!positions.length) {
+    return null;
+  }
+
+  const mins = { x: Infinity, y: Infinity, z: Infinity };
+  const maxs = { x: -Infinity, y: -Infinity, z: -Infinity };
+
+  for (const position of positions) {
+    mins.x = Math.min(mins.x, position.x);
+    mins.y = Math.min(mins.y, position.y);
+    mins.z = Math.min(mins.z, position.z);
+    maxs.x = Math.max(maxs.x, position.x);
+    maxs.y = Math.max(maxs.y, position.y);
+    maxs.z = Math.max(maxs.z, position.z);
+  }
+
+  return { mins, maxs };
 }
 
 export function buildTriangleMeshFromPolygons(polygons) {

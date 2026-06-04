@@ -10,8 +10,10 @@ export function createDust2MeshResource(parsedBsp, { name = 'dust2-goldsrc-world
     return createDust2MeshResourceFromMap(parsedBsp, { name, color });
   }
 
-  const exportedModelIndexes = getStructuralBrushModelIndexes(parsedBsp);
+  const exportedModelIndexes = getRenderableBrushModelIndexes(parsedBsp);
+  const collisionModelIndexes = getStructuralBrushModelIndexes(parsedBsp);
   const mesh = combineModelMeshes(parsedBsp.geometry.modelMeshes.filter(modelMesh => exportedModelIndexes.includes(modelMesh.modelIndex)));
+  const collisionMesh = combineModelMeshes(parsedBsp.geometry.modelMeshes.filter(modelMesh => collisionModelIndexes.includes(modelMesh.modelIndex)));
 
   return {
     schema: 'fps-web-game/dust2-world-mesh/v1',
@@ -21,7 +23,12 @@ export function createDust2MeshResource(parsedBsp, { name = 'dust2-goldsrc-world
       version: parsedBsp.version,
       path: parsedBsp.sourcePath,
       sha256: parsedBsp.sha256,
-      manifest: createGoldSrcBspManifest(parsedBsp, { exportedMesh: mesh, exportedModelIndexes }),
+      manifest: createGoldSrcBspManifest(parsedBsp, {
+        exportedMesh: mesh,
+        exportedModelIndexes,
+        collisionMesh,
+        collisionModelIndexes,
+      }),
     },
     mesh: {
       name,
@@ -30,6 +37,13 @@ export function createDust2MeshResource(parsedBsp, { name = 'dust2-goldsrc-world
       indices: mesh.indices,
       faceRanges: mesh.faceRanges,
       modelRanges: mesh.modelRanges,
+    },
+    collisionMesh: {
+      name: `${name}-collision`,
+      positions: collisionMesh.positions.map(position => [position.x, position.y, position.z]),
+      indices: collisionMesh.indices,
+      faceRanges: collisionMesh.faceRanges,
+      modelRanges: collisionMesh.modelRanges,
     },
   };
 }
@@ -46,7 +60,12 @@ export function createDust2MeshResourceFromMap(parsedMap, { name = 'dust2-goldsr
       version: parsedMap.version,
       path: parsedMap.sourcePath,
       sha256: parsedMap.sha256,
-      manifest: createGoldSrcMapManifest(parsedMap, { exportedMesh: mesh, exportedModelIndexes }),
+      manifest: createGoldSrcMapManifest(parsedMap, {
+        exportedMesh: mesh,
+        exportedModelIndexes,
+        collisionMesh: mesh,
+        collisionModelIndexes: exportedModelIndexes,
+      }),
     },
     mesh: {
       name,
@@ -57,6 +76,20 @@ export function createDust2MeshResourceFromMap(parsedMap, { name = 'dust2-goldsr
       modelRanges: mesh.modelRanges,
     },
   };
+}
+
+export function getRenderableBrushModelIndexes(parsedBsp) {
+  const modelIndexes = new Set([0]);
+
+  for (const entity of parsedBsp.entities) {
+    const modelIndex = parseBrushModelIndex(entity.properties.model);
+    const brushKind = classifyGoldSrcBrushEntity(entity.classname);
+    if (modelIndex !== null && brushKind !== 'trigger') {
+      modelIndexes.add(modelIndex);
+    }
+  }
+
+  return [...modelIndexes].sort((left, right) => left - right);
 }
 
 export function getStructuralBrushModelIndexes(parsedBsp) {

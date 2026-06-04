@@ -63,6 +63,10 @@ export function verifyDust2GeneratedMeshResource(resource) {
     throw new Error('Dust2 generated mesh manifest is missing exported BSP model mesh counts.');
   }
 
+  if ((geometry?.collisionMeshVertexCount ?? geometry?.exportedMeshVertexCount ?? 0) <= 0 || (geometry?.collisionMeshTriangleCount ?? geometry?.exportedMeshTriangleCount ?? 0) <= 0) {
+    throw new Error('Dust2 generated mesh manifest is missing collision mesh counts.');
+  }
+
   if (!Array.isArray(geometry?.modelMeshes) || geometry.modelMeshes.length <= 0) {
     throw new Error('Dust2 generated mesh manifest is missing BSP model mesh manifests.');
   }
@@ -100,6 +104,17 @@ export function verifyDust2GeneratedMeshResource(resource) {
     throw new Error('Dust2 generated mesh indices do not match the exported BSP model mesh triangle count.');
   }
 
+  const collisionMesh = resource.collisionMesh ?? resource.mesh;
+  const collisionVertexCount = geometry.collisionMeshVertexCount ?? geometry.exportedMeshVertexCount;
+  const collisionTriangleCount = geometry.collisionMeshTriangleCount ?? geometry.exportedMeshTriangleCount;
+  if (!Array.isArray(collisionMesh.positions) || collisionMesh.positions.length !== collisionVertexCount) {
+    throw new Error('Dust2 generated collision mesh positions do not match the source collision mesh vertex count.');
+  }
+
+  if (!Array.isArray(collisionMesh.indices) || collisionMesh.indices.length !== collisionTriangleCount * 3) {
+    throw new Error('Dust2 generated collision mesh indices do not match the source collision mesh triangle count.');
+  }
+
   return {
     schema: resource.schema,
     sourcePath: resource.source.path,
@@ -108,6 +123,7 @@ export function verifyDust2GeneratedMeshResource(resource) {
     hullCount: geometry.collision.worldHullSummaries.length,
     modelMeshCount: geometry.modelMeshes.length,
     exportedModelCount: geometry.exportedModelIndexes.length,
+    collisionModelCount: (geometry.collisionModelIndexes ?? geometry.exportedModelIndexes).length,
     entityCount: entities.entityCount,
     tSpawnCount,
     ctSpawnCount,
@@ -116,7 +132,7 @@ export function verifyDust2GeneratedMeshResource(resource) {
 }
 
 function assertExportedModelHullIntegrity(geometry, sourceKind) {
-  const exportedModelIndexes = new Set(geometry.exportedModelIndexes);
+  const exportedModelIndexes = new Set(geometry.collisionModelIndexes ?? geometry.exportedModelIndexes);
   const exportedHullSummaries = geometry.collision.modelHullSummaries.filter(summary => exportedModelIndexes.has(summary.modelIndex));
 
   if (exportedHullSummaries.length !== exportedModelIndexes.size) {

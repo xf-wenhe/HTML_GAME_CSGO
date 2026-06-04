@@ -1,30 +1,43 @@
 import { describe, expect, it } from 'vitest';
+import { MULTIPLAYER_MAPS } from '../game/config/maps.js';
 import { MainMenu } from './MainMenu.js';
 
 describe('MainMenu room browser', () => {
-  it('disables Dust2 and marks it as pending source import when no source-backed resource exists', () => {
+  it('shows Dust2 source import state according to the generated resource', () => {
     const menu = new MainMenu();
     document.body.appendChild(menu.getElement());
 
     const dust2Option = menu.getElement().querySelector<HTMLButtonElement>('.map-option[data-map="dust2"]');
-    expect(dust2Option?.textContent).toContain('待导入原版 BSP');
-    expect(dust2Option?.textContent).toContain('需要 CS1.6 原版 de_dust2.bsp');
-    expect(dust2Option?.disabled).toBe(true);
-    expect(dust2Option?.classList.contains('active')).toBe(false);
-    expect(menu.getMapId()).toBe('mirage');
+    if (MULTIPLAYER_MAPS.dust2.source?.sourceBacked) {
+      expect(dust2Option?.textContent).toContain('CS1.6 源文件导入');
+      expect(dust2Option?.disabled).toBe(false);
+      expect(dust2Option?.classList.contains('active')).toBe(true);
+      expect(menu.getMapId()).toBe('dust2');
+    } else {
+      expect(dust2Option?.textContent).toContain('待导入原版 BSP');
+      expect(dust2Option?.textContent).toContain('需要 CS1.6 原版 de_dust2.bsp');
+      expect(dust2Option?.disabled).toBe(true);
+      expect(dust2Option?.classList.contains('active')).toBe(false);
+      expect(menu.getMapId()).toBe('mirage');
+    }
 
     menu.dispose();
   });
 
-  it('does not select disabled Dust2 when clicked', () => {
+  it('handles Dust2 selection according to source-backed availability', () => {
     const menu = new MainMenu();
     document.body.appendChild(menu.getElement());
 
     const dust2Option = menu.getElement().querySelector<HTMLButtonElement>('.map-option[data-map="dust2"]');
     dust2Option?.click();
 
-    expect(menu.getMapId()).toBe('mirage');
-    expect(dust2Option?.classList.contains('active')).toBe(false);
+    if (MULTIPLAYER_MAPS.dust2.source?.sourceBacked) {
+      expect(menu.getMapId()).toBe('dust2');
+      expect(dust2Option?.classList.contains('active')).toBe(true);
+    } else {
+      expect(menu.getMapId()).toBe('mirage');
+      expect(dust2Option?.classList.contains('active')).toBe(false);
+    }
 
     menu.dispose();
   });

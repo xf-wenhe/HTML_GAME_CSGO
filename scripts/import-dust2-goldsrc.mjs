@@ -92,6 +92,7 @@ if (outPath || outTsPath) {
     hullCount: verification.hullCount,
     modelMeshCount: verification.modelMeshCount,
     exportedModelCount: verification.exportedModelCount,
+    collisionModelCount: verification.collisionModelCount,
     entityCount: verification.entityCount,
     tSpawnCount: verification.tSpawnCount,
     ctSpawnCount: verification.ctSpawnCount,

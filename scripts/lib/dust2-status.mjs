@@ -130,7 +130,7 @@ function createStrictDust2Gates(resource, summary, discoveredSource) {
     {
       id: 'strict-exported-models',
       passed: summary.exportedModelCount > 0 && summary.vertexCount > 0 && summary.triangleCount > 0,
-      message: `Exported ${summary.exportedModelCount} structural source models, ${summary.vertexCount} vertices, ${summary.triangleCount} triangles.`,
+      message: `Exported ${summary.exportedModelCount} renderable source models, ${summary.vertexCount} vertices, ${summary.triangleCount} triangles.`,
     },
     {
       id: 'strict-map-scale',
@@ -140,9 +140,9 @@ function createStrictDust2Gates(resource, summary, discoveredSource) {
     {
       id: 'strict-collision-hulls',
       passed: Array.isArray(geometry.collision?.modelHullSummaries)
-        && geometry.collision.modelHullSummaries.length >= summary.exportedModelCount
+        && geometry.collision.modelHullSummaries.length >= summary.collisionModelCount
         && ((geometry.collision.brushSolidCount ?? 1) > 0),
-      message: `Collision summaries: ${geometry.collision?.modelHullSummaries?.length ?? 0}; solid MAP brushes: ${geometry.collision?.brushSolidCount ?? 'n/a'}.`,
+      message: `Collision summaries: ${geometry.collision?.modelHullSummaries?.length ?? 0}; collision source models: ${summary.collisionModelCount}; solid MAP brushes: ${geometry.collision?.brushSolidCount ?? 'n/a'}.`,
     },
   ];
 }

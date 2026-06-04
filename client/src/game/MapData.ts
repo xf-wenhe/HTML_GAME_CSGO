@@ -40,6 +40,8 @@ export interface MeshSpec {
   name?: string;
   positions: THREE.Vector3[];
   indices: number[];
+  collisionPositions?: THREE.Vector3[];
+  collisionIndices?: number[];
   color: number;
   metalness?: number;
   roughness?: number;
@@ -65,6 +67,10 @@ export interface ArenaData {
   playerSpawn: THREE.Vector3;
   bounds: { width: number; depth: number; centerZ: number };
   enemySpawns: EnemySpawnPoint[];
+  bombSites?: {
+    A: THREE.Vector3;
+    B: THREE.Vector3;
+  };
   colliders: BoxSpec[];
   props: BoxSpec[];
   meshes?: MeshSpec[];
@@ -108,6 +114,51 @@ export const resolveDust2SourceSpawns = (
   return {
     playerSpawn: tSpawns[0]?.clone() ?? fallbackPlayerSpawn,
     enemySpawns: ctSpawns.length > 0 ? ctSpawns : fallbackEnemySpawns,
+  };
+};
+
+export const resolveDust2SourceBombSites = (
+  resource: Dust2WorldMeshResource | null,
+  fallbackBombSites: { A: THREE.Vector3; B: THREE.Vector3 }
+) => {
+  const bombTargets = resource?.source.manifest.entities?.bombTargets ?? [];
+  const modelMeshes = resource?.source.manifest.geometry?.modelMeshes ?? [];
+  const centers = bombTargets
+    .map(target => {
+      const match = target.model?.match(/^\*(\d+)$/);
+      const modelIndex = match ? Number(match[1]) : null;
+      const modelMesh = modelIndex === null
+        ? undefined
+        : modelMeshes.find(mesh => mesh.modelIndex === modelIndex);
+      const bounds = modelMesh?.gameBounds;
+      const mins = bounds?.mins;
+      const maxs = bounds?.maxs;
+      if (
+        typeof mins?.x !== 'number' || typeof mins.y !== 'number' || typeof mins.z !== 'number'
+        || typeof maxs?.x !== 'number' || typeof maxs.y !== 'number' || typeof maxs.z !== 'number'
+      ) {
+        return null;
+      }
+
+      return new THREE.Vector3(
+        (mins.x + maxs.x) / 2,
+        Math.max(0.04, mins.y + 0.04),
+        (mins.z + maxs.z) / 2
+      );
+    })
+    .filter((center): center is THREE.Vector3 => center !== null)
+    .sort((left, right) => left.x - right.x);
+
+  if (centers.length < 2) {
+    return {
+      A: fallbackBombSites.A.clone(),
+      B: fallbackBombSites.B.clone(),
+    };
+  }
+
+  return {
+    A: centers[0].clone(),
+    B: centers[centers.length - 1].clone(),
   };
 };
 
@@ -284,7 +335,9 @@ const cloneZone = (zone: MaterialZone): MaterialZone => ({
 const cloneMesh = (mesh: MeshSpec): MeshSpec => ({
   ...mesh,
   positions: mesh.positions.map(position => position.clone()),
-  indices: [...mesh.indices]
+  indices: [...mesh.indices],
+  collisionPositions: mesh.collisionPositions?.map(position => position.clone()),
+  collisionIndices: mesh.collisionIndices ? [...mesh.collisionIndices] : undefined
 });
 
 const cloneArena = (arena: ArenaData, name: string, playerSpawn: THREE.Vector3): ArenaData => ({
@@ -292,6 +345,9 @@ const cloneArena = (arena: ArenaData, name: string, playerSpawn: THREE.Vector3):
   name,
   playerSpawn: playerSpawn.clone(),
   enemySpawns: arena.enemySpawns.map(spawn => ({ ...spawn, position: spawn.position.clone() })),
+  bombSites: arena.bombSites
+    ? { A: arena.bombSites.A.clone(), B: arena.bombSites.B.clone() }
+    : undefined,
   colliders: arena.colliders.map(cloneBox),
   props: arena.props.map(cloneBox),
   meshes: arena.meshes?.map(cloneMesh),
@@ -953,6 +1009,13 @@ function buildDust2Arena(): ArenaData {
     fallbackPlayerSpawn,
     fallbackEnemySpawns
   );
+  const sourceBombSites = resolveDust2SourceBombSites(
+    DUST2_WORLD_MESH_RESOURCE,
+    {
+      A: new THREE.Vector3(H(-2560), 0.04, H(1280)),
+      B: new THREE.Vector3(H(2560), 0.04, H(1280)),
+    }
+  );
 
   return {
     name: 'Dust2',
@@ -963,6 +1026,7 @@ function buildDust2Arena(): ArenaData {
       centerZ: DUST2_GAME_BOUNDS.centerZ
     },
     enemySpawns: sourceSpawns.enemySpawns,
+    bombSites: sourceBombSites,
     colliders: sourceGeometry.colliders,
     props: sourceGeometry.props,
     meshes: sourceGeometry.meshes,

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import {
   DUST2_WORLD_MESH_SCHEMA,
   type Dust2WorldMeshResource,
   meshSpecFromDust2WorldMeshResource,
 } from '../Dust2MeshResource.js';
-import { ARENA_MAPS, resolveDust2SourceGeometry, resolveDust2SourceSpawns } from '../MapData.js';
+import { ARENA_MAPS, resolveDust2SourceBombSites, resolveDust2SourceGeometry, resolveDust2SourceSpawns } from '../MapData.js';
 import { DUST2_WORLD_MESH_RESOURCE } from '../generated/dust2-world-mesh.js';
 import { PLAYER_EYE_HEIGHT } from '../constants/MapUnits.js';
 
@@ -63,11 +64,18 @@ const resource = (overrides: Partial<Dust2WorldMeshResource> = {}): Dust2WorldMe
         exportedMeshVertexCount: 3,
         exportedMeshTriangleCount: 1,
         exportedModelIndexes: [0],
+        collisionMeshVertexCount: 3,
+        collisionMeshTriangleCount: 1,
+        collisionModelIndexes: [0],
         modelMeshes: [
           {
             modelIndex: 0,
             vertexCount: 3,
             triangleCount: 1,
+            gameBounds: {
+              mins: { x: 0, y: 0, z: -1 },
+              maxs: { x: 1, y: 0, z: 0 },
+            },
           },
         ],
         collision: {
@@ -120,12 +128,22 @@ const mapResource = (overrides: Partial<Dust2WorldMeshResource> = {}): Dust2Worl
 });
 
 describe('Dust2 mesh resource conversion', () => {
-  it('keeps Dust2 mesh disabled until a generated source-backed resource exists', () => {
-    expect(DUST2_WORLD_MESH_RESOURCE).toBeNull();
-    expect(ARENA_MAPS.dust2.meshes).toEqual([]);
-    expect(ARENA_MAPS.dust2.source).toMatchObject({
-      sourceBacked: false,
-    });
+  it('uses source mesh when available and otherwise keeps Dust2 placeholder mode explicit', () => {
+    if (DUST2_WORLD_MESH_RESOURCE) {
+      expect(ARENA_MAPS.dust2.meshes?.length).toBeGreaterThan(0);
+      expect(ARENA_MAPS.dust2.colliders).toEqual([]);
+      expect(ARENA_MAPS.dust2.props).toEqual([]);
+      expect(ARENA_MAPS.dust2.source).toMatchObject({
+        sourceBacked: true,
+        kind: DUST2_WORLD_MESH_RESOURCE.source.kind,
+        path: DUST2_WORLD_MESH_RESOURCE.source.path,
+      });
+    } else {
+      expect(ARENA_MAPS.dust2.meshes).toEqual([]);
+      expect(ARENA_MAPS.dust2.source).toMatchObject({
+        sourceBacked: false,
+      });
+    }
   });
 
   it('replaces hand-authored Dust2 placeholder geometry when a source-backed mesh exists', () => {
@@ -170,6 +188,58 @@ describe('Dust2 mesh resource conversion', () => {
       [1, 0, 0],
       [0, 0, -1],
     ]);
+    expect(mesh.collisionPositions?.map(position => position.toArray())).toEqual([
+      [0, 0, 0],
+      [1, 0, 0],
+      [0, 0, -1],
+    ]);
+    expect(mesh.collisionIndices).toEqual([0, 1, 2]);
+  });
+
+  it('keeps render-only BSP brush models out of collision geometry', () => {
+    const mesh = meshSpecFromDust2WorldMeshResource(resource({
+      source: {
+        ...resource().source,
+        manifest: {
+          ...resource().source.manifest,
+          geometry: {
+            ...resource().source.manifest.geometry!,
+            exportedMeshVertexCount: 6,
+            exportedMeshTriangleCount: 2,
+            exportedModelIndexes: [0, 3],
+            collisionMeshVertexCount: 3,
+            collisionMeshTriangleCount: 1,
+            collisionModelIndexes: [0],
+          },
+        },
+      },
+      mesh: {
+        ...resource().mesh,
+        positions: [
+          [0, 0, 0],
+          [1, 0, 0],
+          [0, 0, -1],
+          [2, 0, 0],
+          [3, 0, 0],
+          [2, 0, -1],
+        ],
+        indices: [0, 1, 2, 3, 4, 5],
+      },
+      collisionMesh: {
+        name: 'dust2-goldsrc-world-mesh-collision',
+        positions: [
+          [0, 0, 0],
+          [1, 0, 0],
+          [0, 0, -1],
+        ],
+        indices: [0, 1, 2],
+      },
+    }));
+
+    expect(mesh.positions).toHaveLength(6);
+    expect(mesh.indices).toHaveLength(6);
+    expect(mesh.collisionPositions).toHaveLength(3);
+    expect(mesh.collisionIndices).toEqual([0, 1, 2]);
   });
 
   it('accepts source-backed MAP mesh resources generated from brush planes', () => {
@@ -197,6 +267,50 @@ describe('Dust2 mesh resource conversion', () => {
     expect(spawns.enemySpawns).toHaveLength(1);
     expect(spawns.enemySpawns[0].position.toArray()).toEqual([1.28, 0.64 + PLAYER_EYE_HEIGHT, -2.56]);
     expect(spawns.enemySpawns[0].type).toBe('shooter');
+  });
+
+  it('resolves source bomb site centers from BSP bomb target model bounds', () => {
+    const bombSites = resolveDust2SourceBombSites(resource({
+      source: {
+        ...resource().source,
+        manifest: {
+          ...resource().source.manifest,
+          entities: {
+            ...resource().source.manifest.entities!,
+            bombTargets: [
+              { entityIndex: 3, classname: 'func_bomb_target', model: '*16', targetname: null },
+              { entityIndex: 4, classname: 'func_bomb_target', model: '*42', targetname: null },
+            ],
+          },
+          geometry: {
+            ...resource().source.manifest.geometry!,
+            modelMeshes: [
+              ...(resource().source.manifest.geometry!.modelMeshes ?? []),
+              {
+                modelIndex: 16,
+                gameBounds: {
+                  mins: { x: -17.28, y: 0, z: -28.8 },
+                  maxs: { x: -13.44, y: 0.96, z: -24.96 },
+                },
+              },
+              {
+                modelIndex: 42,
+                gameBounds: {
+                  mins: { x: 10.24, y: 0.96, z: -26.24 },
+                  maxs: { x: 12.8, y: 1.92, z: -23.04 },
+                },
+              },
+            ],
+          },
+        },
+      },
+    }), {
+      A: new THREE.Vector3(-25.6, 0.04, 12.8),
+      B: new THREE.Vector3(25.6, 0.04, 12.8),
+    });
+
+    expect(bombSites.A.toArray()).toEqual([-15.36, 0.04, -26.880000000000003]);
+    expect(bombSites.B.toArray()).toEqual([11.52, 1, -24.64]);
   });
 
   it('keeps fallback spawns while Dust2 generated resource is unavailable', () => {

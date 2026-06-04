@@ -577,6 +577,7 @@ describe('CS1.6 Dust2 source preflight', () => {
       hullCount: 1,
       modelMeshCount: 1,
       exportedModelCount: 1,
+      collisionModelCount: 1,
       entityCount: 6,
       tSpawnCount: 1,
       ctSpawnCount: 1,
@@ -612,6 +613,7 @@ describe('CS1.6 Dust2 source preflight', () => {
       hullCount: 4,
       modelMeshCount: 4,
       exportedModelCount: 2,
+      collisionModelCount: 2,
     });
   });
 
@@ -641,6 +643,7 @@ describe('CS1.6 Dust2 source preflight', () => {
       hullCount: 1,
       modelMeshCount: 1,
       exportedModelCount: 1,
+      collisionModelCount: 1,
     });
   });
 
@@ -734,11 +737,23 @@ describe('CS1.6 Dust2 source preflight', () => {
   });
 
   it('refuses Dust2 screenshots until a source-backed generated resource exists', () => {
+    const dir = makeTempDir();
+    const generatedModule = path.join(dir, 'dust2-world-mesh.ts');
+    fs.writeFileSync(
+      generatedModule,
+      "import type { Dust2WorldMeshResource } from '../Dust2MeshResource.js';\n\nexport const DUST2_WORLD_MESH_RESOURCE: Dust2WorldMeshResource | null = null;\n"
+    );
+
     expect(() =>
       execFileSync(
         'node',
         ['scripts/screenshot-dust2.mjs'],
-        { cwd: process.cwd(), encoding: 'utf8', stdio: 'pipe' }
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          stdio: 'pipe',
+          env: { ...process.env, DUST2_GENERATED_MODULE: generatedModule },
+        }
       )
     ).toThrow(/Dust2 generated mesh resource is null/);
   });
@@ -757,6 +772,7 @@ describe('CS1.6 Dust2 source preflight', () => {
       hullCount: 4,
       modelMeshCount: 4,
       exportedModelCount: 2,
+      collisionModelCount: 2,
       entityCount: 6,
       tSpawnCount: 1,
       ctSpawnCount: 1,

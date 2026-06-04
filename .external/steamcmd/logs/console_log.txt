@@ -1,0 +1,126 @@
+
+
+[2026-06-04 17:49:58] Client version: 1780356001
+[2026-06-04 17:49:58] Loading Steam API...
+[2026-06-04 17:49:58] OK
+[2026-06-04 17:49:59] 
+Connecting anonymously to Steam Public...
+[2026-06-04 17:50:08] OK
+[2026-06-04 17:50:08] Waiting for client config...
+[2026-06-04 17:50:11] OK
+[2026-06-04 17:50:11] Waiting for user info...
+[2026-06-04 17:50:34] OK
+[2026-06-04 17:50:35] ERROR! Failed to install app '90' (Invalid platform)
+[2026-06-04 17:50:35] Unloading Steam API...
+
+
+[2026-06-04 17:50:43] Client version: 1780356001
+[2026-06-04 17:50:43] Loading Steam API...
+[2026-06-04 17:50:43] src/common/iopollinghelpers_osx.cpp (109) : Unexpected thread race for CIOPollingHelper construction
+[2026-06-04 17:50:43] OK
+[2026-06-04 17:50:43] "@sSteamCmdForcePlatformType" = "windows"
+[2026-06-04 17:50:43] 
+Connecting anonymously to Steam Public...
+[2026-06-04 17:50:48] OK
+[2026-06-04 17:50:48] Waiting for client config...
+[2026-06-04 17:50:49] OK
+[2026-06-04 17:50:49] Waiting for user info...
+[2026-06-04 17:50:49] OK
+[2026-06-04 17:50:52]  Update state (0x3) reconfiguring, progress: 0.00 (0 / 0)
+[2026-06-04 17:50:54]  Update state (0x3) reconfiguring, progress: 0.00 (0 / 0)
+[2026-06-04 17:50:56]  Update state (0x3) reconfiguring, progress: 0.00 (0 / 0)
+[2026-06-04 17:50:58]  Update state (0x3) reconfiguring, progress: 0.00 (0 / 0)
+[2026-06-04 17:51:00]  Update state (0x61) downloading, progress: 0.00 (0 / 902990046)
+[2026-06-04 17:51:02]  Update state (0x61) downloading, progress: 0.07 (634675 / 902990046)
+[2026-06-04 17:51:04]  Update state (0x61) downloading, progress: 1.16 (10475820 / 902990046)
+[2026-06-04 17:51:06]  Update state (0x61) downloading, progress: 2.83 (25554689 / 902990046)
+[2026-06-04 17:51:08]  Update state (0x61) downloading, progress: 5.15 (46529869 / 902990046)
+[2026-06-04 17:51:10]  Update state (0x61) downloading, progress: 8.88 (80215272 / 902990046)
+[2026-06-04 17:51:12]  Update state (0x61) downloading, progress: 13.12 (118473256 / 902990046)
+[2026-06-04 17:51:14]  Update state (0x61) downloading, progress: 17.26 (155829322 / 902990046)
+[2026-06-04 17:51:16]  Update state (0x61) downloading, progress: 20.85 (188297510 / 902990046)
+[2026-06-04 17:51:18]  Update state (0x61) downloading, progress: 24.42 (220509522 / 902990046)
+[2026-06-04 17:51:20]  Update state (0x61) downloading, progress: 26.40 (238398766 / 902990046)
+[2026-06-04 17:51:22]  Update state (0x61) downloading, progress: 28.30 (255507061 / 902990046)
+[2026-06-04 17:51:24]  Update state (0x61) downloading, progress: 29.53 (266615923 / 902990046)
+[2026-06-04 17:51:26]  Update state (0x61) downloading, progress: 30.52 (275613222 / 902990046)
+[2026-06-04 17:51:28]  Update state (0x61) downloading, progress: 31.61 (285437167 / 902990046)
+[2026-06-04 17:51:31]  Update state (0x61) downloading, progress: 32.00 (288950165 / 902990046)
+[2026-06-04 17:51:33]  Update state (0x61) downloading, progress: 32.09 (289739709 / 902990046)
+[2026-06-04 17:51:35]  Update state (0x61) downloading, progress: 32.14 (290243237 / 902990046)
+[2026-06-04 17:51:37]  Update state (0x61) downloading, progress: 32.26 (291291813 / 902990046)
+[2026-06-04 17:51:39]  Update state (0x61) downloading, progress: 32.26 (291291813 / 902990046)
+[2026-06-04 17:51:41]  Update state (0x61) downloading, progress: 32.42 (292707233 / 902990046)
+[2026-06-04 17:51:43]  Update state (0x61) downloading, progress: 33.42 (301753168 / 902990046)
+[2026-06-04 17:51:45]  Update state (0x61) downloading, progress: 34.81 (314290491 / 902990046)
+[2026-06-04 17:51:47]  Update state (0x61) downloading, progress: 35.67 (322087321 / 902990046)
+[2026-06-04 17:51:49]  Update state (0x61) downloading, progress: 36.94 (333523620 / 902990046)
+[2026-06-04 17:51:51]  Update state (0x61) downloading, progress: 39.37 (355530828 / 902990046)
+[2026-06-04 17:51:53]  Update state (0x61) downloading, progress: 42.38 (382704484 / 902990046)
+[2026-06-04 17:51:55]  Update state (0x61) downloading, progress: 46.79 (422490931 / 902990046)
+[2026-06-04 17:51:57]  Update state (0x61) downloading, progress: 50.58 (456716145 / 902990046)
+[2026-06-04 17:51:59]  Update state (0x61) downloading, progress: 54.63 (493315213 / 902990046)
+[2026-06-04 17:52:01]  Update state (0x61) downloading, progress: 58.55 (528740418 / 902990046)
+[2026-06-04 17:52:03]  Update state (0x61) downloading, progress: 61.82 (558259210 / 902990046)
+[2026-06-04 17:52:05]  Update state (0x61) downloading, progress: 65.17 (588511168 / 902990046)
+[2026-06-04 17:52:07]  Update state (0x61) downloading, progress: 68.33 (616994629 / 902990046)
+[2026-06-04 17:52:09]  Update state (0x61) downloading, progress: 69.57 (628215176 / 902990046)
+[2026-06-04 17:52:11]  Update state (0x61) downloading, progress: 72.25 (652376134 / 902990046)
+[2026-06-04 17:52:13]  Update state (0x61) downloading, progress: 73.25 (661422632 / 902990046)
+[2026-06-04 17:52:15]  Update state (0x61) downloading, progress: 74.03 (668483337 / 902990046)
+[2026-06-04 17:52:17]  Update state (0x61) downloading, progress: 75.12 (678359970 / 902990046)
+[2026-06-04 17:52:19]  Update state (0x61) downloading, progress: 76.47 (690522673 / 902990046)
+[2026-06-04 17:52:21]  Update state (0x61) downloading, progress: 77.13 (696501009 / 902990046)
+[2026-06-04 17:52:23]  Update state (0x61) downloading, progress: 78.32 (707240848 / 902990046)
+[2026-06-04 17:52:25]  Update state (0x61) downloading, progress: 79.42 (717196197 / 902990046)
+[2026-06-04 17:52:27]  Update state (0x61) downloading, progress: 80.17 (723902849 / 902990046)
+[2026-06-04 17:52:29]  Update state (0x61) downloading, progress: 80.98 (731196362 / 902990046)
+[2026-06-04 17:52:31]  Update state (0x61) downloading, progress: 82.77 (747381268 / 902990046)
+[2026-06-04 17:52:33]  Update state (0x61) downloading, progress: 83.68 (755625470 / 902990046)
+[2026-06-04 17:52:35]  Update state (0x61) downloading, progress: 84.75 (765291182 / 902990046)
+[2026-06-04 17:52:37]  Update state (0x61) downloading, progress: 85.67 (773579591 / 902990046)
+[2026-06-04 17:52:39]  Update state (0x61) downloading, progress: 86.17 (778132582 / 902990046)
+[2026-06-04 17:52:41]  Update state (0x61) downloading, progress: 87.01 (785668463 / 902990046)
+[2026-06-04 17:52:43]  Update state (0x61) downloading, progress: 87.43 (789462225 / 902990046)
+[2026-06-04 17:52:45]  Update state (0x61) downloading, progress: 87.76 (792430069 / 902990046)
+[2026-06-04 17:52:47]  Update state (0x61) downloading, progress: 87.99 (794561866 / 902990046)
+[2026-06-04 17:52:49]  Update state (0x61) downloading, progress: 88.26 (796976206 / 902990046)
+[2026-06-04 17:52:51]  Update state (0x61) downloading, progress: 88.29 (797235740 / 902990046)
+[2026-06-04 17:52:53]  Update state (0x61) downloading, progress: 88.35 (797759408 / 902990046)
+[2026-06-04 17:52:55]  Update state (0x61) downloading, progress: 88.52 (799287816 / 902990046)
+[2026-06-04 17:52:57]  Update state (0x61) downloading, progress: 88.55 (799620528 / 902990046)
+[2026-06-04 17:52:59]  Update state (0x61) downloading, progress: 88.74 (801330474 / 902990046)
+[2026-06-04 17:53:01]  Update state (0x61) downloading, progress: 88.90 (802753657 / 902990046)
+[2026-06-04 17:53:03]  Update state (0x61) downloading, progress: 88.98 (803437418 / 902990046)
+[2026-06-04 17:53:05]  Update state (0x61) downloading, progress: 89.11 (804624966 / 902990046)
+[2026-06-04 17:53:07]  Update state (0x61) downloading, progress: 89.11 (804691332 / 902990046)
+[2026-06-04 17:53:09]  Update state (0x61) downloading, progress: 89.11 (804691332 / 902990046)
+[2026-06-04 17:53:11]  Update state (0x61) downloading, progress: 89.11 (804691332 / 902990046)
+[2026-06-04 17:53:13]  Update state (0x61) downloading, progress: 89.27 (806109778 / 902990046)
+[2026-06-04 17:53:15]  Update state (0x61) downloading, progress: 90.02 (812887661 / 902990046)
+[2026-06-04 17:53:17]  Update state (0x61) downloading, progress: 90.72 (819179117 / 902990046)
+[2026-06-04 17:53:19]  Update state (0x61) downloading, progress: 90.72 (819179117 / 902990046)
+[2026-06-04 17:53:21]  Update state (0x61) downloading, progress: 91.05 (822217522 / 902990046)
+[2026-06-04 17:53:23]  Update state (0x61) downloading, progress: 91.46 (825859348 / 902990046)
+[2026-06-04 17:53:25]  Update state (0x61) downloading, progress: 92.05 (831245422 / 902990046)
+[2026-06-04 17:53:27]  Update state (0x61) downloading, progress: 92.49 (835196390 / 902990046)
+[2026-06-04 17:53:29]  Update state (0x61) downloading, progress: 92.61 (836244966 / 902990046)
+[2026-06-04 17:53:31]  Update state (0x61) downloading, progress: 92.72 (837293542 / 902990046)
+[2026-06-04 17:53:33]  Update state (0x61) downloading, progress: 92.72 (837293542 / 902990046)
+[2026-06-04 17:53:35]  Update state (0x61) downloading, progress: 92.84 (838342118 / 902990046)
+[2026-06-04 17:53:37]  Update state (0x61) downloading, progress: 93.07 (840439270 / 902990046)
+[2026-06-04 17:53:39]  Update state (0x61) downloading, progress: 93.77 (846730726 / 902990046)
+[2026-06-04 17:53:41]  Update state (0x61) downloading, progress: 94.70 (855119334 / 902990046)
+[2026-06-04 17:53:43]  Update state (0x61) downloading, progress: 95.91 (866049150 / 902990046)
+[2026-06-04 17:53:45]  Update state (0x61) downloading, progress: 98.72 (891442910 / 902990046)
+[2026-06-04 17:53:47]  Update state (0x61) downloading, progress: 99.54 (898795742 / 902990046)
+[2026-06-04 17:53:49]  Update state (0x61) downloading, progress: 99.77 (900892894 / 902990046)
+[2026-06-04 17:53:51]  Update state (0x61) downloading, progress: 99.77 (900892894 / 902990046)
+[2026-06-04 17:53:53]  Update state (0x61) downloading, progress: 99.77 (900892894 / 902990046)
+[2026-06-04 17:53:55]  Update state (0x81) verifying update, progress: 38.91 (351333867 / 902990046)
+[2026-06-04 17:53:58]  Update state (0x81) verifying update, progress: 91.05 (822168329 / 902990046)
+[2026-06-04 17:53:58] Work thread 'CContentUpdateContext::m_pCPUTh' is marked exited, but we could not immediately join prior to deleting -- proceeding without join
+[2026-06-04 17:54:00]  Update state (0x0) unknown, progress: 0.00 (0 / 0)
+[2026-06-04 17:54:00] Success! App '90' fully installed.
+[2026-06-04 17:54:00] Unloading Steam API...
+[2026-06-04 17:54:00] OK
