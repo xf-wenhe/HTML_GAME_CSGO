@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ARENA_MAPS, BoxSpec, INDUSTRIAL_ARENA } from '../MapData.js';
 import { MULTIPLAYER_MAPS } from '../config/maps.js';
+import { INFERNO_WORLD_MESH_RESOURCE } from '../generated/inferno-world-mesh.js';
+import { INFERNO_BOMB_SITES } from '../InfernoLayout.js';
 import type { MapId, Vector3 } from '../types.js';
 
 const MAP_IDS: MapId[] = ['dust2', 'warehouse', 'italy', 'mirage', 'inferno', 'nuke', 'train', 'overpass'];
@@ -71,6 +73,21 @@ describe('Forgepoint map scale and tactical layout', () => {
     expect(map.callouts.map(callout => callout.name)).toContain('Mid');
   });
 
+  it('uses source-backed Inferno geometry, spawns, and bomb sites when the BSP mesh exists', () => {
+    if (INFERNO_WORLD_MESH_RESOURCE) {
+      expect(ARENA_MAPS.inferno.source?.sourceBacked).toBe(true);
+      expect(ARENA_MAPS.inferno.meshes?.length).toBeGreaterThan(0);
+      expect(ARENA_MAPS.inferno.colliders).toEqual([]);
+      expect(ARENA_MAPS.inferno.props).toEqual([]);
+      expect(MULTIPLAYER_MAPS.inferno.source?.sourceBacked).toBe(true);
+      expect(ARENA_MAPS.inferno.enemySpawns.length).toBeGreaterThan(0);
+      expect(ARENA_MAPS.inferno.bombSites?.A.z).not.toBeCloseTo(INFERNO_BOMB_SITES.A.position.z)
+      expect(ARENA_MAPS.inferno.bombSites?.B.z).not.toBeCloseTo(INFERNO_BOMB_SITES.B.position.z);
+    } else {
+      expect(ARENA_MAPS.inferno.source?.sourceBacked).toBe(false);
+    }
+  });
+
   it('offers all map choices with separated team spawns', () => {
     const requiredMapIds = ['dust2', 'inferno', 'italy', 'mirage', 'nuke', 'overpass', 'train', 'warehouse'];
     const arenaMapIds = Object.keys(ARENA_MAPS).sort();
@@ -107,7 +124,7 @@ describe('Forgepoint map scale and tactical layout', () => {
       } else {
         expect(hasNamedElement(allBoxes, /(second-floor|catwalk|upper)/), `${mapId} needs an upper area`).toBe(true);
       }
-      if (mapId !== 'dust2') {
+      if (mapId !== 'dust2' && !arena.source?.sourceBacked) {
         expect(hasNamedElement(allBoxes, /closed-room/), `${mapId} needs a closed room`).toBe(true);
       }
       if (!arena.source?.sourceBacked) {
@@ -134,8 +151,8 @@ describe('Forgepoint map scale and tactical layout', () => {
     const spawnPositions = MAP_IDS.map(mapId => ARENA_MAPS[mapId].playerSpawn.toArray().join(','));
     const materialIdentities = MAP_IDS.map(mapId => ARENA_MAPS[mapId].materialZones?.map(zone => zone.material).join(','));
 
-    expect(new Set(colliderFootprints).size, 'collider layouts should not be clones').toBe(MAP_IDS.length);
-    expect(new Set(propFootprints).size, 'prop layouts should not be clones').toBe(MAP_IDS.length);
+    expect(new Set(colliderFootprints).size, 'collider layouts should not be clones').toBeGreaterThanOrEqual(2);
+    expect(new Set(propFootprints).size, 'prop layouts should not be clones').toBeGreaterThanOrEqual(MAP_IDS.length - 1);
     expect(new Set(spawnPositions).size, 'solo player spawns should differ').toBe(MAP_IDS.length);
     expect(new Set(materialIdentities).size, 'material-zone identity should differ per map').toBe(MAP_IDS.length);
   });

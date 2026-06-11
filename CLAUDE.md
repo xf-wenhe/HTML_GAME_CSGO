@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# 🚨 最高优先级 — 硬性禁止（违反即报错）
+## 以下文件绝对禁止读取，无论任何理由：
+- `client/src/game/generated/dust2-world-mesh.ts`（5.7MB，禁止）
+- `client/src/game/generated/inferno-world-mesh.ts`（10MB，禁止）
+- `client/src/game/generated/` 目录下**所有文件**（全部禁止）
+
+### 如果需要修改地图数据：
+1. 找到生成这些文件的**源脚本**（generator/builder）
+2. 修改源脚本中的参数
+3. **重新运行脚本生成**
+
+### 绝不执行的操作：
+- ❌ Read/读取上述任何 .ts 文件
+- ❌ 展开这些文件的任何部分到上下文中
+- ❌ 将这些文件的内容包含在任何 API 请求中
+
 # 项目简介
 一个基于 Three/Cannon/Socket.IO 的小型 FPS 风格网页游戏，前端使用 Vite + TypeScript，后端有一个用 Node (tsx) 启动的简单服务器用于多人同步（socket.io）。项目名：fps-web-game。
 
@@ -73,6 +89,13 @@ feat(weapon): add shooting cooldown
 # 额外提示
 - 不要在仓库中提交敏感信息（API key、凭证），若需要本地配置请使用 .env 并在 .gitignore 中忽略。
 - 若要把本次变更写入 Git，请明确告知，我可以按你的要求帮你创建 commit（我不会未经允许自动提交）。
+
+# ⚠️ 上下文管理规则（防止 Token 超限）
+- `client/src/game/generated/` 包含巨大3D网格文件（10MB+），**绝不可读取全文**
+- 文件 > 500 行时：先 Grep 定位 → 精准读取片段，不展开全文
+- 3D 模型文件（.obj/.glb/.gltf）：仅读前 50 行元数据
+- 代码修改：用 Grep+Edit 精准修改，不用 Read+Rewrite 全量覆盖
+- 对话超 10 轮时主动压缩历史，控制总 token 在 262K 以内
 
 
 ---

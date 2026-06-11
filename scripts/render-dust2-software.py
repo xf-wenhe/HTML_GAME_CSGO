@@ -2,14 +2,13 @@
 import json
 import math
 import os
-import re
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RESOURCE_PATH = Path(os.environ.get("DUST2_GENERATED_MODULE", ROOT / "client/src/game/generated/dust2-world-mesh.ts"))
+RESOURCE_JSON = os.environ.get("DUST2_RESOURCE_JSON")
 OUT_DIR = ROOT / "scripts/screenshots"
 WIDTH = 960
 HEIGHT = 640
@@ -64,14 +63,9 @@ def main():
 
 
 def read_resource():
-    source = RESOURCE_PATH.read_text(encoding="utf-8")
-    match = re.search(r"export\s+const\s+DUST2_WORLD_MESH_RESOURCE[\s\S]*?=\s*([\s\S]*);\s*$", source)
-    if not match:
-        raise RuntimeError("Generated Dust2 resource export was not found.")
-    value = match.group(1).strip()
-    if value == "null":
-        raise RuntimeError("Generated Dust2 resource is null.")
-    return json.loads(value)
+    if not RESOURCE_JSON:
+        raise RuntimeError("DUST2_RESOURCE_JSON is required; use npm run dust2:render so the resource is built from the source BSP.")
+    return json.loads(Path(RESOURCE_JSON).read_text(encoding="utf-8"))
 
 
 def render_scene(triangles, eye, target, label):
@@ -151,6 +145,20 @@ def write_topdown_plan(triangles):
         else:
             draw.line([*pts, pts[0]], fill=(82, 77, 61), width=1)
 
+    routes = [
+        ("Long -> A", (255, 186, 86), [(-8.2, 8.0), (-17.18, -9.39), (-19.4, -18.5), (-16.4, -23.8), (-15.36, -26.88)]),
+        ("Short -> A", (100, 206, 255), [(-8.2, 8.0), (-5.8, 3.8), (-7.5, -8.8), (-9.6, -15.1), (-15.36, -26.88)]),
+        ("Tunnels -> B", (148, 235, 132), [(-8.2, 8.0), (-4.7, 3.7), (5.2, -5.1), (12.8, -1.5), (11.2, -23.6), (11.52, -24.64)]),
+        ("CT -> Mid", (230, 122, 255), [(2.56, -22.4), (-0.53, -20.05), (-3.2, -11.8)]),
+        ("CT -> B", (230, 122, 255), [(2.56, -22.4), (7.0, -21.2), (11.52, -24.64)]),
+        ("CT -> A", (230, 122, 255), [(2.56, -22.4), (-13.8, -25.2), (-15.36, -26.88)]),
+    ]
+    for label, color, route in routes:
+        points = [to_screen((x, 0, z)) for x, z in route]
+        draw.line(points, fill=color, width=4, joint="curve")
+        sx, sy = points[min(1, len(points) - 1)]
+        draw.text((sx + 8, sy + 8), label, fill=color)
+
     labels = [
         ("T spawn", (-8.2, 8.0)),
         ("Long doors", (-19.8, -8.5)),
@@ -161,6 +169,8 @@ def write_topdown_plan(triangles):
         ("Mid doors", (-3.2, -11.8)),
         ("Lower tunnels", (5.2, -5.1)),
         ("Upper tunnels", (12.8, -1.5)),
+        ("A ramp", (-13.8, -25.2)),
+        ("B doors/window", (7.0, -21.2)),
         ("B site", (11.4, -24.6)),
         ("CT spawn", (2.5, -22.4)),
     ]

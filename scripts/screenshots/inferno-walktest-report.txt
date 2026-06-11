@@ -1,0 +1,16 @@
+
+Inferno 全图走查测试报告
+=======================
+时间: 2026-06-09T11:39:06.531Z
+
+测试结果:
+✅ T Spawn to Banana
+✅ T Spawn to A Site via Mid
+✅ CT Spawn to B Site
+✅ CT Spawn to A Site
+✅ Apartments Route
+
+问题列表:
+无问题
+
+总计问题数: 0

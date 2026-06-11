@@ -1,0 +1,28 @@
+# 生成的3D网格数据（巨大，不要读入上下文）
+client/src/game/generated/
+
+# Claude记忆插件（项目内嵌，不需要读取）
+claude-mem/
+
+# 临时调试文件
+tmp-*
+
+# 构建产物
+node_modules/
+dist/
+
+# 图片文件（按需手动读取）
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# 日志与测试产物
+test-results/
+
+# 大型文档
+docs/superpowers/
+README.md
+
+# package-lock
+package-lock.json

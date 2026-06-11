@@ -1,6 +1,38 @@
+# 🚨 最高优先级 — 硬性禁止（违反即报错）
+## 以下文件绝对禁止读取，无论任何理由：
+- `client/src/game/generated/dust2-world-mesh.ts`（5.7MB，禁止）
+- `client/src/game/generated/inferno-world-mesh.ts`（10MB，禁止）
+- `client/src/game/generated/` 目录下**所有文件**（全部禁止）
+
+### 如果需要修改地图数据：
+1. 找到生成这些文件的**源脚本**（generator/builder）
+2. 修改源脚本中的参数
+3. **重新运行脚本生成**
+
+### 绝不执行的操作：
+- ❌ Read/读取上述任何 .ts 文件
+- ❌ 展开这些文件的任何部分到上下文中
+- ❌ 将这些文件的内容包含在任何 API 请求中
+
+---
+
 # AGENTS.md
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+
+# ⚠️ 上下文优化提示（必须严格遵守）
+- `client/src/game/generated/` 目录包含巨大的3D网格生成文件（10MB+），**绝不要读取这些文件**。需要修改地图数据时，修改生成器脚本后重新运行。
+- `claude-mem/` 目录是内嵌的记忆插件，与项目功能无关，**不要读取**。
+- `tmp-*` 开头的是临时调试文件，不需要读取。
+- 图片文件按需手动读取，不要自动预加载。
+- **大文件处理规则**：
+  - 单个文件超过 **500 行**时，禁止一次性 Read 全文 → 必须先用 Grep/Search 定位目标行号范围，再精准读取相关片段（Read + offset/limit）。
+  - 3D 模型文件（.obj / .glb / .gltf 等）只读取前 50 行结构信息或元数据，**绝不展开完整内容**。
+  - cstrike/ 目录下的地图资源文件同理，按需读取，不批量展开。
+- **Token 节约策略**：
+  - 代码修改采用「Grep 定位 → 精准 Edit」模式，禁止「Read 整文件 → Rewrite 整文件」模式。
+  - 对话轮次超过 10 轮时，主动总结之前的结论和决策，丢弃冗余中间过程。
+  - 当前模型最大上下文 262K tokens，务必控制每次请求的总 token 数在此范围内。
 
 # 项目简介
 一个基于 Three/Cannon/Socket.IO 的小型 FPS 风格网页游戏，前端使用 Vite + TypeScript，后端有一个用 Node (tsx) 启动的简单服务器用于多人同步（socket.io）。项目名：fps-web-game。

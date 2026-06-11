@@ -1,0 +1,11 @@
+
+> fps-web-game@1.0.0 dev
+> node --import tsx/esm server/index.ts & vite --host 0.0.0.0
+
+Server running on port 3000
+
+  VITE v5.4.21  ready in 218 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://192.168.11.29:5173/
+  ➜  Network: http://198.18.0.1:5173/

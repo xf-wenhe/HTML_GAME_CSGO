@@ -2,18 +2,17 @@ import { chromium, firefox, webkit } from 'playwright';
 import { join } from 'path';
 import { spawnSync } from 'child_process';
 import { mkdirSync, writeFileSync } from 'fs';
-import {
-  readDust2GeneratedMeshResource,
-  verifyDust2GeneratedMeshResource,
-} from './lib/dust2-generated-verify.mjs';
+import { loadDust2SourceResource } from './lib/dust2-source-resource.mjs';
 
 const URL = process.env.DUST2_SCREENSHOT_URL ?? 'http://localhost:5173';
 const SCREENSHOTS_DIR = join(import.meta.dirname, 'screenshots');
 mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 
-const GENERATED_RESOURCE_PATH = process.env.DUST2_GENERATED_MODULE ?? 'client/src/game/generated/dust2-world-mesh.ts';
+const SOURCE_INDEX = process.argv.indexOf('--source');
+const SOURCE_PATH = SOURCE_INDEX >= 0 ? process.argv[SOURCE_INDEX + 1] : undefined;
 const BROWSERS = { chromium, firefox, webkit };
 const SCREENSHOT_MODE = process.env.DUST2_SCREENSHOT_MODE ?? 'auto';
+const SCREENSHOT_EXECUTABLE = process.env.DUST2_SCREENSHOT_EXECUTABLE;
 
 main().catch(error => {
   console.error(error instanceof Error ? error.message : String(error));
@@ -21,8 +20,11 @@ main().catch(error => {
 });
 
 async function main() {
-  const resource = readDust2GeneratedMeshResource(GENERATED_RESOURCE_PATH);
-  const verification = verifyDust2GeneratedMeshResource(resource);
+  if (SOURCE_INDEX >= 0 && !SOURCE_PATH) {
+    throw new Error('Missing value for --source.');
+  }
+
+  const { resource, summary: verification } = loadDust2SourceResource({ sourcePath: SOURCE_PATH });
   const locations = createSourceBackedLocations(resource);
 
   console.log(JSON.stringify({
@@ -40,10 +42,14 @@ async function main() {
 
   let browser;
   try {
-    const browserType = BROWSERS[process.env.DUST2_SCREENSHOT_BROWSER ?? 'chromium'] ?? chromium;
+    const browserName = process.env.DUST2_SCREENSHOT_BROWSER ?? 'chromium';
+    const browserType = BROWSERS[browserName] ?? chromium;
     browser = await browserType.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-dev-shm-usage']
+      headless: process.env.DUST2_SCREENSHOT_HEADLESS !== '0',
+      ...(SCREENSHOT_EXECUTABLE ? { executablePath: SCREENSHOT_EXECUTABLE } : {}),
+      ...(browserName === 'chromium'
+        ? { args: ['--no-sandbox', '--disable-dev-shm-usage'] }
+        : {}),
     });
   } catch (error) {
     if (SCREENSHOT_MODE === 'browser') {
@@ -75,9 +81,12 @@ async function main() {
 
   for (const loc of locations) {
     console.log(`${loc.name}: (${loc.x}, ${loc.z})`);
-    await page.evaluate(({ x, z, yaw, eye }) => {
+    await page.evaluate(({ x, z, yaw, pitch, eye }) => {
       if (window.__debugSetPlayerPosition) {
         window.__debugSetPlayerPosition(x, z, yaw, eye);
+      }
+      if (window.__debugSetCameraPoseForScreenshot) {
+        window.__debugSetCameraPoseForScreenshot(x, eye, z, yaw, pitch);
       }
     }, loc);
 
@@ -105,12 +114,13 @@ async function main() {
 }
 
 function runSoftwareRenderer() {
-  const result = spawnSync('python3', ['scripts/render-dust2-software.py'], {
+  const args = ['scripts/render-dust2-source.mjs'];
+  if (SOURCE_PATH) {
+    args.push('--source', SOURCE_PATH);
+  }
+  const result = spawnSync('node', args, {
     cwd: process.cwd(),
-    env: {
-      ...process.env,
-      DUST2_GENERATED_MODULE: GENERATED_RESOURCE_PATH,
-    },
+    env: process.env,
     encoding: 'utf8',
   });
 
@@ -139,21 +149,21 @@ function createSourceBackedLocations(resource) {
   }
 
   const classicLocations = [
-    lookAt('source-01-t-spawn', tSpawn, h(0, 2048), 2.4),
-    lookAt('source-02-outside-long-long-doors', p(-16.5, 4.5, 1.4), p(-19.8, -8.5), 2.4),
-    lookAt('source-03-long-doors', p(-19.8, -8.5, 1.4), p(-19.6, -18.0), 2.3),
-    lookAt('source-04-a-long-pit-long-corner', p(-19.4, -18.5, 1.3), p(-16.4, -25.6), 2.3),
-    lookAt('source-05-a-cross-a-ramp', p(-16.4, -23.8, 1.4), p(-14.8, -26.8), 2.5),
-    lookAt('source-06-a-site-goose-short-exit', p(-15.0, -26.6, 1.8), p(-10.0, -15.0), 2.8),
-    lookAt('source-07-short-catwalk-to-a', p(-9.6, -15.1, 1.4), p(-15.0, -26.5), 2.5),
-    lookAt('source-08-top-mid-suicide-mid-doors', p(-5.8, 3.8, 1.9), p(-3.2, -11.8), 2.5),
-    lookAt('source-09-mid-doors-ct-mid', p(-3.2, -11.8, 1.1), ctSpawn, 2.3),
-    lookAt('source-10-xbox-catwalk-short', p(-7.5, -8.8, 1.5), p(-10.0, -15.2), 2.5),
-    lookAt('source-11-lower-tunnels', p(5.2, -5.1, 1.1), p(12.8, -1.5), 2.4),
-    lookAt('source-12-upper-tunnels-b-exit', p(12.8, -1.5, 1.1), p(11.2, -23.6), 2.6),
-    lookAt('source-13-b-site-default-back-plat', p(11.4, -24.6, 1.8), p(12.4, -25.4), 2.8),
-    lookAt('source-14-b-doors-b-window', p(7.0, -21.2, 1.2), p(11.4, -24.6), 2.5),
-    lookAt('source-15-ct-spawn-ct-mid', ctSpawn, p(-3.2, -11.8), 2.4),
+    lookAt('source-01-t-spawn', tSpawn, h(0, 2048)),
+    lookAt('source-02-outside-long-long-doors', p(-12.5, 2.6, 2.8), p(-17.18, -9.39, 1.7)),
+    lookAt('source-03-long-doors', p(-17.18, -9.39, 2.6), p(-19.4, -18.5, 1.0)),
+    lookAt('source-04-a-long-pit-long-corner', p(-19.4, -18.5, 2.6), p(-16.4, -23.8, 1.0)),
+    lookAt('source-05-a-cross-a-ramp', p(-16.4, -23.8, 2.8), p(-13.8, -25.2, 1.0)),
+    lookAt('source-06-a-site-goose-short-exit', p(-15.36, -26.88, 2.8), p(-9.6, -15.1, 1.0)),
+    lookAt('source-07-short-catwalk-to-a', p(-9.493, -14.613, 2.5), p(-15.36, -26.88, 1.0)),
+    lookAt('source-08-top-mid-suicide-mid-doors', p(-5.8, 3.8, 2.8), p(-3.2, -11.8, 1.2)),
+    lookAt('source-09-mid-doors-ct-mid', p(-3.2, -11.8, 2.6), p(2.56, -22.4, 1.4)),
+    lookAt('source-10-xbox-catwalk-short', p(-7.5, -8.8, 2.8), p(-9.493, -14.613, 1.0)),
+    lookAt('source-11-lower-tunnels', p(5.867, -4.587, 3.0), p(13.013, -1.707, -1.0)),
+    lookAt('source-12-upper-tunnels-b-exit', p(13.013, -1.707, 2.5), p(11.2, -23.68, 1.6)),
+    lookAt('source-13-b-site-default-back-plat', p(11.52, -24.64, 2.8), p(12.4, -25.4, 1.6)),
+    lookAt('source-14-b-doors-b-window', p(7.467, -21.547, 2.7), p(11.84, -24.427, 1.8)),
+    lookAt('source-15-ct-spawn-ct-mid', p(2.56, -22.4, 1.9), p(-3.2, -11.8, 1.7)),
   ];
 
   return classicLocations.map(location => assertWithinWorldBounds(location, worldBounds));
@@ -164,7 +174,8 @@ function cameraAt(name, from, to) {
     name,
     x: from.x,
     z: from.z,
-    yaw: Math.atan2(to.x - from.x, to.z - from.z),
+    yaw: yawToward(from, to),
+    pitch: pitchToward(from, to),
     eye: Math.max(2.5, from.y + 1.8),
   };
 }
@@ -177,14 +188,29 @@ function p(x, z, y = 1.7) {
   return { x, y, z };
 }
 
-function lookAt(name, from, to, eye = 2.2) {
+function lookAt(name, from, to) {
   return {
     name,
     x: from.x,
     z: from.z,
-    yaw: Math.atan2(to.x - from.x, to.z - from.z),
-    eye: Math.max(eye, from.y + 1.2),
+    yaw: yawToward(from, to),
+    pitch: pitchToward(from, to),
+    eye: from.y,
   };
+}
+
+function yawToward(from, to) {
+  const dx = to.x - from.x;
+  const dz = to.z - from.z;
+  return Math.atan2(-dx, -dz);
+}
+
+function pitchToward(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dz = to.z - from.z;
+  const horizontalDistance = Math.hypot(dx, dz);
+  return Math.atan2(-dy, horizontalDistance);
 }
 
 function assertWithinWorldBounds(location, worldBounds) {

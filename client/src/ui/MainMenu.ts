@@ -13,11 +13,12 @@ type MenuMapOption = {
 };
 
 const DUST2_SOURCE_BACKED = MULTIPLAYER_MAPS.dust2.source?.sourceBacked === true;
+const INFERNO_SOURCE_BACKED = MULTIPLAYER_MAPS.inferno.source?.sourceBacked === true;
 
 const MAP_OPTIONS: MenuMapOption[] = [
   { id: 'dust2',       label: 'Dust2',        desc: DUST2_SOURCE_BACKED ? 'CS1.6 源文件导入' : '待导入原版 BSP', accent: '#d4a45a', sites: 'A·B', sourceRequired: !DUST2_SOURCE_BACKED },
+  { id: 'inferno',     label: 'Inferno',      desc: INFERNO_SOURCE_BACKED ? 'CS1.6 源文件导入' : '待导入原版 BSP', accent: '#b08c58', sites: 'A·B', sourceRequired: !INFERNO_SOURCE_BACKED },
   { id: 'mirage',      label: 'Mirage',       desc: '中东市集 · 中路对决',       accent: '#c4a96b', sites: 'A·B' },
-  { id: 'inferno',     label: 'Inferno',      desc: '欧洲小镇 · 香蕉走廊',       accent: '#b08c58', sites: 'A·B' },
   { id: 'nuke',        label: 'Nuke',         desc: '核电设施 · 双层结构',       accent: '#5c8aa8', sites: 'A·B' },
   { id: 'train',       label: 'Train',        desc: '铁路货场 · 火车掩体',       accent: '#6a6872', sites: 'A·B' },
   { id: 'overpass',    label: 'Overpass',     desc: '公园隧道 · 立交桥',         accent: '#6d8060', sites: 'A·B' },
@@ -153,7 +154,7 @@ export class MainMenu {
         <span class="map-card-body">
           <span class="map-card-name">${m.label}${m.tdmOnly ? ' <span class="map-tdm-badge">死斗专属</span>' : ''}</span>
           <span class="map-card-desc">${m.desc}</span>
-          <span class="map-card-sites">${m.sourceRequired ? '需要 CS1.6 原版 de_dust2.bsp' : (m.tdmOnly ? '团队死斗' : '炸点 ' + m.sites + ' · 5v5')}</span>
+          <span class="map-card-sites">${m.sourceRequired ? '需要 CS1.6 原版 ' + (m.id === 'dust2' ? 'de_dust2.bsp' : 'de_inferno.bsp') : (m.tdmOnly ? '团队死斗' : '炸点 ' + m.sites + ' · 5v5')}</span>
         </span>
       </button>`
     ).join('');

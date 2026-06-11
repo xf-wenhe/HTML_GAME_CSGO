@@ -353,6 +353,11 @@ export class PlayerController {
     this.body.position.set(position.x, this.resolveBodyYFromEyeY(position.y), position.z);
   }
 
+  setEyePositionForDebug(position: THREE.Vector3): void {
+    this.body.position.set(position.x, position.y - this.eyeHeight, position.z);
+    this.camera.position.copy(position);
+  }
+
   resetVelocity(): void {
     this.body.velocity.set(0, 0, 0);
   }

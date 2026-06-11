@@ -23,6 +23,8 @@ import {
 } from './constants/Dust2HammerData.js';
 import { type Dust2WorldMeshResource, meshSpecFromDust2WorldMeshResource } from './Dust2MeshResource.js';
 import { DUST2_WORLD_MESH_RESOURCE } from './generated/dust2-world-mesh.js';
+import { type InfernoWorldMeshResource, meshSpecFromInfernoWorldMeshResource } from './InfernoMeshResource.js';
+import { INFERNO_WORLD_MESH_RESOURCE } from './generated/inferno-world-mesh.js';
 
 export interface BoxSpec {
   position: THREE.Vector3;
@@ -92,6 +94,83 @@ export const resolveDust2SourceGeometry = (
 ) => sourceMeshes.length > 0
   ? { colliders: [] as BoxSpec[], props: [] as BoxSpec[], meshes: sourceMeshes }
   : { colliders: placeholderColliders, props: placeholderProps, meshes: [] as MeshSpec[] };
+
+export const resolveInfernoSourceGeometry = (
+  sourceMeshes: MeshSpec[],
+  placeholderColliders: BoxSpec[],
+  placeholderProps: BoxSpec[]
+) => sourceMeshes.length > 0
+  ? { colliders: [] as BoxSpec[], props: [] as BoxSpec[], meshes: sourceMeshes }
+  : { colliders: placeholderColliders, props: placeholderProps, meshes: [] as MeshSpec[] };
+
+export const resolveInfernoSourceSpawns = (
+  resource: InfernoWorldMeshResource | null,
+  fallbackPlayerSpawn: THREE.Vector3,
+  fallbackEnemySpawns: EnemySpawnPoint[]
+) => {
+  const entitySpawns = resource?.source.manifest.entities?.playerSpawns ?? [];
+  const toPlayerPosition = (position: { x: number; y: number; z: number }) =>
+    new THREE.Vector3(position.x, position.y + PLAYER_EYE_HEIGHT, position.z);
+  const tSpawns = entitySpawns
+    .filter(spawn => spawn.team === 't' && spawn.gamePosition)
+    .map(spawn => toPlayerPosition(spawn.gamePosition!));
+  const ctSpawns = entitySpawns
+    .filter(spawn => spawn.team === 'ct' && spawn.gamePosition)
+    .map(spawn => ({
+      position: toPlayerPosition(spawn.gamePosition!),
+      type: 'shooter' as const,
+    }));
+
+  return {
+    playerSpawn: tSpawns[0]?.clone() ?? fallbackPlayerSpawn,
+    enemySpawns: ctSpawns.length > 0 ? ctSpawns : fallbackEnemySpawns,
+  };
+};
+
+export const resolveInfernoSourceBombSites = (
+  resource: InfernoWorldMeshResource | null,
+  fallbackBombSites: { A: THREE.Vector3; B: THREE.Vector3 }
+) => {
+  const bombTargets = resource?.source.manifest.entities?.bombTargets ?? [];
+  const modelMeshes = resource?.source.manifest.geometry?.modelMeshes ?? [];
+  const centers = bombTargets
+    .map(target => {
+      const match = target.model?.match(/^\*(\d+)$/);
+      const modelIndex = match ? Number(match[1]) : null;
+      const modelMesh = modelIndex === null
+        ? undefined
+        : modelMeshes.find(mesh => mesh.modelIndex === modelIndex);
+      const bounds = modelMesh?.gameBounds;
+      const mins = bounds?.mins;
+      const maxs = bounds?.maxs;
+      if (
+        typeof mins?.x !== 'number' || typeof mins.y !== 'number' || typeof mins.z !== 'number'
+        || typeof maxs?.x !== 'number' || typeof maxs.y !== 'number' || typeof maxs.z !== 'number'
+      ) {
+        return null;
+      }
+
+      return new THREE.Vector3(
+        (mins.x + maxs.x) / 2,
+        Math.max(0.04, mins.y + 0.04),
+        (mins.z + maxs.z) / 2
+      );
+    })
+    .filter((center): center is THREE.Vector3 => center !== null)
+    .sort((left, right) => left.x - right.x);
+
+  if (centers.length < 2) {
+    return {
+      A: fallbackBombSites.A.clone(),
+      B: fallbackBombSites.B.clone(),
+    };
+  }
+
+  return {
+    A: centers[0].clone(),
+    B: centers[centers.length - 1].clone(),
+  };
+};
 
 export const resolveDust2SourceSpawns = (
   resource: Dust2WorldMeshResource | null,
@@ -472,30 +551,86 @@ function buildMirageArena(): ArenaData {
 }
 
 function buildInfernoArena(): ArenaData {
-  return buildMapArena(
-    'Inferno',
-    INFERNO_COLLIDERS,
-    0xb08c58,
-    new THREE.Vector3(-3.2, PLAYER_EYE_HEIGHT, 30.4),
-    71.68, 81.92,
-    (INFERNO_SPAWNS.attackers[0].z + INFERNO_SPAWNS.defenders[0].z) / 2,
-    [
-      box(INFERNO_BOMB_SITES.A.position.x, INFERNO_BOMB_SITES.A.position.y, INFERNO_BOMB_SITES.A.position.z, 3.84, 0.04, 3.84, 0xd4a017, 'inferno-a-bomb-marker', 0.1, 0.6),
-      box(INFERNO_BOMB_SITES.B.position.x, INFERNO_BOMB_SITES.B.position.y, INFERNO_BOMB_SITES.B.position.z, 3.84, 0.04, 3.84, 0xd4a017, 'inferno-b-bomb-marker', 0.1, 0.6),
-      box(0, 0.01, 0, 71.68, 0.02, 81.92, 0xc8a260, 'inferno-cobblestone-floor', 0.05, 0.8),
-      box(-15.36, 2.56, -5.12, 12.8, 2.56, 0.16, 0xa6dfff, 'inferno-apartment-window-glass', 0.03, 0.06, 0.3)
-    ],
-    [
+  const colliderBoxes: BoxSpec[] = INFERNO_COLLIDERS.map(c => ({
+    position: new THREE.Vector3(c.position.x, c.position.y, c.position.z),
+    size: new THREE.Vector3(c.size.x, c.size.y, c.size.z),
+    rotation: c.rotation ? { ...c.rotation } : undefined,
+    color: 0xb08c58,
+    metalness: 0.08,
+    roughness: 0.82,
+    name: c.name
+  }));
+
+  const fallbackPlayerSpawn = new THREE.Vector3(-3.2, PLAYER_EYE_HEIGHT, 30.4);
+  const fallbackEnemySpawns: EnemySpawnPoint[] = [
+    { position: new THREE.Vector3(INFERNO_BOMB_SITES.A.position.x, PLAYER_EYE_HEIGHT, INFERNO_BOMB_SITES.A.position.z), type: 'shooter' as const },
+    { position: new THREE.Vector3(INFERNO_BOMB_SITES.B.position.x, PLAYER_EYE_HEIGHT, INFERNO_BOMB_SITES.B.position.z), type: 'shooter' as const },
+    { position: new THREE.Vector3(-28.16, PLAYER_EYE_HEIGHT, 0), type: 'patrol' as const },
+    { position: new THREE.Vector3(-15.36, PLAYER_EYE_HEIGHT, -10.24), type: 'patrol' as const },
+    { position: new THREE.Vector3(15.36, PLAYER_EYE_HEIGHT, -10.24), type: 'patrol' as const },
+  ];
+  const fallbackBombSites = {
+    A: new THREE.Vector3(INFERNO_BOMB_SITES.A.position.x, 0.04, INFERNO_BOMB_SITES.A.position.z),
+    B: new THREE.Vector3(INFERNO_BOMB_SITES.B.position.x, 0.04, INFERNO_BOMB_SITES.B.position.z),
+  };
+  const sourceMeshes = INFERNO_WORLD_MESH_RESOURCE
+    ? [meshSpecFromInfernoWorldMeshResource(INFERNO_WORLD_MESH_RESOURCE)]
+    : [];
+  const sourceGeometry = resolveInfernoSourceGeometry(sourceMeshes, colliderBoxes, [
+    box(INFERNO_BOMB_SITES.A.position.x, INFERNO_BOMB_SITES.A.position.y, INFERNO_BOMB_SITES.A.position.z, 3.84, 0.04, 3.84, 0xd4a017, 'inferno-a-bomb-marker', 0.1, 0.6),
+    box(INFERNO_BOMB_SITES.B.position.x, INFERNO_BOMB_SITES.B.position.y, INFERNO_BOMB_SITES.B.position.z, 3.84, 0.04, 3.84, 0xd4a017, 'inferno-b-bomb-marker', 0.1, 0.6),
+    box(0, 0.01, 0, 71.68, 0.02, 81.92, 0xc8a260, 'inferno-cobblestone-floor', 0.05, 0.8),
+    box(-15.36, 2.56, -5.12, 12.8, 2.56, 0.16, 0xa6dfff, 'inferno-apartment-window-glass', 0.03, 0.06, 0.3),
+    box(-28.16, 1.28, -5.12, 12.8, 2.56, 0.16, 0xa6dfff, 'inferno-apartment-window-glass-alt', 0.03, 0.06, 0.3),
+    box(-38.4, 0.01, 10.24, 10.24, 0.02, 10.24, 0xd4b87a, 'inferno-a-platform-edge', 0.05, 0.78),
+    box(38.4, 0.01, 10.24, 10.24, 0.02, 10.24, 0xd4b87a, 'inferno-b-platform-edge', 0.05, 0.78),
+    box(0, 0.01, -28.16, 71.68, 0.02, 10.24, 0xc8b898, 'inferno-mid-floor-accent', 0.05, 0.80),
+    box(-15.36, 0.01, -5.12, 20.48, 0.02, 5.12, 0xb8a898, 'inferno-apartment-floor-tile', 0.05, 0.82),
+    box(0, 1.28, -10.24, 5.12, 1.28, 0.16, 0xffffff, 'inferno-ct-window-glass', 0.03, 0.06, 0.3),
+    box(0, 0.01, 25.6, 71.68, 0.02, 5.12, 0xa89878, 'inferno-b-side-floor-accent', 0.05, 0.80),
+    box(-25.6, 0.01, -25.6, 5.12, 0.02, 5.12, 0xa89878, 'inferno-a-long-floor-accent', 0.05, 0.80),
+    box(25.6, 0.01, -25.6, 5.12, 0.02, 5.12, 0xa89878, 'inferno-b-short-floor-accent', 0.05, 0.80),
+  ]);
+  const sourceSpawns = resolveInfernoSourceSpawns(
+    INFERNO_WORLD_MESH_RESOURCE,
+    fallbackPlayerSpawn,
+    fallbackEnemySpawns
+  );
+  const sourceBombSites = resolveInfernoSourceBombSites(
+    INFERNO_WORLD_MESH_RESOURCE,
+    fallbackBombSites
+  );
+
+  return {
+    name: 'Inferno',
+    playerSpawn: sourceSpawns.playerSpawn,
+    bounds: { width: 71.68, depth: 81.92, centerZ: sourceBombSites.A.z + 1.92 },
+    enemySpawns: sourceSpawns.enemySpawns,
+    bombSites: sourceBombSites,
+    colliders: sourceGeometry.colliders,
+    props: sourceGeometry.props,
+    meshes: sourceGeometry.meshes,
+    source: INFERNO_WORLD_MESH_RESOURCE
+      ? {
+          sourceBacked: true,
+          engine: 'goldsrc',
+          kind: INFERNO_WORLD_MESH_RESOURCE.source.kind,
+          path: INFERNO_WORLD_MESH_RESOURCE.source.path,
+          sha256: INFERNO_WORLD_MESH_RESOURCE.source.sha256,
+        }
+      : {
+          sourceBacked: false,
+          note: 'Inferno is using legacy placeholder geometry until a legal CS1.6 de_inferno.bsp or de_inferno.map is imported.',
+        },
+    materialZones: [
       materialZone('inferno-cobblestone', 'cobblestone', 0, 0, 0, 71.68, 0.1, 81.92),
       materialZone('inferno-tile-apartments', 'tile', -15.36, 2, -5.12, 20.48, 0.1, 15.36),
-      materialZone('inferno-metal-catwalk', 'metal', -15.36, 2.56, -5.12, 20.48, 0.1, 5.12)
-    ],
-    [
-      { position: new THREE.Vector3(INFERNO_BOMB_SITES.A.position.x, PLAYER_EYE_HEIGHT, INFERNO_BOMB_SITES.A.position.z), type: 'shooter' },
-      { position: new THREE.Vector3(INFERNO_BOMB_SITES.B.position.x, PLAYER_EYE_HEIGHT, INFERNO_BOMB_SITES.B.position.z), type: 'shooter' },
-      { position: new THREE.Vector3(-28.16, PLAYER_EYE_HEIGHT, 0), type: 'patrol' }
+      materialZone('inferno-metal-catwalk', 'metal', -15.36, 2.56, -5.12, 20.48, 0.1, 5.12),
+      materialZone('inferno-concrete-a', 'concrete', -38.4, 0.01, -25.6, 12.8, 0.1, 12.8),
+      materialZone('inferno-concrete-b', 'concrete', 38.4, 0.01, -25.6, 12.8, 0.1, 12.8),
+      materialZone('inferno-concrete-mid', 'concrete', 0, 0.01, -28.16, 71.68, 0.1, 10.24),
     ]
-  );
+  };
 }
 
 function buildTrainArena(): ArenaData {

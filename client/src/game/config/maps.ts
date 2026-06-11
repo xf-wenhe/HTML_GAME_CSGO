@@ -54,6 +54,7 @@ import {
   BLOODSTRIKE_CALLOUTS
 } from '../BloodStrikeLayout.js';
 import { DUST2_WORLD_MESH_RESOURCE } from '../generated/dust2-world-mesh.js';
+import { INFERNO_WORLD_MESH_RESOURCE } from '../generated/inferno-world-mesh.js';
 
 
 export interface BombSiteConfig {
@@ -160,7 +161,19 @@ export const MULTIPLAYER_MAPS: Record<MapId, MultiplayerMapConfig> = {
       { id: 'A', position: INFERNO_BOMB_SITES.A.position, radius: INFERNO_BOMB_SITES.A.radius },
       { id: 'B', position: INFERNO_BOMB_SITES.B.position, radius: INFERNO_BOMB_SITES.B.radius }
     ],
-    callouts: INFERNO_CALLOUTS
+    callouts: INFERNO_CALLOUTS,
+    source: INFERNO_WORLD_MESH_RESOURCE
+      ? {
+          sourceBacked: true,
+          engine: 'goldsrc',
+          kind: INFERNO_WORLD_MESH_RESOURCE.source.kind,
+          path: INFERNO_WORLD_MESH_RESOURCE.source.path,
+          sha256: INFERNO_WORLD_MESH_RESOURCE.source.sha256,
+        }
+      : {
+          sourceBacked: false,
+          note: 'Inferno multiplayer metadata is legacy placeholder data until a legal CS1.6 de_inferno.bsp or de_inferno.map is imported.',
+        }
   },
   nuke: {
     id: 'nuke',

@@ -68,6 +68,7 @@ declare global {
   interface Window {
     __debugPlayerPosition?: () => { x: number; y: number; z: number } | null;
     __debugSetPlayerPosition?: (x: number, z: number, yaw?: number, y?: number) => boolean;
+    __debugSetCameraPoseForScreenshot?: (x: number, y: number, z: number, yaw: number, pitch?: number) => boolean;
     __debugTakeScreenshot?: () => string | null;
     __debugInputState?: () => {
       mode: InputMode;
@@ -162,6 +163,7 @@ let pointerLockState: PointerLockState = 'supported';
 const pointerLockRequired = true;
 let lockFailureReason: string | null = null;
 let debugPointerLockBypass = false;
+let debugCameraPose: { x: number; y: number; z: number; yaw: number; pitch: number } | null = null;
 let networkLatencyMs: number | null = null;
 const allowDebugPointerLockBypass = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
 let currentMode: 'solo' | 'multiplayer' | null = null;
@@ -902,11 +904,25 @@ function gameLoop(now: number) {
     // Apply screen shake before rendering
     const shakeOffset = screenShake.getOffset();
     const camera = scene.getCamera();
+    const originalCameraPosition = camera.position.clone();
+    const originalCameraRotation = camera.rotation.clone();
+    if (debugCameraPose) {
+      camera.position.set(debugCameraPose.x, debugCameraPose.y, debugCameraPose.z);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = debugCameraPose.yaw;
+      camera.rotation.x = debugCameraPose.pitch;
+      camera.rotation.z = 0;
+    }
     camera.position.x += shakeOffset.x;
     camera.position.y += shakeOffset.y;
     scene.render();
-    camera.position.x -= shakeOffset.x;
-    camera.position.y -= shakeOffset.y;
+    if (debugCameraPose) {
+      camera.position.copy(originalCameraPosition);
+      camera.rotation.copy(originalCameraRotation);
+    } else {
+      camera.position.x -= shakeOffset.x;
+      camera.position.y -= shakeOffset.y;
+    }
   } catch (err) {
     // 【修复闪退】捕获未预期的游戏逻辑异常，防止循环退出
     console.error('[GameLoop] 未捕获异常:', err);
@@ -1314,9 +1330,13 @@ window.__debugPlayerPosition = () => player ? vectorToPlain(player.getPosition()
 window.__debugSetPlayerPosition = (x: number, z: number, yaw = 0, y = 1.7) => {
   if (!player) return false;
   const pos = new THREE.Vector3(x, y, z);
-  player.setPosition(pos);
+  player.setEyePositionForDebug(pos);
   player.setRotation(0, yaw);
   player.resetVelocity();
+  return true;
+};
+window.__debugSetCameraPoseForScreenshot = (x: number, y: number, z: number, yaw: number, pitch = 0) => {
+  debugCameraPose = { x, y, z, yaw, pitch };
   return true;
 };
 window.__debugSetPlayerYaw = (yaw: number) => {

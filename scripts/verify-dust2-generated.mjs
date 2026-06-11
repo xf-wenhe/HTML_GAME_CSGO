@@ -1,14 +1,16 @@
 #!/usr/bin/env node
-import {
-  readDust2GeneratedMeshResource,
-  verifyDust2GeneratedMeshResource,
-} from './lib/dust2-generated-verify.mjs';
+import { loadDust2SourceResource } from './lib/dust2-source-resource.mjs';
 
-const modulePath = process.argv[2] ?? 'client/src/game/generated/dust2-world-mesh.ts';
+const sourceIndex = process.argv.indexOf('--source');
+const sourcePath = sourceIndex >= 0 ? process.argv[sourceIndex + 1] : undefined;
+
+if (sourceIndex >= 0 && !sourcePath) {
+  console.error('Missing value for --source.');
+  process.exit(1);
+}
 
 try {
-  const resource = readDust2GeneratedMeshResource(modulePath);
-  const summary = verifyDust2GeneratedMeshResource(resource);
+  const { summary } = loadDust2SourceResource({ sourcePath });
   console.log(JSON.stringify(summary, null, 2));
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

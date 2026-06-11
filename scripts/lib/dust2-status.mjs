@@ -7,10 +7,7 @@ import {
   inspectDust2Source,
   isImportableDust2SourceKind,
 } from './dust2-source-preflight.mjs';
-import {
-  readDust2GeneratedMeshResource,
-  verifyDust2GeneratedMeshResource,
-} from './dust2-generated-verify.mjs';
+import { loadDust2SourceResource } from './dust2-source-resource.mjs';
 
 export const DEFAULT_DUST2_GENERATED_MODULE = 'client/src/game/generated/dust2-world-mesh.ts';
 
@@ -28,7 +25,10 @@ export function createDust2Status({ cwd = process.cwd(), env = process.env, sour
     },
     generated: {
       path: path.resolve(cwd, generatedModule),
-      present: false,
+      checked: false,
+      note: 'Generated module is not read by status checks; source BSP/MAP is authoritative.',
+    },
+    sourceResource: {
       valid: false,
       summary: null,
     },
@@ -71,28 +71,29 @@ export function createDust2Status({ cwd = process.cwd(), env = process.env, sour
     }
   }
 
-  try {
-    const resource = readDust2GeneratedMeshResource(status.generated.path);
-    status.generated.present = true;
-    status.generated.summary = verifyDust2GeneratedMeshResource(resource);
-    status.generated.valid = true;
-    status.gates.push({
-      id: 'generated-resource',
-      passed: true,
-      message: `Generated resource is source-backed: ${status.generated.summary.sourcePath}`,
-    });
-    status.gates.push(...createStrictDust2Gates(resource, status.generated.summary, discoveredSource));
-  } catch (error) {
-    status.gates.push({
-      id: 'generated-resource',
-      passed: false,
-      message: error instanceof Error ? error.message : String(error),
-    });
+  if (discoveredSource) {
+    try {
+      const { resource, summary } = loadDust2SourceResource({ cwd, env, sourcePath });
+      status.sourceResource.summary = summary;
+      status.sourceResource.valid = true;
+      status.gates.push({
+        id: 'source-resource',
+        passed: true,
+        message: `Source resource imports directly from: ${summary.sourcePath}`,
+      });
+      status.gates.push(...createStrictDust2Gates(resource, summary, discoveredSource));
+    } catch (error) {
+      status.gates.push({
+        id: 'source-resource',
+        passed: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   status.sourceBacked = status.gates.find(gate => gate.id === 'source-file')?.passed === true
     && status.gates.find(gate => gate.id === 'source-importable')?.passed !== false
-    && status.gates.find(gate => gate.id === 'generated-resource')?.passed === true;
+    && status.gates.find(gate => gate.id === 'source-resource')?.passed === true;
   status.classicDust2Strict = status.sourceBacked
     && status.gates.filter(gate => gate.id.startsWith('strict-')).every(gate => gate.passed);
   status.nextAction = status.classicDust2Strict
@@ -114,8 +115,8 @@ function createStrictDust2Gates(resource, summary, discoveredSource) {
       id: 'strict-source-match',
       passed: sourcePathMatches,
       message: sourcePathMatches
-        ? 'Generated resource source path matches the discovered source file.'
-        : `Generated source path ${summary.sourcePath} does not match discovered source ${discoveredSource}.`,
+        ? 'Imported source resource path matches the discovered source file.'
+        : `Imported source path ${summary.sourcePath} does not match discovered source ${discoveredSource}.`,
     },
     {
       id: 'strict-bomb-sites',

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-import {
-  readDust2GeneratedMeshResource,
-  verifyDust2GeneratedMeshResource,
-} from './lib/dust2-generated-verify.mjs';
+import { loadDust2SourceResource } from './lib/dust2-source-resource.mjs';
 
-const GENERATED_RESOURCE_PATH = process.env.DUST2_GENERATED_MODULE ?? 'client/src/game/generated/dust2-world-mesh.ts';
+const sourceIndex = process.argv.indexOf('--source');
+const sourcePath = sourceIndex >= 0 ? process.argv[sourceIndex + 1] : undefined;
+if (sourceIndex >= 0 && !sourcePath) {
+  console.error('Missing value for --source.');
+  process.exit(1);
+}
 const GRID = 0.02;
 const MAX_START_DISTANCE = 2.6;
 const MIN_WALKABLE_NORMAL_Y = 0.28;
@@ -80,8 +82,7 @@ const ROUTES = [
 main();
 
 function main() {
-  const resource = readDust2GeneratedMeshResource(GENERATED_RESOURCE_PATH);
-  const summary = verifyDust2GeneratedMeshResource(resource);
+  const { resource, summary } = loadDust2SourceResource({ sourcePath });
   const mesh = resource.collisionMesh ?? resource.mesh;
   const nav = buildWalkableGraph(mesh);
   const results = ROUTES.map(route => verifyRoute(nav, route));

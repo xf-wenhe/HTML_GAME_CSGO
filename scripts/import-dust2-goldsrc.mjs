@@ -14,7 +14,7 @@ import {
   writeDust2MeshResourceModuleFromBsp,
   writeDust2MeshResourceModuleFromMap,
 } from './lib/dust2-mesh-export.mjs';
-import { readDust2GeneratedMeshResource, verifyDust2GeneratedMeshResource } from './lib/dust2-generated-verify.mjs';
+import { verifyDust2GeneratedMeshResource } from './lib/dust2-generated-verify.mjs';
 import { createGoldSrcMapManifest, parseGoldSrcMapFile } from './lib/goldsrc-map.mjs';
 
 const args = new Set(process.argv.slice(2));
@@ -80,9 +80,7 @@ if (outPath || outTsPath) {
     : (outTsPath
         ? writeDust2MeshResourceModuleFromMap(inspection.path, outTsPath)
         : writeDust2MeshResourceFromMap(inspection.path, outPath));
-  const verification = outTsPath
-    ? verifyDust2GeneratedMeshResource(readDust2GeneratedMeshResource(outTsPath))
-    : verifyDust2GeneratedMeshResource(resource);
+  const verification = verifyDust2GeneratedMeshResource(resource);
   console.log(JSON.stringify({
     wrote: outTsPath ?? outPath,
     verified: true,

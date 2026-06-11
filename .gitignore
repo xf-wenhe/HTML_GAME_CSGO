@@ -2,3 +2,12 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# 生成的3D网格数据（极大，不应进版本控制）
+client/src/game/generated/
+
+# 临时调试文件
+tmp-*
+
+# 测试产物
+test-results/
