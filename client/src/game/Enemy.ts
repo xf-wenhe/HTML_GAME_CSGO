@@ -21,6 +21,26 @@ export interface EnemyConfig {
   patrolPath?: THREE.Vector3[];
   health?: number;
   speed?: number;
+  botProfile?: {
+    weaponId: string;
+    route?: THREE.Vector3[];
+    viewRange?: number;
+    attackRange?: number;
+    damage?: number;
+    fireIntervalMs?: number;
+    accuracy?: number;
+  };
+}
+
+export interface EnemyDebugState {
+  id: string;
+  state: EnemyState;
+  type: EnemyType;
+  weaponId: string | null;
+  targetVisible: boolean;
+  routeIndex: number;
+  health: number;
+  position: { x: number; y: number; z: number };
 }
 
 export class Enemy {
@@ -46,6 +66,9 @@ export class Enemy {
   private hitStunRemaining = 0;
   private hitReact = 0;
   private healthBarRevealTime = 0;
+  private botProfile: EnemyConfig['botProfile'] | null = null;
+  private botTargetVisible = false;
+  private botRouteIndex = 0;
   public readonly damage = 10;
 
   constructor(config: EnemyConfig, scene: THREE.Scene, physics: Physics) {
@@ -55,6 +78,10 @@ export class Enemy {
     this.maxHealth = this.health;
     this.speed = config.speed ?? 2;
     this.patrolPath = config.patrolPath ?? [];
+    this.botProfile = config.botProfile ?? null;
+    if (this.botProfile?.route?.length) {
+      this.patrolPath = this.botProfile.route.map(point => point.clone());
+    }
 
     switch (this.type) {
       case 'patrol':
@@ -158,6 +185,9 @@ export class Enemy {
 
     const distanceToPlayer = this.mesh.position.distanceTo(playerPosition);
     const seesPlayer = hasLineOfSight(this.mesh.position.clone().add(new THREE.Vector3(0, 1.4, 0)), playerPosition, lineOfSightColliders);
+    if (this.botProfile) {
+      return this.updateBot(dt, playerPosition, now, distanceToPlayer, seesPlayer);
+    }
     this.healthBarRevealTime = Math.max(0, this.healthBarRevealTime - dt);
     this.healthBar.visible = this.healthBarRevealTime > 0 && distanceToPlayer < 22 && seesPlayer;
     let damage = 0;
@@ -194,6 +224,60 @@ export class Enemy {
     }
 
     return damage;
+  }
+
+  private updateBot(dt: number, playerPosition: THREE.Vector3, now: number, distanceToPlayer: number, lineOfSight: boolean): number {
+    const viewRange = this.botProfile?.viewRange ?? this.detectionRange;
+    const attackRange = this.botProfile?.attackRange ?? 32;
+    this.botTargetVisible = distanceToPlayer <= viewRange && lineOfSight;
+    this.healthBarRevealTime = Math.max(0, this.healthBarRevealTime - dt);
+    this.healthBar.visible = this.healthBarRevealTime > 0 && distanceToPlayer < 28 && this.botTargetVisible;
+
+    if (this.botTargetVisible && distanceToPlayer <= attackRange) {
+      this.state = 'attack';
+      this.rotateTowards(playerPosition, dt);
+      this.body.velocity.x = 0;
+      this.body.velocity.z = 0;
+      return this.botShoot(now, distanceToPlayer);
+    }
+
+    this.state = this.patrolPath.length > 0 ? 'patrol' : 'idle';
+    this.followBotRoute(dt);
+    return 0;
+  }
+
+  private followBotRoute(dt: number): void {
+    if (this.patrolPath.length === 0) {
+      this.body.velocity.x = 0;
+      this.body.velocity.z = 0;
+      return;
+    }
+
+    const target = this.patrolPath[this.botRouteIndex % this.patrolPath.length];
+    const direction = new THREE.Vector3().subVectors(target, this.mesh.position);
+    direction.y = 0;
+    const distance = direction.length();
+    if (distance < 0.75) {
+      this.botRouteIndex = (this.botRouteIndex + 1) % this.patrolPath.length;
+      return;
+    }
+
+    direction.normalize();
+    this.body.velocity.x = direction.x * this.speed;
+    this.body.velocity.z = direction.z * this.speed;
+    this.rotateTowards(target, dt);
+  }
+
+  private botShoot(now: number, distanceToPlayer: number): number {
+    const cooldown = this.botProfile?.fireIntervalMs ?? 520;
+    if (now - this.lastAttackTime < cooldown) return 0;
+    this.lastAttackTime = now;
+
+    const accuracy = this.botProfile?.accuracy ?? 0.34;
+    const distancePenalty = THREE.MathUtils.clamp(distanceToPlayer / 36, 0, 0.42);
+    return Math.random() <= Math.max(0.08, accuracy - distancePenalty)
+      ? (this.botProfile?.damage ?? 12)
+      : 0;
   }
 
   private patrol(dt: number): void {
@@ -377,6 +461,20 @@ export class Enemy {
 
   getAssetSource(): 'glb' | 'fallback' {
     return this.assetSource;
+  }
+
+  getDebugState(): EnemyDebugState {
+    const position = this.getPosition();
+    return {
+      id: this.id,
+      state: this.state,
+      type: this.type,
+      weaponId: this.botProfile?.weaponId ?? null,
+      targetVisible: this.botTargetVisible,
+      routeIndex: this.botRouteIndex,
+      health: this.health,
+      position: { x: position.x, y: position.y, z: position.z },
+    };
   }
 
   private normalizeHumanoidModel(model: THREE.Object3D, targetHeight: number): void {

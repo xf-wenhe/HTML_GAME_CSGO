@@ -5,6 +5,8 @@ export type NamedBody = CANNON.Body & { userData?: { name?: string } };
 export class Physics {
   private world: CANNON.World;
   private bodies: CANNON.Body[] = [];
+  private groundBody: CANNON.Body | null = null;
+  private defaultMaterial = new CANNON.Material('default');
 
   constructor() {
     this.world = new CANNON.World();
@@ -14,20 +16,31 @@ export class Physics {
 
     // 【优化 1：启用 SAP 宽相检测】将物理碰撞的性能消耗从 O(n^2) 降级到近乎 O(n)
     this.world.broadphase = new CANNON.SAPBroadphase(this.world);
-    const defaultMaterial = new CANNON.Material('default');
     const defaultContactMaterial = new CANNON.ContactMaterial(
-      defaultMaterial,
-      defaultMaterial,
+      this.defaultMaterial,
+      this.defaultMaterial,
       { friction: 0, restitution: 0 }
     );
     this.world.addContactMaterial(defaultContactMaterial);
 
-    const groundShape = new CANNON.Plane();
-    const groundBody = new CANNON.Body({ mass: 0, material: defaultMaterial });
-    groundBody.addShape(groundShape);
-    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-    this.world.addBody(groundBody);
-    this.bodies.push(groundBody);
+    this.setGlobalGroundEnabled(true);
+  }
+
+  setGlobalGroundEnabled(enabled: boolean): void {
+    if (enabled && !this.groundBody) {
+      const groundShape = new CANNON.Plane();
+      const groundBody = new CANNON.Body({ mass: 0, material: this.defaultMaterial });
+      groundBody.addShape(groundShape);
+      groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+      this.world.addBody(groundBody);
+      this.bodies.push(groundBody);
+      this.groundBody = groundBody;
+      return;
+    }
+    if (!enabled && this.groundBody) {
+      this.removeBody(this.groundBody);
+      this.groundBody = null;
+    }
   }
 
   getWorld(): CANNON.World {
@@ -79,5 +92,6 @@ export class Physics {
       this.world.removeBody(body);
     });
     this.bodies = [];
+    this.groundBody = null;
   }
 }

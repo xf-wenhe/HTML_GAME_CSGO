@@ -60,7 +60,13 @@ describe('Forgepoint map scale and tactical layout', () => {
     if (ARENA_MAPS.dust2.source?.sourceBacked) {
       expect(map.source?.sourceBacked).toBe(true);
       expect(ARENA_MAPS.dust2.meshes?.length).toBeGreaterThan(0);
-      expect(ARENA_MAPS.dust2.colliders).toEqual([]);
+      expect(ARENA_MAPS.dust2.colliders.length).toBeGreaterThan(4);
+      expect(ARENA_MAPS.dust2.colliders.map(collider => collider.name)).toEqual(expect.arrayContaining([
+        'dust2-source-boundary-east',
+        'dust2-source-boundary-north',
+        'dust2-source-boundary-south',
+        'dust2-source-boundary-west',
+      ]));
       expect(ARENA_MAPS.dust2.props).toEqual([]);
     } else {
       expect(map.source?.sourceBacked).toBe(false);

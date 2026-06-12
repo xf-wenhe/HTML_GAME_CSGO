@@ -1,4 +1,4 @@
-import { Enemy, EnemyConfig } from './Enemy.js';
+import { Enemy, EnemyConfig, EnemyDebugState } from './Enemy.js';
 import { Physics } from './Physics.js';
 import * as THREE from 'three';
 import type { BoxSpec } from './MapData.js';
@@ -60,5 +60,9 @@ export class EnemyManager {
 
   getAliveCount(): number {
     return Array.from(this.enemies.values()).filter(e => !e.isDead()).length;
+  }
+
+  getDebugStates(): EnemyDebugState[] {
+    return this.getAllEnemies().map(enemy => enemy.getDebugState());
   }
 }

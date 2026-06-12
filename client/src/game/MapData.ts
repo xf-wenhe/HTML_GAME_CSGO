@@ -180,23 +180,165 @@ export const resolveDust2SourceSpawns = (
   fallbackEnemySpawns: EnemySpawnPoint[]
 ) => {
   const entitySpawns = resource?.source.manifest.entities?.playerSpawns ?? [];
+  const worldBounds = getDust2WorldBounds(resource);
   const toPlayerPosition = (position: { x: number; y: number; z: number }) =>
     new THREE.Vector3(position.x, position.y + PLAYER_EYE_HEIGHT, position.z);
+  const withinWorld = (position: THREE.Vector3) =>
+    !worldBounds
+    || (
+      position.x >= worldBounds.mins.x - 0.5
+      && position.x <= worldBounds.maxs.x + 0.5
+      && position.z >= worldBounds.mins.z - 0.5
+      && position.z <= worldBounds.maxs.z + 0.5
+      && position.y >= worldBounds.mins.y - 0.25
+      && position.y <= worldBounds.maxs.y + PLAYER_EYE_HEIGHT + 1.5
+    );
   const tSpawns = entitySpawns
     .filter(spawn => spawn.team === 't' && spawn.gamePosition)
-    .map(spawn => toPlayerPosition(spawn.gamePosition!));
+    .map(spawn => toPlayerPosition(spawn.gamePosition!))
+    .filter(withinWorld);
   const ctSpawns = entitySpawns
     .filter(spawn => spawn.team === 'ct' && spawn.gamePosition)
     .map(spawn => ({
       position: toPlayerPosition(spawn.gamePosition!),
       type: 'shooter' as const,
-    }));
+    }))
+    .filter(spawn => withinWorld(spawn.position));
 
   return {
     playerSpawn: tSpawns[0]?.clone() ?? fallbackPlayerSpawn,
     enemySpawns: ctSpawns.length > 0 ? ctSpawns : fallbackEnemySpawns,
   };
 };
+
+function getDust2WorldBounds(resource: Dust2WorldMeshResource | null): { mins: THREE.Vector3; maxs: THREE.Vector3 } | null {
+  const bounds = resource?.source.manifest.geometry?.modelMeshes?.find(mesh => mesh.modelIndex === 0)?.gameBounds;
+  const mins = bounds?.mins;
+  const maxs = bounds?.maxs;
+  if (
+    typeof mins?.x !== 'number' || typeof mins.y !== 'number' || typeof mins.z !== 'number'
+    || typeof maxs?.x !== 'number' || typeof maxs.y !== 'number' || typeof maxs.z !== 'number'
+  ) {
+    return null;
+  }
+  return {
+    mins: new THREE.Vector3(mins.x, mins.y, mins.z),
+    maxs: new THREE.Vector3(maxs.x, maxs.y, maxs.z),
+  };
+}
+
+function createDust2SourceSafetyColliders(resource: Dust2WorldMeshResource | null): BoxSpec[] {
+  const bounds = getDust2WorldBounds(resource);
+  if (!bounds) return [];
+  const margin = 0.6;
+  const thickness = 0.7;
+  const height = Math.max(5.0, bounds.maxs.y - bounds.mins.y + 2.0);
+  const y = bounds.mins.y + height / 2 - 0.5;
+  const centerX = (bounds.mins.x + bounds.maxs.x) / 2;
+  const centerZ = (bounds.mins.z + bounds.maxs.z) / 2;
+  const width = bounds.maxs.x - bounds.mins.x + margin * 2;
+  const depth = bounds.maxs.z - bounds.mins.z + margin * 2;
+
+  return [
+    box(centerX, y, bounds.mins.z - margin, width, height, thickness, 0x000000, 'dust2-source-boundary-north', 0, 1, 0),
+    box(centerX, y, bounds.maxs.z + margin, width, height, thickness, 0x000000, 'dust2-source-boundary-south', 0, 1, 0),
+    box(bounds.mins.x - margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-west', 0, 1, 0),
+    box(bounds.maxs.x + margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-east', 0, 1, 0),
+  ];
+}
+
+function createDust2SourceWalkableColliders(meshes: MeshSpec[]): BoxSpec[] {
+  const cellSize = 0.48;
+  const yStep = 0.16;
+  const thickness = 0.08;
+  const occupied = new Map<string, { x: number; z: number; y: number }>();
+  const edgeA = new THREE.Vector3();
+  const edgeB = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+
+  meshes.forEach(mesh => {
+    const positions = mesh.collisionPositions ?? mesh.positions;
+    const indices = mesh.collisionIndices ?? mesh.indices;
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = positions[indices[i]];
+      const b = positions[indices[i + 1]];
+      const c = positions[indices[i + 2]];
+      if (!a || !b || !c) continue;
+
+      edgeA.subVectors(b, a);
+      edgeB.subVectors(c, a);
+      normal.crossVectors(edgeA, edgeB);
+      if (normal.lengthSq() <= 0.000001) continue;
+      normal.normalize();
+      if (Math.abs(normal.y) < 0.55) continue;
+
+      const minX = Math.min(a.x, b.x, c.x);
+      const maxX = Math.max(a.x, b.x, c.x);
+      const minZ = Math.min(a.z, b.z, c.z);
+      const maxZ = Math.max(a.z, b.z, c.z);
+      const surfaceY = (a.y + b.y + c.y) / 3;
+      const yKey = Math.round(surfaceY / yStep);
+      const x0 = Math.floor(minX / cellSize);
+      const x1 = Math.ceil(maxX / cellSize);
+      const z0 = Math.floor(minZ / cellSize);
+      const z1 = Math.ceil(maxZ / cellSize);
+
+      for (let z = z0; z <= z1; z += 1) {
+        for (let x = x0; x <= x1; x += 1) {
+          occupied.set(`${yKey}:${z}:${x}`, { x, z, y: yKey * yStep });
+        }
+      }
+    }
+  });
+
+  const rows = new Map<string, { y: number; z: number; xs: number[] }>();
+  occupied.forEach(cell => {
+    const key = `${cell.y}:${cell.z}`;
+    const row = rows.get(key) ?? { y: cell.y, z: cell.z, xs: [] };
+    row.xs.push(cell.x);
+    rows.set(key, row);
+  });
+
+  const colliders: BoxSpec[] = [];
+  rows.forEach(row => {
+    const xs = [...new Set(row.xs)].sort((a, b) => a - b);
+    let start = xs[0];
+    let prev = xs[0];
+    const flush = () => {
+      if (start === undefined || prev === undefined) return;
+      const cells = prev - start + 1;
+      const centerX = (start + cells / 2) * cellSize;
+      const centerZ = (row.z + 0.5) * cellSize;
+      colliders.push(box(
+        centerX,
+        row.y - thickness / 2,
+        centerZ,
+        cells * cellSize,
+        thickness,
+        cellSize,
+        0x000000,
+        `dust2-source-walkable-${colliders.length}`,
+        0,
+        1,
+        0
+      ));
+    };
+
+    for (let i = 1; i < xs.length; i += 1) {
+      const x = xs[i];
+      if (x === prev + 1) {
+        prev = x;
+        continue;
+      }
+      flush();
+      start = x;
+      prev = x;
+    }
+    flush();
+  });
+
+  return colliders;
+}
 
 export const resolveDust2SourceBombSites = (
   resource: Dust2WorldMeshResource | null,
@@ -1164,7 +1306,12 @@ function buildDust2Arena(): ArenaData {
     },
     enemySpawns: sourceSpawns.enemySpawns,
     bombSites: sourceBombSites,
-    colliders: sourceGeometry.colliders,
+    colliders: sourceGeometry.meshes.length > 0
+      ? [
+          ...createDust2SourceWalkableColliders(sourceGeometry.meshes),
+          ...createDust2SourceSafetyColliders(DUST2_WORLD_MESH_RESOURCE),
+        ]
+      : sourceGeometry.colliders,
     props: sourceGeometry.props,
     meshes: sourceGeometry.meshes,
     source: DUST2_WORLD_MESH_RESOURCE

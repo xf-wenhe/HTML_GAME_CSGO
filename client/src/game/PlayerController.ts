@@ -37,6 +37,7 @@ export class PlayerController {
   private readonly crouchingHalfHeight = 0.27; // 下蹲时的半高 (总高0.54，缩减了约18单位)
   private currentHalfHeight = 0.36;
   private readonly maxStepHeight = 0.18;
+  private readonly maxStepDownHeight = 0.38;
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = scene.getCamera();
@@ -141,6 +142,7 @@ export class PlayerController {
     this.body.velocity.x = velocity.x;
     this.body.velocity.z = velocity.z;
     this.tryStepUp(wishDirection, Math.hypot(velocity.x, velocity.z));
+    this.snapDownToGround(wishDirection);
   }
 
   private tryStepUp(wishDirection: THREE.Vector3, horizontalSpeed: number): void {
@@ -159,7 +161,7 @@ export class PlayerController {
       const ray = new CANNON.Ray(from, to);
       const result = new CANNON.RaycastResult();
 
-      if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: true, result })) continue;
+      if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) continue;
 
       const obstacleHeight = result.hitPointWorld.y - groundY;
       const surfaceName = (result.body as NamedBody | undefined)?.userData?.name;
@@ -172,6 +174,40 @@ export class PlayerController {
       this.body.position.y = Math.max(this.body.position.y, targetY);
       if (this.body.velocity.y < 0) this.body.velocity.y = 0;
       return;
+    }
+  }
+
+  private snapDownToGround(wishDirection: THREE.Vector3): void {
+    if (this.body.velocity.y > 0.05) return;
+    const probes = [{ x: this.body.position.x, z: this.body.position.z }];
+    if (wishDirection.lengthSq() > 0) {
+      const direction = wishDirection.clone().normalize();
+      probes.push(
+        { x: this.body.position.x + direction.x * 0.28, z: this.body.position.z + direction.z * 0.28 },
+        { x: this.body.position.x + direction.x * 0.48, z: this.body.position.z + direction.z * 0.48 }
+      );
+    }
+
+    const currentBottom = this.body.position.y - this.currentHalfHeight;
+    let bestHitY: number | null = null;
+    for (const probe of probes) {
+      const from = new CANNON.Vec3(probe.x, currentBottom + 0.08, probe.z);
+      const to = new CANNON.Vec3(probe.x, currentBottom - this.maxStepDownHeight, probe.z);
+      const ray = new CANNON.Ray(from, to);
+      const result = new CANNON.RaycastResult();
+      if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) continue;
+      if (Math.abs(result.hitNormalWorld.y) < 0.45) continue;
+      const drop = currentBottom - result.hitPointWorld.y;
+      if (drop < -0.02 || drop > this.maxStepDownHeight) continue;
+      if (bestHitY === null || result.hitPointWorld.y > bestHitY) bestHitY = result.hitPointWorld.y;
+    }
+
+    if (bestHitY === null) return;
+    const targetBodyY = bestHitY + this.currentHalfHeight + 0.01;
+    if (targetBodyY < this.body.position.y + 0.02) {
+      this.body.position.y = targetBodyY;
+      if (this.body.velocity.y < 0) this.body.velocity.y = 0;
+      this.grounded = true;
     }
   }
 
@@ -252,7 +288,8 @@ export class PlayerController {
     const rayEnd = new CANNON.Vec3(this.body.position.x, this.body.position.y - this.currentHalfHeight - 0.1, this.body.position.z);
     const ray = new CANNON.Ray(rayStart, rayEnd);
     const result = new CANNON.RaycastResult();
-    return ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: true, result });
+    return ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })
+      && Math.abs(result.hitNormalWorld.y) > 0.35;
   }
 
   private resolveBodyYFromEyeY(eyeY: number): number {

@@ -29,6 +29,9 @@ import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
 import { Settings } from './ui/Settings.js';
 import { MULTIPLAYER_MAPS } from './game/config/maps.js';
+import { Cs16BotMatch } from './game/Cs16BotMatch.js';
+import { CS16_ALLOWED_WEAPON_IDS, canCs16WeaponScope } from './game/Cs16Weapons.js';
+import { getDust2BotRoute } from './game/Dust2BotRoutes.js';
 import './ui/style.css';
 
 // 将服务端的增量补丁合并到本地的完整快照中
@@ -105,6 +108,8 @@ declare global {
       mousePlatform: string;
       rawMouseInput: boolean;
       mouseSensitivity: number;
+      cs16BotMatch: ReturnType<Cs16BotMatch['getStats']> | null;
+      botDebugStates: ReturnType<EnemyManager['getDebugStates']>;
     };
     __debugAllowPointerLockBypassForTests?: () => void;
     __debugSetPlayerYaw?: (yaw: number) => boolean;
@@ -190,6 +195,8 @@ const recordedKills = new Set<string>();
 let selectedMapId: MapId = 'dust2';
 let arenaColliderBodies: CANNON.Body[] = [];
 let wasGrounded = true;
+let soloBotMatch: Cs16BotMatch | null = null;
+let botRoundRespawnPending = false;
 const multiplayerSessionStorageKey = 'fps-web-game:multiplayer-session:v1';
 let currentPlayerName = '';
 
@@ -206,6 +213,7 @@ syncArenaPhysics();
 
 function syncArenaPhysics(): void {
   arenaColliderBodies.forEach(body => physics.removeBody(body));
+  physics.setGlobalGroundEnabled(scene.getArenaMeshes().length === 0);
   const boxBodies = scene.getArenaColliders().map(collider => {
     const body = physics.addStaticBox(
       new CANNON.Vec3(collider.position.x, collider.position.y, collider.position.z),
@@ -335,7 +343,9 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   usingGrenade = false;
   activeSlot = 'pistol';
   equippedPrimary = '';
-  equippedPistol = 'pistol';
+  equippedPistol = selectedMapId === 'dust2' && mode === 'solo' ? 'pistol' : 'pistol';
+  soloBotMatch = mode === 'solo' && selectedMapId === 'dust2' ? new Cs16BotMatch() : null;
+  botRoundRespawnPending = false;
   recordedKills.clear();
   droppedWeapons.clear();
   nearbyDrop = null;
@@ -359,7 +369,10 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   hud.updateRoomPlayers(mode === 'solo' ? 1 : 0, mode === 'solo' ? 1 : 10);
   hud.showNotification(mode === 'solo' ? '单人任务已开始' : '正在等待玩家...');
 
-  if (mode === 'solo') {
+  if (soloBotMatch) {
+    restartSoloBotRound();
+    hud.showNotification('Dust2 CS1.6 Bot Match 已开始');
+  } else if (mode === 'solo') {
     survival.start(performance.now(), mainMenu.getDifficulty(), scene.getCurrentArena().enemySpawns);
   } else {
     if (network.isConnected()) joinMultiplayerAfterConnection();
@@ -367,6 +380,69 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   }
 
   requestGameFocus();
+}
+
+function isSoloBotMatch(): boolean {
+  return Boolean(soloBotMatch && currentMode === 'solo' && selectedMapId === 'dust2');
+}
+
+function restartSoloBotRound(): void {
+  if (!soloBotMatch || !player) return;
+  soloBotMatch.startRound();
+  enemyManager.clear();
+  recordedKills.clear();
+  droppedWeapons.clear();
+  nearbyDrop = null;
+  lastHitRegion = null;
+  usingGrenade = false;
+  activeSlot = 'pistol';
+  previousSlot = 'knife';
+  equippedPrimary = '';
+  equippedPistol = 'pistol';
+  player.setEyePositionForDebug(scene.getCurrentArena().playerSpawn.clone());
+  player.resetVelocity();
+  player.healFull();
+  weaponManager.switchWeapon(equippedPistol);
+  grenades.reset();
+  syncWeaponHud();
+  hud.updateWeapon(weaponManager.getCurrentWeapon());
+  hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
+  const botSpawns = scene.getCurrentArena().enemySpawns.map(spawn => spawn.position);
+  soloBotMatch.createBotPlans(botSpawns, getDust2BotRoute).forEach(plan => {
+    enemyManager.spawnEnemy({
+      type: 'shooter',
+      position: plan.position,
+      health: 100,
+      speed: 2.15,
+      patrolPath: plan.route,
+      botProfile: {
+        weaponId: plan.weaponId,
+        route: plan.route,
+        viewRange: 34,
+        attackRange: 31,
+        damage: plan.weaponId === 'm4a4' ? 14 : plan.weaponId === 'mp5sd' ? 10 : 9,
+        fireIntervalMs: plan.weaponId === 'usp_s' ? 620 : 420,
+        accuracy: plan.weaponId === 'm4a4' ? 0.42 : 0.34,
+      },
+    });
+  });
+  hud.updateCs16BotMatch(soloBotMatch.getStats());
+}
+
+function updateSoloBotMatch(dt: number): void {
+  if (!soloBotMatch) return;
+  const result = soloBotMatch.update(dt, player?.isDead() ?? false);
+  if (player?.isDead()) {
+    soloBotMatch.recordPlayerDeath();
+  }
+  if (result.shouldRestartRound && !botRoundRespawnPending) {
+    botRoundRespawnPending = true;
+    window.setTimeout(() => {
+      botRoundRespawnPending = false;
+      if (gameRunning && isSoloBotMatch()) restartSoloBotRound();
+    }, 0);
+  }
+  hud.updateCs16BotMatch(soloBotMatch.getStats());
 }
 
 network.on('connected', () => {
@@ -676,6 +752,8 @@ function endGame(): void {
   pendingSpectator = false;
   isSpectating = false;
   currentMode = null;
+  soloBotMatch = null;
+  botRoundRespawnPending = false;
   usingGrenade = false;
   activeSlot = 'pistol';
   droppedWeapons.clear();
@@ -701,7 +779,10 @@ function gameLoop(now: number) {
     }
     handleVirtualActions();
 
-    if (player && !isSpectating && canMove(inputMode) && hasGameplayFocus()) {
+    const botMatchCanMove = !soloBotMatch || soloBotMatch.canPlayerMove();
+    const botMatchCanShoot = !soloBotMatch || soloBotMatch.canPlayerShoot();
+
+    if (player && !isSpectating && canMove(inputMode) && hasGameplayFocus() && botMatchCanMove) {
       player.update(dt);
       audioFeedback.playFootstep({
         moving: player.isMoving(),
@@ -740,28 +821,38 @@ function gameLoop(now: number) {
       hud.showDamage();
       screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
       if (player.isDead()) {
+        if (soloBotMatch) {
+          soloBotMatch.recordPlayerDeath();
+        } else {
         survival.gameOver();
         hud.showResults(survival.getStats(now));
         setInputMode('gameOver');
         gameRunning = false;
         input.exitPointerLock();
+        }
       }
     }
 
     enemyManager.getAllEnemies().forEach(enemy => {
       if (enemy.isDead() && !recordedKills.has(enemy.id)) {
         recordedKills.add(enemy.id);
-        survival.recordKill(enemy.getPosition());
+        if (soloBotMatch) {
+          soloBotMatch.recordBotKill();
+        } else {
+          survival.recordKill(enemy.getPosition());
 
         // 【新增】NPC 死亡掉落武器
         const possibleDrops = ['ak47', 'm4a4', 'awp', 'mac10', 'p90', 'deagle'];
         const randomWeapon = possibleDrops[Math.floor(Math.random() * possibleDrops.length)];
         const dropPos = enemy.getPosition().clone().add(new THREE.Vector3(0, 0.3, 0));
         droppedWeapons.dropWeapon(randomWeapon, dropPos);
+        }
       }
     });
 
-    if (currentMode === 'solo' && gameRunning) {
+    if (soloBotMatch && gameRunning) {
+      updateSoloBotMatch(dt);
+    } else if (currentMode === 'solo' && gameRunning) {
       hud.updateSurvival(survival.update(dt, now));
     } else if (currentMode === 'multiplayer' && currentSnapshot) {
       hud.updateMatch(currentSnapshot, localPlayerId, {
@@ -807,7 +898,7 @@ function gameLoop(now: number) {
       hud.setFlashOverlay(grenadeResult.flash);
     }
 
-    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && usingGrenade && input.isKeyPressed('MouseRight') && player) {
+    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && botMatchCanShoot && usingGrenade && input.isKeyPressed('MouseRight') && player) {
       input.setKeyPressed('MouseRight', false);
       const result = grenades.throwSelected(scene.getCamera(), 'light');
       if (result.success) {
@@ -826,13 +917,13 @@ function gameLoop(now: number) {
       syncWeaponHud();
     }
 
-    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && !usingGrenade && input.isKeyPressed('MouseRight') && weaponManager.getCurrentWeapon().isMelee && player) {
+    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && botMatchCanShoot && !usingGrenade && input.isKeyPressed('MouseRight') && weaponManager.getCurrentWeapon().isMelee && player) {
       input.setKeyPressed('MouseRight', false);
       const result = weaponManager.shoot(scene.getCamera(), now, { heavyMelee: true });
       if (result) applyLocalWeaponHit(result);
     }
 
-    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && input.isKeyPressed('MouseLeft') && player) {
+    if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && botMatchCanShoot && input.isKeyPressed('MouseLeft') && player) {
       if (usingGrenade) {
         input.setKeyPressed('MouseLeft', false);
         const result = grenades.throwSelected(scene.getCamera(), 'full');
@@ -1093,6 +1184,12 @@ function requestGameFocus(): void {
     return;
   }
   void input.requestPointerLock().then((locked) => {
+    if (allowDebugPointerLockBypass && debugPointerLockBypass) {
+      pointerLockState = 'locked';
+      lockFailureReason = null;
+      hud.hidePointerLockGuide();
+      return;
+    }
     pointerLockState = locked ? 'locked' : input.wasPointerLockDenied() ? 'denied' : 'supported';
     lockFailureReason = locked ? null : '浏览器没有允许鼠标锁定';
     if (!locked) {
@@ -1134,10 +1231,17 @@ function openBuyMenu(): void {
   input.exitPointerLock();
   weaponManager.setAiming(false);
   hud.setScoped(false);
+  const botPolicy = soloBotMatch
+    ? {
+        allowedWeaponIds: CS16_ALLOWED_WEAPON_IDS,
+        money: soloBotMatch.getStats().money,
+        disabledReason: getSoloBotBuyDisabledReason(),
+      }
+    : undefined;
   const disabledReason = currentMode === 'multiplayer' && currentSnapshot?.config.mode === 'defusal' && currentSnapshot.phase !== 'buy'
     ? '只能在购买阶段购买'
     : undefined;
-  hud.toggleBuyMenu(true, { solo: currentMode === 'solo', disabledReason });
+  hud.toggleBuyMenu(true, { solo: currentMode === 'solo', disabledReason, policy: botPolicy });
 }
 
 function closeBuyMenu(refocus: boolean): void {
@@ -1146,6 +1250,19 @@ function closeBuyMenu(refocus: boolean): void {
     setInputMode('playing');
     if (refocus) requestGameFocus();
   }
+}
+
+function isPlayerInBuyZone(): boolean {
+  if (!player) return false;
+  return player.getPosition().distanceTo(scene.getCurrentArena().playerSpawn) <= 6;
+}
+
+function getSoloBotBuyDisabledReason(): string | undefined {
+  if (!soloBotMatch) return undefined;
+  const stats = soloBotMatch.getStats();
+  if (stats.phase !== 'freezeTime') return '只能在冻结购买时间购买';
+  if (!isPlayerInBuyZone()) return '必须站在出生买区内购买';
+  return undefined;
 }
 
 function applyMatchSnapshot(snapshot: MatchSnapshot): void {
@@ -1192,7 +1309,7 @@ function updateAimFov(dt: number): void {
 }
 
 function updateWeaponAimState(): void {
-  const canUseWeapon = canShoot(inputMode) && hasGameplayFocus() && !usingGrenade && !weaponManager.getCurrentWeapon().isMelee;
+  const canUseWeapon = canShoot(inputMode) && hasGameplayFocus() && (!soloBotMatch || soloBotMatch.canPlayerShoot()) && !usingGrenade && !weaponManager.getCurrentWeapon().isMelee;
   if (!canUseWeapon) {
     weaponManager.setAiming(false);
     hud.setScoped(false);
@@ -1200,7 +1317,9 @@ function updateWeaponAimState(): void {
   }
   if (input.isKeyPressed('MouseRight')) {
     input.setKeyPressed('MouseRight', false);
-    weaponManager.setAiming(!weaponManager.isScoped());
+    if (!soloBotMatch || canCs16WeaponScope(weaponManager.getCurrentWeaponId())) {
+      weaponManager.setAiming(!weaponManager.isScoped());
+    }
   }
   hud.setScoped(weaponManager.isScoped());
 }
@@ -1365,7 +1484,7 @@ window.__debugInputState = () => ({
   pointerLockState,
   pointerLockRequired,
   lockFailureReason,
-  canShoot: canShoot(inputMode) && hasGameplayFocus(),
+  canShoot: canShoot(inputMode) && hasGameplayFocus() && (!soloBotMatch || soloBotMatch.canPlayerShoot()),
   activePanel: hud.isBuyMenuOpen() ? 'buyMenu' : hud.isScoreboardOpen() ? 'scoreboard' : inputMode === 'paused' ? 'pause' : lockFailureReason ? 'pointerLockGuide' : 'none',
   isBuyMenuOpen: hud.isBuyMenuOpen(),
   isScoreboardOpen: hud.isScoreboardOpen(),
@@ -1392,7 +1511,9 @@ window.__debugInputState = () => ({
   keys: input.getPressedKeys(),
   mousePlatform: input.getMousePlatform(),
   rawMouseInput: input.getPointerLockInfo().rawMouseInput,
-  mouseSensitivity: input.getMouseSettings().baseSensitivity * input.getMouseSettings().platformScale
+  mouseSensitivity: input.getMouseSettings().baseSensitivity * input.getMouseSettings().platformScale,
+  cs16BotMatch: soloBotMatch?.getStats() ?? null,
+  botDebugStates: enemyManager.getDebugStates()
 });
 
 if (allowDebugPointerLockBypass) {
@@ -1431,13 +1552,25 @@ function switchLocalWeaponFromBuy(weaponId: WeaponId): void {
   syncWeaponHud();
 }
 function applySoloBuy(request: BuyRequest): void {
+  if (soloBotMatch) {
+    const result = soloBotMatch.tryBuy(request, isPlayerInBuyZone());
+    if (!result.ok) {
+      hud.showNotification(result.reason ?? '无法购买');
+      hud.updateCs16BotMatch(soloBotMatch.getStats());
+      return;
+    }
+  }
   if (request.armor) {
     player?.buyArmor();
     if (player) hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
     hud.showNotification('已购买防弹衣');
+    if (soloBotMatch) hud.updateCs16BotMatch(soloBotMatch.getStats());
     return;
   }
-  if (request.weaponId) switchLocalWeaponFromBuy(request.weaponId);
+  if (request.weaponId) {
+    switchLocalWeaponFromBuy(request.weaponId);
+    if (soloBotMatch) hud.updateCs16BotMatch(soloBotMatch.getStats());
+  }
 }
 
 function debugLog(...args: unknown[]): void {
@@ -1471,7 +1604,9 @@ function dropReplacedWeapon(nextWeapon: string): void {
 }
 
 function updateScoreboardPanel(): void {
-  if (currentMode === 'solo') {
+  if (soloBotMatch) {
+    hud.updateCs16Scoreboard(soloBotMatch.getStats());
+  } else if (currentMode === 'solo') {
     hud.updateSurvivalScoreboard(survival.getStats(performance.now()));
   } else if (currentSnapshot) {
     hud.updateMatch(currentSnapshot, localPlayerId, {

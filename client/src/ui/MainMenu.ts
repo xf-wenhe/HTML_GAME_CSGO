@@ -98,7 +98,7 @@ export class MainMenu {
         <!-- Center dividing line -->
         <line x1="0" y1="58%" x2="100%" y2="58%" stroke="url(#bottom-line)" stroke-width="1"/>
         <!-- Side CT agent silhouette -->
-        <g transform="translate(5%, 35%) scale(1.8)" opacity="0.04">
+        <g transform="translate(40, 240) scale(1.8)" opacity="0.04">
           <ellipse cx="60" cy="32" rx="18" ry="16" fill="#4B69FF"/>
           <rect x="38" y="50" width="44" height="56" rx="6" fill="#4B69FF"/>
           <rect x="28" y="52" width="16" height="28" rx="5" fill="#4B69FF"/>
@@ -107,7 +107,7 @@ export class MainMenu {
           <rect x="62" y="106" width="16" height="48" rx="5" fill="#4B69FF"/>
         </g>
         <!-- Side T agent silhouette -->
-        <g transform="translate(88%, 35%) scale(1.8)" opacity="0.04">
+        <g transform="translate(1120, 240) scale(1.8)" opacity="0.04">
           <ellipse cx="60" cy="30" rx="16" ry="15" fill="#E8C96A"/>
           <rect x="40" y="46" width="40" height="52" rx="5" fill="#E8C96A"/>
           <rect x="28" y="50" width="14" height="42" rx="5" fill="#E8C96A"/>

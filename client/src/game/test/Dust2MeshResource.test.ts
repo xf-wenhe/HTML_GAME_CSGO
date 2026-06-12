@@ -75,8 +75,8 @@ const resource = (overrides: Partial<Dust2WorldMeshResource> = {}): Dust2WorldMe
             vertexCount: 3,
             triangleCount: 1,
             gameBounds: {
-              mins: { x: 0, y: 0, z: -1 },
-              maxs: { x: 1, y: 0, z: 0 },
+              mins: { x: -2, y: 0, z: -3 },
+              maxs: { x: 2, y: 1, z: 3 },
             },
           },
         ],
@@ -133,7 +133,13 @@ describe('Dust2 mesh resource conversion', () => {
   it('uses source mesh when available and otherwise keeps Dust2 placeholder mode explicit', () => {
     if (DUST2_WORLD_MESH_RESOURCE) {
       expect(ARENA_MAPS.dust2.meshes?.length).toBeGreaterThan(0);
-      expect(ARENA_MAPS.dust2.colliders).toEqual([]);
+      expect(ARENA_MAPS.dust2.colliders.length).toBeGreaterThan(4);
+      expect(ARENA_MAPS.dust2.colliders.map(collider => collider.name)).toEqual(expect.arrayContaining([
+        'dust2-source-boundary-east',
+        'dust2-source-boundary-north',
+        'dust2-source-boundary-south',
+        'dust2-source-boundary-west',
+      ]));
       expect(ARENA_MAPS.dust2.props).toEqual([]);
       expect(ARENA_MAPS.dust2.source).toMatchObject({
         sourceBacked: true,

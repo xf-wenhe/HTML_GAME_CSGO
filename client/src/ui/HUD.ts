@@ -102,6 +102,26 @@ export interface WeaponSlotState {
   grenadeCount: number;
 }
 
+export interface Cs16HudStats {
+  phase: 'freezeTime' | 'live' | 'roundEnd' | 'restart';
+  round: number;
+  roundTimeRemaining: number;
+  freezeRemaining: number;
+  score: { attackers: number; defenders: number };
+  money: number;
+  kills: number;
+  deaths: number;
+  botsAlive: number;
+  botsTotal: number;
+  objective: string;
+}
+
+export interface BuyMenuPolicy {
+  allowedWeaponIds?: Set<string>;
+  money?: number;
+  disabledReason?: string;
+}
+
 export interface NetworkHudState {
   latencyMs?: number | null;
   inputStatus?: string;
@@ -507,6 +527,7 @@ export class HUD {
     const dataAttributes = [
       item.weaponId ? `data-weapon="${item.weaponId}"` : '',
       item.armor ? 'data-armor="kevlar"' : '',
+      `data-price="${item.price}"`,
       item.unavailable ? 'data-unavailable="true"' : ''
     ].filter(Boolean).join(' ');
     const disabled = item.unavailable ? ' disabled' : '';
@@ -653,6 +674,44 @@ export class HUD {
     `;
   }
 
+  updateCs16BotMatch(stats: Cs16HudStats): void {
+    this.timerText.textContent = this.formatClock(stats.phase === 'freezeTime' ? stats.freezeRemaining : stats.roundTimeRemaining);
+    this.roundInfo.textContent = `R${stats.round}`;
+    this.scoreCt.textContent = stats.score.defenders.toString();
+    this.scoreT.textContent = stats.score.attackers.toString();
+    this.waveText.textContent = stats.objective;
+    this.enemiesText.textContent = `${stats.botsAlive}/${stats.botsTotal} BOT`;
+    this.roomText.textContent = 'Dust2 Bot Match';
+    this.networkText.textContent = stats.phase === 'freezeTime' ? 'BUY' : stats.phase === 'roundEnd' ? 'ROUND END' : 'LIVE';
+    this.scoreText.textContent = `$${stats.money}`;
+  }
+
+  updateCs16Scoreboard(stats: Cs16HudStats): void {
+    this.scoreboard.innerHTML = `
+      <table>
+        <thead><tr><th>队伍</th><th>玩家</th><th>击杀</th><th>死亡</th><th>金钱</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr class="local team-attackers">
+            <td>T</td>
+            <td>你</td>
+            <td>${stats.kills}</td>
+            <td>${stats.deaths}</td>
+            <td>$${stats.money}</td>
+            <td>${stats.phase === 'freezeTime' ? '购买' : stats.phase === 'live' ? '存活' : '回合结束'}</td>
+          </tr>
+          <tr class="team-defenders">
+            <td>CT</td>
+            <td>BOT 小队</td>
+            <td>--</td>
+            <td>${stats.botsTotal - stats.botsAlive}</td>
+            <td>--</td>
+            <td>${stats.botsAlive} 存活</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
+
   updateMatch(snapshot: MatchSnapshot, localPlayerId?: string, networkState: NetworkHudState = {}): void {
     const localPlayer = snapshot.players.find(player => player.id === localPlayerId);
     const localPing = networkState.latencyMs ?? localPlayer?.ping;
@@ -703,13 +762,19 @@ export class HUD {
     this.scoreboard.classList.toggle('hidden', show === undefined ? !this.scoreboard.classList.contains('hidden') : !show);
   }
 
-  toggleBuyMenu(show?: boolean, options?: { solo?: boolean; disabledReason?: string }): void {
+  toggleBuyMenu(show?: boolean, options?: { solo?: boolean; disabledReason?: string; policy?: BuyMenuPolicy }): void {
     this.buyMenu.classList.toggle('hidden', show === undefined ? !this.buyMenu.classList.contains('hidden') : !show);
     this.buyMenu.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
       const unavailable = button.dataset.unavailable === 'true';
-      button.disabled = Boolean(options?.disabledReason) || unavailable;
+      const weaponId = button.dataset.weapon;
+      const weaponBlocked = Boolean(options?.policy?.allowedWeaponIds && weaponId && !options.policy.allowedWeaponIds.has(weaponId));
+      const price = Number(button.dataset.price ?? '0');
+      const tooExpensive = typeof options?.policy?.money === 'number' && price > options.policy.money;
+      const disabledReason = options?.disabledReason ?? options?.policy?.disabledReason;
+      button.disabled = Boolean(disabledReason) || unavailable || weaponBlocked || tooExpensive;
       const itemHint = button.querySelector('.buy-item-status')?.textContent ?? '';
-      button.title = options?.disabledReason ?? itemHint ?? (options?.solo ? '选择武器' : '购买武器');
+      button.title = disabledReason
+        ?? (weaponBlocked ? 'CS1.6 子集不可用' : tooExpensive ? '金钱不足' : itemHint || (options?.solo ? '选择武器' : '购买武器'));
     });
     let hint = this.buyMenu.querySelector('.buy-hint') as HTMLElement | null;
     if (!hint) {
@@ -717,7 +782,9 @@ export class HUD {
       hint.className = 'buy-hint';
       this.buyMenu.prepend(hint);
     }
-    hint.textContent = options?.disabledReason ?? (options?.solo ? '单人武器配置：选择武器 / 投掷物按 4 切换' : '购买菜单');
+    hint.textContent = options?.disabledReason
+      ?? options?.policy?.disabledReason
+      ?? (options?.solo ? 'CS1.6 购买时间：出生买区内购买' : '购买菜单');
   }
 
   isBuyMenuOpen(): boolean {

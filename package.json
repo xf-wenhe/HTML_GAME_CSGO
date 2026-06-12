@@ -21,7 +21,8 @@
     "inferno:status": "node scripts/status-inferno.mjs",
     "inferno:screenshots": "node scripts/screenshot-inferno.mjs",
     "dust2:render": "node scripts/render-dust2-source.mjs",
-    "test:e2e:feel": "node tests/e2e/csgo-feel-smoke.mjs"
+    "test:e2e:feel": "node tests/e2e/csgo-feel-smoke.mjs",
+    "test:e2e:cs16-bot": "node tests/e2e/cs16-bot-match-smoke.mjs"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",
