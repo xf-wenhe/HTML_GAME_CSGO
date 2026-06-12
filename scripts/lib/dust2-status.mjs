@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import {
   findDust2Source,
   formatMissingDust2SourceMessage,
@@ -9,7 +10,7 @@ import {
 } from './dust2-source-preflight.mjs';
 import { loadDust2SourceResource } from './dust2-source-resource.mjs';
 
-export const DEFAULT_DUST2_GENERATED_MODULE = 'client/src/game/generated/dust2-world-mesh.ts';
+export const DEFAULT_DUST2_GENERATED_MODULE = 'client/src/game/source/dust2-world-mesh.json';
 
 export function createDust2Status({ cwd = process.cwd(), env = process.env, sourcePath, generatedModule = DEFAULT_DUST2_GENERATED_MODULE } = {}) {
   const sourceOptions = { cwd, env, sourcePath };
@@ -81,7 +82,7 @@ export function createDust2Status({ cwd = process.cwd(), env = process.env, sour
         passed: true,
         message: `Source resource imports directly from: ${summary.sourcePath}`,
       });
-      status.gates.push(...createStrictDust2Gates(resource, summary, discoveredSource));
+      status.gates.push(...createStrictDust2Gates(resource, summary, discoveredSource, { cwd }));
     } catch (error) {
       status.gates.push({
         id: 'source-resource',
@@ -103,7 +104,7 @@ export function createDust2Status({ cwd = process.cwd(), env = process.env, sour
   return status;
 }
 
-function createStrictDust2Gates(resource, summary, discoveredSource) {
+function createStrictDust2Gates(resource, summary, discoveredSource, { cwd = process.cwd() } = {}) {
   const entities = resource.source.manifest.entities;
   const geometry = resource.source.manifest.geometry;
   const sourcePathMatches = !discoveredSource || path.resolve(discoveredSource) === path.resolve(summary.sourcePath);
@@ -145,5 +146,32 @@ function createStrictDust2Gates(resource, summary, discoveredSource) {
         && ((geometry.collision.brushSolidCount ?? 1) > 0),
       message: `Collision summaries: ${geometry.collision?.modelHullSummaries?.length ?? 0}; collision source models: ${summary.collisionModelCount}; solid MAP brushes: ${geometry.collision?.brushSolidCount ?? 'n/a'}.`,
     },
+    createRuntimeSourceModeGate(cwd),
   ];
+}
+
+function createRuntimeSourceModeGate(cwd) {
+  const mapDataPath = path.join(cwd, 'client/src/game/MapData.ts');
+  try {
+    const source = fs.readFileSync(mapDataPath, 'utf8');
+    const resolverDropsPlaceholders = /sourceMeshes\.length\s*>\s*0[\s\S]{0,160}\{ colliders:\s*\[\]\s*as\s*BoxSpec\[\], props:\s*\[\]\s*as\s*BoxSpec\[\], meshes:\s*sourceMeshes \}/.test(source);
+    const dust2UsesSourceGeometry = /const sourceGeometry = resolveDust2SourceGeometry\(sourceMeshes, colliderBoxes, props\);/.test(source)
+      && /colliders:\s*sourceGeometry\.colliders/.test(source)
+      && /props:\s*sourceGeometry\.props/.test(source)
+      && /meshes:\s*sourceGeometry\.meshes/.test(source);
+
+    return {
+      id: 'strict-runtime-source-mode',
+      passed: resolverDropsPlaceholders && dust2UsesSourceGeometry,
+      message: resolverDropsPlaceholders && dust2UsesSourceGeometry
+        ? 'Runtime Dust2 source mode drops legacy colliders/props and uses imported source meshes.'
+        : 'Runtime Dust2 source mode could not be proven to drop legacy colliders/props.',
+    };
+  } catch (error) {
+    return {
+      id: 'strict-runtime-source-mode',
+      passed: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
 }

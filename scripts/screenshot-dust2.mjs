@@ -74,6 +74,12 @@ async function main() {
     if (window.__debugAllowPointerLockBypassForTests) {
       window.__debugAllowPointerLockBypassForTests();
     }
+    if (window.__debugSetArenaInspectionMode) {
+      window.__debugSetArenaInspectionMode(true);
+    }
+    if (window.__debugSetViewModelVisible) {
+      window.__debugSetViewModelVisible(false);
+    }
     const lockPanel = document.querySelector('.lock-panel');
     if (lockPanel) lockPanel.remove();
   });
@@ -101,7 +107,8 @@ async function main() {
 
     if (dataUrl) {
       const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
-      const path = join(SCREENSHOTS_DIR, `dust2-${loc.name}.png`);
+      const browserName = loc.name.replace(/^source-/, '');
+      const path = join(SCREENSHOTS_DIR, `dust2-browser-${browserName}.png`);
       writeFileSync(path, Buffer.from(base64, 'base64'));
       console.log(`  -> saved ${path}`);
     } else {
@@ -149,21 +156,21 @@ function createSourceBackedLocations(resource) {
   }
 
   const classicLocations = [
-    lookAt('source-01-t-spawn', tSpawn, h(0, 2048)),
-    lookAt('source-02-outside-long-long-doors', p(-12.5, 2.6, 2.8), p(-17.18, -9.39, 1.7)),
-    lookAt('source-03-long-doors', p(-17.18, -9.39, 2.6), p(-19.4, -18.5, 1.0)),
-    lookAt('source-04-a-long-pit-long-corner', p(-19.4, -18.5, 2.6), p(-16.4, -23.8, 1.0)),
-    lookAt('source-05-a-cross-a-ramp', p(-16.4, -23.8, 2.8), p(-13.8, -25.2, 1.0)),
-    lookAt('source-06-a-site-goose-short-exit', p(-15.36, -26.88, 2.8), p(-9.6, -15.1, 1.0)),
-    lookAt('source-07-short-catwalk-to-a', p(-9.493, -14.613, 2.5), p(-15.36, -26.88, 1.0)),
-    lookAt('source-08-top-mid-suicide-mid-doors', p(-5.8, 3.8, 2.8), p(-3.2, -11.8, 1.2)),
-    lookAt('source-09-mid-doors-ct-mid', p(-3.2, -11.8, 2.6), p(2.56, -22.4, 1.4)),
-    lookAt('source-10-xbox-catwalk-short', p(-7.5, -8.8, 2.8), p(-9.493, -14.613, 1.0)),
-    lookAt('source-11-lower-tunnels', p(5.867, -4.587, 3.0), p(13.013, -1.707, -1.0)),
-    lookAt('source-12-upper-tunnels-b-exit', p(13.013, -1.707, 2.5), p(11.2, -23.68, 1.6)),
-    lookAt('source-13-b-site-default-back-plat', p(11.52, -24.64, 2.8), p(12.4, -25.4, 1.6)),
-    lookAt('source-14-b-doors-b-window', p(7.467, -21.547, 2.7), p(11.84, -24.427, 1.8)),
-    lookAt('source-15-ct-spawn-ct-mid', p(2.56, -22.4, 1.9), p(-3.2, -11.8, 1.7)),
+    lookAt('source-01-t-spawn-to-mid', p(-8.2, 7.04, 8.2), p(-3.2, -11.8, 0.8)),
+    lookAt('source-02-outside-long-to-long-doors', p(-13.8, 2.6, 8.4), p(-17.18, -9.39, 0.8)),
+    lookAt('source-03-long-doors-to-a-long', p(-18.4, -7.8, 7.6), p(-19.4, -18.5, 0.4)),
+    lookAt('source-04-a-long-pit-long-corner', p(-19.2, -17.5, 7.8), p(-16.4, -23.8, 0.2)),
+    lookAt('source-05-a-cross-a-ramp', p(-16.2, -22.2, 8.4), p(-13.8, -25.2, 0.2)),
+    lookAt('source-06-a-site-goose-short-exit', p(-15.0, -25.8, 8.8), p(-9.6, -15.1, 0.4)),
+    lookAt('source-07-short-catwalk-to-a', p(-9.6, -14.2, 7.8), p(-15.36, -26.88, 0.2)),
+    lookAt('source-08-top-mid-suicide-mid-doors', p(-5.8, 3.8, 8.6), p(-3.2, -11.8, -0.6)),
+    lookAt('source-09-mid-doors-ct-mid', p(-2.5, -13.0, 7.8), p(2.56, -22.4, -0.6)),
+    lookAt('source-10-xbox-catwalk-short', p(-7.5, -8.4, 8.4), p(-9.493, -14.613, 0.2)),
+    lookAt('source-11-lower-tunnels', p(5.867, -4.587, 6.8), p(13.013, -1.707, -1.2)),
+    lookAt('source-12-upper-tunnels-b-exit', p(13.013, -4.8, 7.8), p(11.2, -23.68, 0.4)),
+    lookAt('source-13-b-site-default-back-plat', p(11.52, -23.4, 8.4), p(12.4, -25.4, 0.4)),
+    lookAt('source-14-b-doors-b-window', p(7.467, -21.2, 7.8), p(11.84, -24.427, 0.6)),
+    lookAt('source-15-ct-spawn-ct-mid', p(2.56, -21.4, 7.4), p(-3.2, -11.8, -0.6)),
   ];
 
   return classicLocations.map(location => assertWithinWorldBounds(location, worldBounds));
@@ -210,7 +217,8 @@ function pitchToward(from, to) {
   const dy = to.y - from.y;
   const dz = to.z - from.z;
   const horizontalDistance = Math.hypot(dx, dz);
-  return Math.atan2(-dy, horizontalDistance);
+  const pitch = Math.atan2(dy, horizontalDistance);
+  return from.y >= 5 ? Math.min(pitch, -1.05) : pitch;
 }
 
 function assertWithinWorldBounds(location, worldBounds) {

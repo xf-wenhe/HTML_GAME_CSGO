@@ -57,8 +57,7 @@ function stairsX(x0: number, z: number, totalW: number, d: number, h0: number, h
 
 // ═══════════════════════════════════════════════════════════════
 // Legacy Dust2 placeholder collider matrix.
-// These boxes are intentionally superseded by the generated GoldSrc mesh when
-// `client/src/game/generated/dust2-world-mesh.ts` contains a validated source
+// These boxes are intentionally superseded by the imported GoldSrc source mesh
 // resource. Do not treat these coordinates as CS1.6/CS:GO 1:1 map data.
 // ═══════════════════════════════════════════════════════════════
 

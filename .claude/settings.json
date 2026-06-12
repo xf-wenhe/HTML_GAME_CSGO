@@ -64,7 +64,10 @@
       "Read(//tmp/**)",
       "Read(//private/tmp/**)",
       "Bash('button')",
-      "Bash(node screenshot-game.cjs)"
+      "Bash(node screenshot-game.cjs)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git branch *)"
     ],
     "additionalDirectories": [
       "/Users/fengye/.claude/plugins/marketplaces/thedotmack/src/services",

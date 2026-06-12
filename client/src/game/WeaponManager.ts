@@ -69,6 +69,10 @@ export class WeaponManager {
     }
   }
 
+  setViewModelVisible(visible: boolean): void {
+    this.weaponRoot.visible = visible;
+  }
+
   switchWeapon(weaponId: string): boolean {
     if (!this.weapons.has(weaponId) || weaponId === this.currentWeaponId) return this.weapons.has(weaponId);
     this.currentWeaponId = weaponId;

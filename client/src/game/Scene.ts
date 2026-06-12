@@ -13,6 +13,7 @@ export class Scene {
   private colliders: BoxSpec[] = [];
   private meshes: MeshSpec[] = [];
   private arenaObjects: THREE.Object3D[] = [];
+  private arenaInspectionMode = false;
   private skyDome: THREE.Mesh | null = null;
   private currentMapId: MapId = 'dust2';
 
@@ -411,7 +412,55 @@ export class Scene {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = spec.name ?? 'arena-mesh';
+
+    if (mesh.name.includes('dust2-goldsrc')) {
+      const edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(geometry, 24),
+        new THREE.LineBasicMaterial({
+          color: 0x2f2a1f,
+          transparent: true,
+          opacity: this.arenaInspectionMode ? 0.42 : 0,
+          depthTest: true,
+        })
+      );
+      edges.name = `${mesh.name}-inspection-edges`;
+      mesh.add(edges);
+    }
+
+    if (this.arenaInspectionMode) {
+      this.applyInspectionMaterial(mesh);
+    }
     this.addArenaObject(mesh);
+  }
+
+  setArenaInspectionMode(enabled: boolean): void {
+    this.arenaInspectionMode = enabled;
+    for (const object of this.arenaObjects) {
+      object.traverse(child => {
+        if (child instanceof THREE.Mesh && child.name.includes('dust2-goldsrc')) {
+          this.applyInspectionMaterial(child);
+        }
+        if (child instanceof THREE.LineSegments && child.name.includes('inspection-edges')) {
+          const material = child.material;
+          if (material instanceof THREE.LineBasicMaterial) {
+            material.opacity = enabled ? 0.42 : 0;
+            material.needsUpdate = true;
+          }
+        }
+      });
+    }
+  }
+
+  private applyInspectionMaterial(mesh: THREE.Mesh): void {
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      if (material instanceof THREE.MeshStandardMaterial) {
+        material.transparent = this.arenaInspectionMode;
+        material.opacity = this.arenaInspectionMode ? 0.86 : 1;
+        material.depthWrite = !this.arenaInspectionMode;
+        material.needsUpdate = true;
+      }
+    }
   }
 
   private addArenaObject(object: THREE.Object3D): void {

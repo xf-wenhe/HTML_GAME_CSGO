@@ -69,6 +69,8 @@ declare global {
     __debugPlayerPosition?: () => { x: number; y: number; z: number } | null;
     __debugSetPlayerPosition?: (x: number, z: number, yaw?: number, y?: number) => boolean;
     __debugSetCameraPoseForScreenshot?: (x: number, y: number, z: number, yaw: number, pitch?: number) => boolean;
+    __debugSetArenaInspectionMode?: (enabled: boolean) => boolean;
+    __debugSetViewModelVisible?: (visible: boolean) => boolean;
     __debugTakeScreenshot?: () => string | null;
     __debugInputState?: () => {
       mode: InputMode;
@@ -1337,6 +1339,15 @@ window.__debugSetPlayerPosition = (x: number, z: number, yaw = 0, y = 1.7) => {
 };
 window.__debugSetCameraPoseForScreenshot = (x: number, y: number, z: number, yaw: number, pitch = 0) => {
   debugCameraPose = { x, y, z, yaw, pitch };
+  return true;
+};
+window.__debugSetArenaInspectionMode = (enabled: boolean) => {
+  if (!scene) return false;
+  scene.setArenaInspectionMode(enabled);
+  return true;
+};
+window.__debugSetViewModelVisible = (visible: boolean) => {
+  weaponManager.setViewModelVisible(visible);
   return true;
 };
 window.__debugSetPlayerYaw = (yaw: number) => {

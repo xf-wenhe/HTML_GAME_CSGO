@@ -22,9 +22,11 @@ import {
   DUST2_SPAWNS
 } from './constants/Dust2HammerData.js';
 import { type Dust2WorldMeshResource, meshSpecFromDust2WorldMeshResource } from './Dust2MeshResource.js';
-import { DUST2_WORLD_MESH_RESOURCE } from './generated/dust2-world-mesh.js';
 import { type InfernoWorldMeshResource, meshSpecFromInfernoWorldMeshResource } from './InfernoMeshResource.js';
-import { INFERNO_WORLD_MESH_RESOURCE } from './generated/inferno-world-mesh.js';
+import dust2WorldMeshResourceJson from './source/dust2-world-mesh.json';
+
+export const DUST2_WORLD_MESH_RESOURCE = dust2WorldMeshResourceJson as Dust2WorldMeshResource;
+export const INFERNO_WORLD_MESH_RESOURCE: InfernoWorldMeshResource | null = null;
 
 export interface BoxSpec {
   position: THREE.Vector3;

@@ -6,8 +6,10 @@ import {
   meshSpecFromDust2WorldMeshResource,
 } from '../Dust2MeshResource.js';
 import { ARENA_MAPS, resolveDust2SourceBombSites, resolveDust2SourceGeometry, resolveDust2SourceSpawns } from '../MapData.js';
-import { DUST2_WORLD_MESH_RESOURCE } from '../generated/dust2-world-mesh.js';
+import dust2WorldMeshResourceJson from '../source/dust2-world-mesh.json';
 import { PLAYER_EYE_HEIGHT } from '../constants/MapUnits.js';
+
+const DUST2_WORLD_MESH_RESOURCE = dust2WorldMeshResourceJson as Dust2WorldMeshResource;
 
 const resource = (overrides: Partial<Dust2WorldMeshResource> = {}): Dust2WorldMeshResource => ({
   schema: DUST2_WORLD_MESH_SCHEMA,

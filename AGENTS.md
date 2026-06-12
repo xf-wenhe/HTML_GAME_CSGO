@@ -1,5 +1,5 @@
 # 🚨 最高优先级 — 硬性禁止（违反即报错）
-## 以下文件绝对禁止读取，无论任何理由：
+## 以下文件绝对禁止读取或展开到上下文，无论任何理由：
 - `client/src/game/generated/dust2-world-mesh.ts`（5.7MB，禁止）
 - `client/src/game/generated/inferno-world-mesh.ts`（10MB，禁止）
 - `client/src/game/generated/` 目录下**所有文件**（全部禁止）
@@ -10,9 +10,15 @@
 3. **重新运行脚本生成**
 
 ### 绝不执行的操作：
-- ❌ Read/读取上述任何 .ts 文件
+- ❌ Read/读取上述任何文件
 - ❌ 展开这些文件的任何部分到上下文中
 - ❌ 将这些文件的内容包含在任何 API 请求中
+- ❌ 把大 JSON、大 base64 图片、generated 文件内容作为工具输出重新回灌进对话
+ 
+### 大输出回灌禁令（同等优先级）：
+- ❌ 禁止把 `inferno-preflight.json` 等大型 JSON 全文放回上下文
+- ❌ 禁止把 `tmp-inferno-*.png`、`/tmp/*.png` 等截图/base64 图片再次发给模型，除非只是本地人工查看
+- ❌ 禁止通过 `node --input-type=module -e` 或 `import ... from ...generated/...` 间接读取生成文件内容
 
 ---
 

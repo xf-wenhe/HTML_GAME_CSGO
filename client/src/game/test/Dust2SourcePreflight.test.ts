@@ -691,18 +691,11 @@ describe('CS1.6 Dust2 source preflight', () => {
   it('reports RMF sources as found but not directly importable', () => {
     const dir = makeTempDir();
     const source = path.join(dir, 'de_dust2.rmf');
-    const generatedModule = path.join(dir, 'generated', 'dust2-world-mesh.ts');
-    fs.mkdirSync(path.dirname(generatedModule), { recursive: true });
     fs.writeFileSync(source, Buffer.from('Worldcraft RMF\0'.padEnd(64, '\0'), 'latin1'));
-    fs.writeFileSync(
-      generatedModule,
-      "import type { Dust2WorldMeshResource } from '../Dust2MeshResource.js';\n\nexport const DUST2_WORLD_MESH_RESOURCE: Dust2WorldMeshResource | null = null;\n"
-    );
 
     const status = createDust2Status({
       cwd: dir,
       sourcePath: source,
-      generatedModule,
       env: {},
     });
 
@@ -712,17 +705,16 @@ describe('CS1.6 Dust2 source preflight', () => {
       expect.arrayContaining([
         expect.objectContaining({ id: 'source-file', passed: true }),
         expect.objectContaining({ id: 'source-importable', passed: false }),
-        expect.objectContaining({ id: 'generated-resource', passed: false }),
+        expect.objectContaining({ id: 'source-resource', passed: false }),
       ])
     );
     expect(status.nextAction).toContain('convert de_dust2.rmf to de_dust2.map');
   });
 
-  it('reports Dust2 status as not ready while source and generated resource are missing', () => {
+  it('reports Dust2 status as not ready while the source resource is missing', () => {
     const dir = makeTempDir();
     const status = createDust2Status({
       cwd: dir,
-      generatedModule: path.join(dir, 'missing-dust2-world-mesh.ts'),
       env: {},
     });
 
@@ -731,31 +723,26 @@ describe('CS1.6 Dust2 source preflight', () => {
     expect(status.gates).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: 'source-file', passed: false }),
-        expect.objectContaining({ id: 'generated-resource', passed: false }),
       ])
     );
   });
 
-  it('refuses Dust2 screenshots until a source-backed generated resource exists', () => {
+  it('refuses Dust2 screenshots until an importable source resource exists', () => {
     const dir = makeTempDir();
-    const generatedModule = path.join(dir, 'dust2-world-mesh.ts');
-    fs.writeFileSync(
-      generatedModule,
-      "import type { Dust2WorldMeshResource } from '../Dust2MeshResource.js';\n\nexport const DUST2_WORLD_MESH_RESOURCE: Dust2WorldMeshResource | null = null;\n"
-    );
+    const screenshotScript = path.join(process.cwd(), 'scripts/screenshot-dust2.mjs');
 
     expect(() =>
       execFileSync(
         'node',
-        ['scripts/screenshot-dust2.mjs'],
+        [screenshotScript],
         {
-          cwd: process.cwd(),
+          cwd: dir,
           encoding: 'utf8',
           stdio: 'pipe',
-          env: { ...process.env, DUST2_GENERATED_MODULE: generatedModule },
+          env: { ...process.env },
         }
       )
-    ).toThrow(/Dust2 generated mesh resource is null/);
+    ).toThrow(/Missing CS1\.6 de_dust2 source file/);
   });
 
   it('verifies generated Dust2 mesh modules before treating them as source-backed', () => {

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ARENA_MAPS, BoxSpec, INDUSTRIAL_ARENA } from '../MapData.js';
+import { ARENA_MAPS, BoxSpec, INDUSTRIAL_ARENA, INFERNO_WORLD_MESH_RESOURCE } from '../MapData.js';
 import { MULTIPLAYER_MAPS } from '../config/maps.js';
-import { INFERNO_WORLD_MESH_RESOURCE } from '../generated/inferno-world-mesh.js';
 import { INFERNO_BOMB_SITES } from '../InfernoLayout.js';
 import type { MapId, Vector3 } from '../types.js';
 

@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "dust2:preflight": "node scripts/import-dust2-goldsrc.mjs --check",
-    "dust2:import": "node scripts/import-dust2-goldsrc.mjs --out-ts client/src/game/generated/dust2-world-mesh.ts",
+    "dust2:import": "node scripts/import-dust2-goldsrc.mjs --out client/src/game/source/dust2-world-mesh.json",
     "dust2:verify": "node scripts/verify-dust2-generated.mjs",
     "dust2:routes": "node scripts/verify-dust2-routes.mjs",
     "dust2:status": "node scripts/status-dust2.mjs",

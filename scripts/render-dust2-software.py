@@ -55,6 +55,8 @@ def main():
         print(path)
     plan_path = write_topdown_plan(triangles)
     print(plan_path)
+    height_routes_path = write_height_routes_plan(triangles)
+    print(height_routes_path)
     comparison_path = write_overview_comparison(plan_path)
     if comparison_path:
         print(comparison_path)
@@ -145,36 +147,13 @@ def write_topdown_plan(triangles):
         else:
             draw.line([*pts, pts[0]], fill=(82, 77, 61), width=1)
 
-    routes = [
-        ("Long -> A", (255, 186, 86), [(-8.2, 8.0), (-17.18, -9.39), (-19.4, -18.5), (-16.4, -23.8), (-15.36, -26.88)]),
-        ("Short -> A", (100, 206, 255), [(-8.2, 8.0), (-5.8, 3.8), (-7.5, -8.8), (-9.6, -15.1), (-15.36, -26.88)]),
-        ("Tunnels -> B", (148, 235, 132), [(-8.2, 8.0), (-4.7, 3.7), (5.2, -5.1), (12.8, -1.5), (11.2, -23.6), (11.52, -24.64)]),
-        ("CT -> Mid", (230, 122, 255), [(2.56, -22.4), (-0.53, -20.05), (-3.2, -11.8)]),
-        ("CT -> B", (230, 122, 255), [(2.56, -22.4), (7.0, -21.2), (11.52, -24.64)]),
-        ("CT -> A", (230, 122, 255), [(2.56, -22.4), (-13.8, -25.2), (-15.36, -26.88)]),
-    ]
-    for label, color, route in routes:
+    for label, color, route in dust2_routes():
         points = [to_screen((x, 0, z)) for x, z in route]
         draw.line(points, fill=color, width=4, joint="curve")
         sx, sy = points[min(1, len(points) - 1)]
         draw.text((sx + 8, sy + 8), label, fill=color)
 
-    labels = [
-        ("T spawn", (-8.2, 8.0)),
-        ("Long doors", (-19.8, -8.5)),
-        ("A long / pit", (-19.4, -18.5)),
-        ("A site", (-15.0, -26.6)),
-        ("Short", (-9.6, -15.1)),
-        ("Top mid", (-5.8, 3.8)),
-        ("Mid doors", (-3.2, -11.8)),
-        ("Lower tunnels", (5.2, -5.1)),
-        ("Upper tunnels", (12.8, -1.5)),
-        ("A ramp", (-13.8, -25.2)),
-        ("B doors/window", (7.0, -21.2)),
-        ("B site", (11.4, -24.6)),
-        ("CT spawn", (2.5, -22.4)),
-    ]
-    for label, (x, z) in labels:
+    for label, (x, z) in dust2_labels():
         sx, sy = to_screen((x, 0, z))
         draw.ellipse((sx - 5, sy - 5, sx + 5, sy + 5), fill=(255, 220, 90), outline=(0, 0, 0))
         draw.text((sx + 8, sy - 7), label, fill=(245, 234, 190))
@@ -182,6 +161,122 @@ def write_topdown_plan(triangles):
     path = OUT_DIR / "dust2-source-plan.png"
     image.save(path)
     return path
+
+
+def write_height_routes_plan(triangles):
+    width, height = 1600, 1180
+    all_points = [point for tri in triangles for point in tri]
+    min_x = min(point[0] for point in all_points)
+    max_x = max(point[0] for point in all_points)
+    min_z = min(point[2] for point in all_points)
+    max_z = max(point[2] for point in all_points)
+    margin = 1.2
+    scale = min((width - 80) / (max_x - min_x + margin * 2), (height - 130) / (max_z - min_z + margin * 2))
+
+    image = Image.new("RGB", (width, height), (16, 19, 22))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, width, 72), fill=(0, 0, 0))
+    draw.text((14, 12), "CS1.6 de_dust2 BSP height-layer topology from source mesh", fill=(238, 224, 190))
+    draw.text((14, 36), "walkable planes colored by height; vertical walls outlined; routes are source collision graph checkpoints", fill=(190, 202, 205))
+
+    def to_screen(point):
+        x, _, z = point
+        sx = 40 + (x - min_x + margin) * scale
+        sy = 90 + (max_z - z + margin) * scale
+        return (sx, sy)
+
+    walkable = []
+    walls = []
+    for tri in triangles:
+        normal = triangle_normal(tri)
+        avg_y = sum(point[1] for point in tri) / 3
+        if abs(normal[1]) > 0.55:
+            walkable.append((avg_y, tri))
+        else:
+            walls.append(tri)
+
+    # Draw high horizontal planes first, then lower walkable floors on top. In a
+    # pure top-down projection, ceilings otherwise hide the playable floor below.
+    for avg_y, tri in sorted(walkable, key=lambda item: item[0], reverse=True):
+        pts = [to_screen(point) for point in tri]
+        draw.polygon(pts, fill=height_color(avg_y))
+
+    for tri in walls:
+        pts = [to_screen(point) for point in tri]
+        draw.line([*pts, pts[0]], fill=(64, 67, 63), width=1)
+
+    routes = dust2_routes()
+    for label, color, route in routes:
+        points = [to_screen((x, 0, z)) for x, z in route]
+        draw.line(points, fill=color, width=5, joint="curve")
+        for sx, sy in points:
+            draw.ellipse((sx - 4, sy - 4, sx + 4, sy + 4), fill=color, outline=(0, 0, 0))
+        sx, sy = points[min(1, len(points) - 1)]
+        draw.text((sx + 8, sy + 8), label, fill=color)
+
+    for label, (x, z) in dust2_labels():
+        sx, sy = to_screen((x, 0, z))
+        draw.ellipse((sx - 6, sy - 6, sx + 6, sy + 6), fill=(255, 236, 120), outline=(0, 0, 0))
+        draw.text((sx + 8, sy - 8), label, fill=(255, 248, 202))
+
+    legend = [
+        ("low pits / lower spaces", height_color(-1.6)),
+        ("ground / CT mid", height_color(-0.2)),
+        ("raised routes / platforms", height_color(1.2)),
+        ("upper ledges / catwalk", height_color(3.0)),
+        ("route checkpoints", (255, 236, 120)),
+    ]
+    lx, ly = width - 360, 90
+    draw.rectangle((lx - 16, ly - 18, width - 24, ly + len(legend) * 26 + 16), fill=(0, 0, 0), outline=(110, 100, 78))
+    for index, (label, color) in enumerate(legend):
+        y = ly + index * 26
+        draw.rectangle((lx, y, lx + 24, y + 14), fill=color, outline=(0, 0, 0))
+        draw.text((lx + 34, y - 1), label, fill=(232, 226, 198))
+
+    path = OUT_DIR / "dust2-source-height-routes.png"
+    image.save(path)
+    return path
+
+
+def height_color(y):
+    if y < -1.0:
+        return (72, 95, 126)
+    if y < 0.35:
+        return (132, 118, 82)
+    if y < 1.7:
+        return (174, 150, 94)
+    if y < 2.8:
+        return (202, 174, 104)
+    return (228, 207, 132)
+
+
+def dust2_routes():
+    return [
+        ("Long -> A", (255, 186, 86), [(-8.2, 8.0), (-17.18, -9.39), (-19.4, -18.5), (-16.4, -23.8), (-15.36, -26.88)]),
+        ("Short -> A", (100, 206, 255), [(-8.2, 8.0), (-5.8, 3.8), (-7.5, -8.8), (-9.6, -15.1), (-15.36, -26.88)]),
+        ("Tunnels -> B", (148, 235, 132), [(-8.2, 8.0), (-4.7, 3.7), (5.2, -5.1), (12.8, -1.5), (11.2, -23.6), (11.52, -24.64)]),
+        ("CT -> Mid", (230, 122, 255), [(2.56, -22.4), (-0.53, -20.05), (-3.2, -11.8)]),
+        ("CT -> B", (230, 122, 255), [(2.56, -22.4), (7.0, -21.2), (11.52, -24.64)]),
+        ("CT -> A", (230, 122, 255), [(2.56, -22.4), (-13.8, -25.2), (-15.36, -26.88)]),
+    ]
+
+
+def dust2_labels():
+    return [
+        ("T spawn", (-8.2, 8.0)),
+        ("Long doors", (-19.8, -8.5)),
+        ("A long / pit", (-19.4, -18.5)),
+        ("A ramp", (-13.8, -25.2)),
+        ("A site", (-15.0, -26.6)),
+        ("Short", (-9.6, -15.1)),
+        ("Top mid", (-5.8, 3.8)),
+        ("Mid doors", (-3.2, -11.8)),
+        ("Lower tunnels", (5.2, -5.1)),
+        ("Upper tunnels", (12.8, -1.5)),
+        ("B doors/window", (7.0, -21.2)),
+        ("B site", (11.4, -24.6)),
+        ("CT spawn", (2.5, -22.4)),
+    ]
 
 
 def write_overview_comparison(plan_path):

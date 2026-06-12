@@ -53,8 +53,7 @@ import {
   BLOODSTRIKE_BOMB_SITES,
   BLOODSTRIKE_CALLOUTS
 } from '../BloodStrikeLayout.js';
-import { DUST2_WORLD_MESH_RESOURCE } from '../generated/dust2-world-mesh.js';
-import { INFERNO_WORLD_MESH_RESOURCE } from '../generated/inferno-world-mesh.js';
+import { DUST2_WORLD_MESH_RESOURCE, INFERNO_WORLD_MESH_RESOURCE } from '../MapData.js';
 
 
 export interface BombSiteConfig {

@@ -104,7 +104,7 @@ if (!checkOnly) {
     [
       '',
       'Dust2 source validation passed. Use --out <path> for JSON or --out-ts <path> to write the generated Dust2 module.',
-      'Recommended: --out-ts client/src/game/generated/dust2-world-mesh.ts',
+      'Recommended: --out client/src/game/source/dust2-world-mesh.json',
     ].join('\n')
   );
   process.exit(4);
