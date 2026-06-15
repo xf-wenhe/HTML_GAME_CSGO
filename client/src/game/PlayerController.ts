@@ -441,7 +441,9 @@ export class PlayerController {
     this.body.angularVelocity.set(0, 0, 0);
     this.body.wakeUp(); // Ensure physics body is active
     this.camera.position.set(position.x, position.y, position.z);
-    this.grounded = false;
+    // Fix: Force immediate grounded check instead of setting to false
+    // This prevents physics oscillation when spawning
+    this.grounded = this.canJump();
   }
 
   setEyePositionForDebug(position: THREE.Vector3): void {

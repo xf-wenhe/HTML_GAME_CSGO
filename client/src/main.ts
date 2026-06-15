@@ -314,7 +314,8 @@ hud.onResume(() => {
 });
 
 hud.onLeaveRequest(() => {
-  hud.showLeaveConfirm(() => endGame());
+  // Fix: Directly end game without confirmation dialog for smoother UX
+  endGame();
 });
 
 function startMultiplayer(mode: MatchMode): void {
@@ -379,6 +380,12 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   } else {
     if (network.isConnected()) joinMultiplayerAfterConnection();
     else network.connect();
+  }
+
+  // Fix: Auto-enable debug bypass for localhost testing to avoid pointer lock issues
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    debugPointerLockBypass = true;
+    console.log('[Debug] Localhost detected - enabling pointer lock bypass for testing');
   }
 
   requestGameFocus();
@@ -510,6 +517,7 @@ network.on('roomCreated', (data) => {
 });
 
 network.on('roomJoined', (data) => {
+  console.log('[Debug] roomJoined triggered', { spectator: data.spectator, gameRunning, inputMode });
   localPlayerId = data.playerId;
   isSpectating = Boolean(data.spectator);
   currentSnapshot = data.snapshot ?? null;
@@ -528,11 +536,22 @@ network.on('roomJoined', (data) => {
     hud.hideMapLoading();
     syncArenaPhysics();
     const localSnapshot = data.snapshot.players.find(snapshotPlayer => snapshotPlayer.id === data.playerId);
-    if (player && localSnapshot) player.setPosition(new THREE.Vector3(localSnapshot.position.x, localSnapshot.position.y, localSnapshot.position.z));
+    if (player && localSnapshot) {
+      // Fix: Set position and immediately check grounded state to prevent oscillation
+      player.setPosition(new THREE.Vector3(localSnapshot.position.x, localSnapshot.position.y, localSnapshot.position.z));
+      // Force grounded check on next frame to stabilize physics
+      player.update(0.001);
+    }
     hud.updateRoomPlayers(data.snapshot.players.length, data.snapshot.config.maxPlayers);
   }
   if (!isSpectating) network.send({ type: 'setReady', ready: true });
   hud.showNotification(isSpectating ? '已进入观战' : data.resumed ? '已回到上一局' : `${desiredMultiplayerMode === 'tdm' ? '团队死斗' : '爆破'} 房间已就绪`);
+
+  // Fix: Request pointer lock after room is joined (network is now connected)
+  if (!isSpectating && gameRunning && inputMode === 'playing') {
+    console.log('[Debug] Requesting pointer lock from roomJoined');
+    requestGameFocus();
+  }
 });
 
 network.on('roomState', (data) => {
@@ -567,7 +586,13 @@ network.on('roomError', (data) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (inputMode === 'playing' || inputMode === 'scoreboard') {
-      pauseGame();
+      // Fix: In multiplayer mode, pressing ESC once should end the game directly
+      // to avoid pointer lock issues in browser security model
+      if (currentMode === 'multiplayer') {
+        endGame();
+      } else {
+        pauseGame();
+      }
     } else if (inputMode === 'paused' || inputMode === 'buyMenu' || inputMode === 'gameOver') {
       // Directly end game without second confirmation popup
       endGame();
@@ -709,8 +734,16 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
-document.addEventListener('click', () => {
+document.addEventListener('click', (e) => {
+  console.log('[Global Click]', {
+    target: e.target.tagName,
+    className: e.target.className,
+    inputMode,
+    gameRunning,
+    pointerLocked: input.isPointerLocked()
+  });
   if (gameRunning && inputMode === 'playing' && !input.isPointerLocked() && !input.isTouchControlsActive()) {
+    console.log('[Debug] Click detected, requesting game focus');
     requestGameFocus();
   }
 });
@@ -735,6 +768,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 
 function endGame(): void {
+  console.log('[Debug] endGame called', { gameRunning, inputMode });
   gameRunning = false;
   input.exitPointerLock();
   debugPointerLockBypass = false;
@@ -768,6 +802,7 @@ function endGame(): void {
     player.dispose();
     player = null;
   }
+  console.log('[Debug] endGame complete', { inputMode, gameRunning });
 }
 
 function gameLoop(now: number) {
@@ -1167,6 +1202,12 @@ function clearMultiplayerSession(): void {
 }
 
 function requestGameFocus(): void {
+  console.log('[Debug] requestGameFocus called', {
+    gameRunning,
+    inputMode,
+    isTouchControlsActive: input.isTouchControlsActive(),
+    isPointerLocked: input.isPointerLocked()
+  });
   hud.hidePause();
   hud.hidePointerLockGuide();
   hud.toggleBuyMenu(false);
@@ -1178,6 +1219,7 @@ function requestGameFocus(): void {
     return;
   }
   void input.requestPointerLock().then((locked) => {
+    console.log('[Debug] Pointer lock result:', locked);
     if (allowDebugPointerLockBypass && debugPointerLockBypass) {
       pointerLockState = 'locked';
       lockFailureReason = null;
