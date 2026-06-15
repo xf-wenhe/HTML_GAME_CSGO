@@ -19,7 +19,7 @@ export interface PointerLockInfo {
   rawMouseInput: boolean;
 }
 
-const DEFAULT_BASE_SENSITIVITY = 0.00165;
+const DEFAULT_BASE_SENSITIVITY = 0.0035;
 
 export function detectMousePlatform(userAgent = navigator.userAgent, platform = navigator.platform): MousePlatform {
   const source = `${platform} ${userAgent}`.toLowerCase();

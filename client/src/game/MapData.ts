@@ -182,7 +182,7 @@ export const resolveDust2SourceSpawns = (
   const entitySpawns = resource?.source.manifest.entities?.playerSpawns ?? [];
   const worldBounds = getDust2WorldBounds(resource);
   const toPlayerPosition = (position: { x: number; y: number; z: number }) =>
-    new THREE.Vector3(position.x, position.y + PLAYER_EYE_HEIGHT, position.z);
+    new THREE.Vector3(position.x, position.y + PLAYER_EYE_HEIGHT + 0.15, position.z); // +0.15 offset to spawn slightly above ground
   const withinWorld = (position: THREE.Vector3) =>
     !worldBounds
     || (
@@ -250,7 +250,7 @@ function createDust2SourceSafetyColliders(resource: Dust2WorldMeshResource | nul
 function createDust2SourceWalkableColliders(meshes: MeshSpec[]): BoxSpec[] {
   const cellSize = 0.48;
   const yStep = 0.16;
-  const thickness = 0.08;
+  const thickness = 0.5; // Increased from 0.08 to prevent falling through
   const occupied = new Map<string, { x: number; z: number; y: number }>();
   const edgeA = new THREE.Vector3();
   const edgeB = new THREE.Vector3();
@@ -311,7 +311,7 @@ function createDust2SourceWalkableColliders(meshes: MeshSpec[]): BoxSpec[] {
       const centerZ = (row.z + 0.5) * cellSize;
       colliders.push(box(
         centerX,
-        row.y - thickness / 2,
+        row.y,
         centerZ,
         cells * cellSize,
         thickness,

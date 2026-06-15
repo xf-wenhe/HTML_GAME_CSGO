@@ -215,6 +215,108 @@ feat(weapon): add shooting cooldown
 - 代码修改：用 Grep+Edit 精准修改，不用 Read+Rewrite 全量覆盖
 - 对话超 10 轮时主动压缩历史，控制总 token 在 262K 以内
 
+# 🎮 游戏手感与物理规范（基于 CS 1.6 风格优化）
+## 核心参数标准
+**重力与跳跃（Movement.ts / Physics.ts）：**
+- `CSGO_GRAVITY = 7.06` — CS 1.6 优化重力值（原 8.0）
+- `PLAYER_JUMP_FORCE = 2.521` — 达到 45 HU 跳跃高度，0.38s 到峰值
+- 物理世界重力与 Movement.ts **必须同步更新**
+
+**移动与控制（PlayerController.ts）：**
+- 蹲伏时加速度 × 2.5 — 确保蹲伏移动响应性
+- `maxStepDownHeight = 2.0` — 出生时能落到地面
+- 蹲伏状态优先级：Crouch > Walk > Run（防止状态冲突）
+- 摩擦力每帧都应用（不限无输入时）
+
+**鼠标灵敏度（InputManager.ts / main.ts）：**
+- 基准灵敏度：`0.0035`（原 0.00165）
+- main.ts 中三处灵敏度计算必须同步更新
+
+## 出生点规范（地图相关）
+**Dust2 地图高度（Dust2HammerData.ts / Dust2Layout.ts）：**
+- T Spawn 地面高度：176 HU（y = 1.76 游戏单位）
+- CT Spawn 地面高度：-88 HU（y = -0.88 游戏单位）
+- A Site 平台：-28 HU（y = -0.28 游戏单位）
+- B Site：-88 HU（y = -0.88 游戏单位）
+
+**出生点计算方式：**
+```typescript
+// ✅ 正确：使用实际地面高度 + 眼高
+y: hammerToGame(spawn.y) + PLAYER_EYE_HEIGHT
+
+// ❌ 错误：硬编码固定值
+y: PLAYER_EYE_HEIGHT  // 会导致悬浮或陷地
+```
+
+**服务端同步（server/gameConfig.ts）：**
+- 服务端 spawns 必须与前端使用相同地面高度
+- 眼高 = 地面高度 + 0.64（PLAYER_EYE_HEIGHT）
+
+# 🔧 物理引擎坑点（cannon-es 限制）
+## Trimesh 射线检测问题
+- **问题**：cannon-es 的 `Trimesh` 不支持 `Ray.intersectWorld()`
+- **影响**：玩家 grounded 检测、台阶检测无法命中网格
+- **解决方案**：
+  1. 始终启用全局地面平面（`physics.setGlobalGroundEnabled(true)`）
+  2. 地面检测射线使用长距离（3.0）而非短距离
+  3. 地面碰撞体用 `Box(500, 0.5, 500)` 而非 `Plane`（Plane 射线检测也有问题）
+  4. Box 地面位置：`y = -0.5`，顶面在 y=0
+
+## 防止穿模
+- 可走碰撞体（walkable colliders）厚度：`0.5`（原 0.08）
+- 玩家跳跃上升速度截断：`body.velocity.y > 2` 时强制设为 2
+- 出生时必须重置速度并唤醒刚体：
+```typescript
+this.body.velocity.set(0, 0, 0);
+this.body.angularVelocity.set(0, 0, 0);
+this.body.wakeUp();
+```
+
+# 🤖 Bot 对局规范（Cs16BotMatch）
+## 冻结时间规则
+- 标准冻结时间：**5 秒**（CS 1.6 标准，原 3 秒）
+- 冻结期间：
+  - Bot 不能移动：`velocity.x = 0, velocity.z = 0`
+  - Bot 不能攻击：直接 return 0 damage
+  - `Enemy.update()` 增加 `canMove` 参数
+  - `EnemyManager.update()` 透传 `canMove` 参数
+
+## Bot 初始化规范
+- `botRouteIndex` 必须初始化为 0
+- 调试开关：`window.__debugBots = true` 启用日志
+
+# 🖥️ UI/UX 规范
+## 操作流程
+- ESC 暂停 → 再按 ESC **直接退出**（无需二次确认弹窗）
+- 进入游戏不自动请求全屏（移除 Windows 沉浸感全屏逻辑）
+- HUD 必须设置 `pointer-events: none`（防止阻挡鼠标操作）
+
+## 调试工具（main.ts 末尾 window 挂载）
+```typescript
+window.__debugMovement = true;  // 移动参数日志
+window.__debugBots = true;      // Bot 行为日志
+window.__debugShoot();          // 调试射击函数
+window.__debugSetPlayerYaw();   // 设置玩家朝向
+```
+
+# 📝 开发约定与习惯
+## 修改原则
+1. **参数同步原则**：修改 `Movement.ts` 的重力时，必须同步修改 `Physics.ts` 中的 `world.gravity`
+2. **前后端一致原则**：地图出生点修改时，前端 `Dust2Layout.ts` 与服务端 `gameConfig.ts` 必须同步
+3. **三处同步原则**：鼠标灵敏度在 `InputManager.ts` 与 `main.ts`（三处调用）必须保持一致
+4. **注释规范**：添加新的调试开关或修复时，注释说明"原问题"与"修复原因"
+
+## E2E 测试文件管理
+- `tests/e2e/debug_*.mjs` — 调试用单功能测试脚本
+- 临时调试脚本不提交到 main 分支（或放入 .gitignore）
+- 稳定测试加入 `package.json scripts` 并命名为 `test:e2e:*`
+
+## 提交前检查清单
+- [ ] 类型检查：`npx tsc --noEmit`
+- [ ] 前后端参数是否同步
+- [ ] 调试开关是否关闭（提交时应设为 false）
+- [ ] 没有读取 `generated/` 目录下的大文件
+
 
 ---
 

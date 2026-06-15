@@ -37,8 +37,8 @@ export const CSGO_MOVEMENT: MovementParams = {
   airControl: 0.16
 };
 
-export const CSGO_GRAVITY = 8.0;
-export const PLAYER_JUMP_FORCE = Math.sqrt(2 * CSGO_GRAVITY * PLAYER_JUMP_HEIGHT); // sqrt(2*8.0*0.57) ≈ 3.02 (sv_jump_impulse=301.993 HU/s)
+export const CSGO_GRAVITY = 7.06;  // Optimized for CS1.6 jump arc timing
+export const PLAYER_JUMP_FORCE = 2.521;  // Achieves 45 HU jump height at 0.38s to peak
 export const PLAYER_CROUCH_JUMP_BONUS = hammerToGame(8); // 0.08
 
 export interface StepUpCheck {

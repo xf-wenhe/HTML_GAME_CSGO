@@ -66,23 +66,39 @@ export const MAP_CONFIGS: Record<MapId, ServerMapConfig> = {
     id: 'dust2',
     spawns: {
       attackers: [
-        { x: -4, y: 1.7, z: 32 }, { x: 0, y: 1.7, z: 33 },
-        { x: 4, y: 1.7, z: 32 }, { x: -8, y: 1.7, z: 28 }, { x: 8, y: 1.7, z: 28 }
+        { x: -8.32, y: 2.4, z: 7.04 },  // T Spawn (eye height: ground 1.76 + 0.64)
+        { x: -8.32, y: 2.4, z: 8.00 },  // T Spawn
+        { x: -8.32, y: 2.56, z: 8.96 }, // T Spawn (ground 1.92 + 0.64)
+        { x: -7.36, y: 2.56, z: 8.96 }, // T Spawn
+        { x: -6.40, y: 2.56, z: 8.96 }  // T Spawn
       ],
       defenders: [
-        { x: -2, y: 1.7, z: -38 }, { x: 2, y: 1.7, z: -38 },
-        { x: 0, y: 1.7, z: -36 }, { x: -6, y: 1.7, z: -34 }, { x: 6, y: 1.7, z: -34 }
+        { x: 4.48, y: -0.24, z: -24.64 }, // CT Spawn (eye height: ground -0.88 + 0.64)
+        { x: 3.52, y: -0.24, z: -24.64 }, // CT Spawn
+        { x: 2.56, y: -0.24, z: -24.64 }, // CT Spawn
+        { x: 4.48, y: -0.24, z: -21.12 }, // CT Spawn
+        { x: 1.60, y: -0.24, z: -24.64 }  // CT Spawn
       ]
     },
     tdmSpawns: [
-      { x: -4, y: 1.7, z: 32 }, { x: 4, y: 1.7, z: 32 },
-      { x: 0, y: 1.7, z: -38 }, { x: -2, y: 1.7, z: -36 },
-      { x: -24, y: 1.7, z: -24 }, { x: 24, y: 1.7, z: -22 },
-      { x: -34, y: 1.7, z: 8 }, { x: 34, y: 1.7, z: 10 }
+      // T Spawn area
+      { x: -8.32, y: 2.4, z: 7.04 },
+      { x: -7.36, y: 2.56, z: 8.96 },
+      // CT Spawn area
+      { x: 4.48, y: -0.24, z: -24.64 },
+      { x: 3.52, y: -0.24, z: -21.12 },
+      // A Site area
+      { x: -26.88, y: 0.36, z: -12.80 }, // platform height ~-0.28 + 0.64
+      // B Site area
+      { x: 25.60, y: -0.24, z: -15.36 }, // ground ~-0.88 + 0.64
+      // A Long area
+      { x: -35.20, y: 0.64, z: 0 },
+      // B Tunnels area
+      { x: 32.64, y: 0.64, z: 25.60 }
     ],
     bombSites: [
-      { id: 'A', position: { x: -24, y: 1.7, z: -25 }, radius: 6 },
-      { id: 'B', position: { x: 24, y: 1.7, z: -23 }, radius: 6 }
+      { id: 'A', position: { x: -26.88, y: 0.36, z: -12.80 }, radius: 6 },
+      { id: 'B', position: { x: 25.60, y: -0.24, z: -15.36 }, radius: 6 }
     ]
   },
   warehouse: {

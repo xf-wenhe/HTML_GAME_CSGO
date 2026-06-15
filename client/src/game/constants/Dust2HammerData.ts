@@ -302,28 +302,28 @@ export const B_SITE = {
 // === 出生点位置 ===
 export const DUST2_SPAWNS = {
   attackers: [
-    { x: 0, y: 64, z: 6144 },      // T Spawn中心
-    { x: -128, y: 64, z: 6208 },   // T Spawn左后
-    { x: 128, y: 64, z: 6208 },    // T Spawn右后
-    { x: -256, y: 64, z: 6080 },   // T Spawn左前
-    { x: 256, y: 64, z: 6080 }     // T Spawn右前
+    { x: 0, y: 176, z: 6144 },     // T Spawn中心 (ground height from source mesh)
+    { x: -128, y: 176, z: 6208 },  // T Spawn左后
+    { x: 128, y: 176, z: 6208 },   // T Spawn右后
+    { x: -256, y: 176, z: 6080 },  // T Spawn左前
+    { x: 256, y: 192, z: 6080 }    // T Spawn右前
   ],
   defenders: [
-    { x: 0, y: 64, z: -3328 },     // CT Spawn中心
-    { x: -128, y: 64, z: -3392 },  // CT Spawn左后
-    { x: 128, y: 64, z: -3392 },   // CT Spawn右后
-    { x: -256, y: 64, z: -3264 },  // CT Spawn左前
-    { x: 256, y: 64, z: -3264 }    // CT Spawn右前
+    { x: 0, y: -88, z: -3328 },    // CT Spawn中心 (ground height from source mesh)
+    { x: -128, y: -88, z: -3392 }, // CT Spawn左后
+    { x: 128, y: -88, z: -3392 },  // CT Spawn右后
+    { x: -256, y: -88, z: -3264 }, // CT Spawn左前
+    { x: 256, y: -88, z: -3264 }   // CT Spawn右前
   ],
   tdm: [
-    { x: 0, y: 64, z: 6144 },      // T Spawn
-    { x: -256, y: 64, z: 6080 },   // T Spawn
-    { x: 0, y: 64, z: -3328 },     // CT Spawn
-    { x: -128, y: 64, z: -3392 },  // CT Spawn
-    { x: -2560, y: 64, z: -1280 }, // A Site
-    { x: 2560, y: 64, z: -1280 },  // B Site
-    { x: -3520, y: 64, z: 0 },     // A Long
-    { x: 3328, y: 64, z: 2560 }    // B Tunnels
+    { x: 0, y: 176, z: 6144 },     // T Spawn
+    { x: -256, y: 176, z: 6080 },  // T Spawn
+    { x: 0, y: -88, z: -3328 },    // CT Spawn
+    { x: -128, y: -88, z: -3392 }, // CT Spawn
+    { x: -2560, y: -28, z: -1280 },// A Site platform
+    { x: 2560, y: -88, z: -1280 }, // B Site
+    { x: -3520, y: 0, z: 0 },      // A Long
+    { x: 3328, y: 0, z: 2560 }     // B Tunnels
   ]
 } as const;
 

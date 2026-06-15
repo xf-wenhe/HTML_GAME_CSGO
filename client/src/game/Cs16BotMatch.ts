@@ -70,7 +70,7 @@ export class Cs16BotMatch {
   private readonly playerTeam: Team;
 
   constructor(options: Cs16BotMatchOptions = {}) {
-    this.freezeSeconds = options.freezeSeconds ?? 3;
+    this.freezeSeconds = options.freezeSeconds ?? 5;  // CS1.6标准冻结时间5秒
     this.roundSeconds = options.roundSeconds ?? 115;
     this.roundEndSeconds = options.roundEndSeconds ?? 4;
     this.botCount = options.botCount ?? 5;

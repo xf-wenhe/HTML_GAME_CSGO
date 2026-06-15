@@ -37,7 +37,7 @@ export class PlayerController {
   private readonly crouchingHalfHeight = 0.27; // 下蹲时的半高 (总高0.54，缩减了约18单位)
   private currentHalfHeight = 0.36;
   private readonly maxStepHeight = 0.18;
-  private readonly maxStepDownHeight = 0.38;
+  private readonly maxStepDownHeight = 2.0; // Increased to reach ground plane at spawn
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = scene.getCamera();
@@ -117,11 +117,25 @@ export class PlayerController {
     this.grounded = this.canJump();
     const velocity = new THREE.Vector3(this.body.velocity.x, this.body.velocity.y, this.body.velocity.z);
     const horizontalVelocity = new THREE.Vector3(velocity.x, 0, velocity.z);
-    const targetSpeed = this.input.isKeyPressed('ControlLeft') || this.input.isKeyPressed('ControlRight')
+
+    // Clear any lingering crouch state before checking walk speed
+    const isCrouchingInput = this.input.isKeyPressed('ControlLeft') || this.input.isKeyPressed('ControlRight');
+    const isWalkingInput = this.input.isKeyPressed('ShiftLeft') || this.input.isKeyPressed('ShiftRight');
+
+    // Priority: Crouch > Walk > Run (prevent state conflicts)
+    const targetSpeed = isCrouchingInput
       ? this.movementParams.crouchSpeed
-      : this.input.isKeyPressed('ShiftLeft') || this.input.isKeyPressed('ShiftRight')
+      : isWalkingInput
         ? this.movementParams.walkSpeed
         : this.movementParams.runSpeed;
+
+    // Debug log for movement analysis
+    if (typeof window !== 'undefined' && (window as any).__debugMovement) {
+      const actualSpeed = this.getHorizontalSpeed();
+      if (Math.abs(actualSpeed - targetSpeed) > 0.1 || isCrouchingInput || isWalkingInput) {
+        console.log(`[Movement] crouchInput=${isCrouchingInput}, walkInput=${isWalkingInput}, target=${targetSpeed.toFixed(2)}, actual=${actualSpeed.toFixed(2)}`);
+      }
+    }
 
     if (this.grounded) {
       applyFriction(velocity, dt, this.movementParams);
@@ -129,7 +143,11 @@ export class PlayerController {
 
     if (wishDirection.lengthSq() > 0) {
       wishDirection.normalize();
-      const acceleration = this.grounded ? this.movementParams.groundAcceleration : this.movementParams.airAcceleration;
+      // Increase acceleration when crouching for responsive movement
+      const isCurrentlyCrouching = this.crouched;
+      const acceleration = this.grounded
+        ? (isCurrentlyCrouching ? this.movementParams.groundAcceleration * 2.5 : this.movementParams.groundAcceleration)
+        : this.movementParams.airAcceleration;
       accelerate(horizontalVelocity.set(velocity.x, 0, velocity.z), wishDirection, targetSpeed, acceleration, dt);
       if (!this.grounded) {
         horizontalVelocity.lerp(new THREE.Vector3(velocity.x, 0, velocity.z), 1 - this.movementParams.airControl);
@@ -146,7 +164,8 @@ export class PlayerController {
   }
 
   private tryStepUp(wishDirection: THREE.Vector3, horizontalSpeed: number): void {
-    if (wishDirection.lengthSq() === 0) return;
+    // Only try step up if grounded and moving, not mid-jump
+    if (!this.grounded || wishDirection.lengthSq() === 0) return;
 
     const direction = wishDirection.clone().normalize();
     const groundY = this.body.position.y - this.currentHalfHeight; // 【修复】使用当前实际半高
@@ -156,7 +175,8 @@ export class PlayerController {
     for (const probeDistance of probeDistances) {
       const probeX = this.body.position.x + direction.x * probeDistance;
       const probeZ = this.body.position.z + direction.z * probeDistance;
-      const from = new CANNON.Vec3(probeX, groundY + this.maxStepHeight + 0.12, probeZ);
+      // Start ray slightly below step height to avoid hitting player's own collider
+      const from = new CANNON.Vec3(probeX, groundY + this.maxStepHeight - 0.001, probeZ);
       const to = new CANNON.Vec3(probeX, groundY + 0.01, probeZ);
       const ray = new CANNON.Ray(from, to);
       const result = new CANNON.RaycastResult();
@@ -178,7 +198,26 @@ export class PlayerController {
   }
 
   private snapDownToGround(wishDirection: THREE.Vector3): void {
-    if (this.body.velocity.y > 0.05) return;
+    if (this.body.velocity.y > 0.05) return; // Don't snap while jumping up
+    // Only snap down for SMALL drops - cannon-es Trimesh doesn't work with raycasting,
+    // so we might hit the global ground plane far below the actual floor we're standing on.
+    // Let gravity handle large falls.
+    const maxSnapDownDistance = 0.3;
+    // Only snap down if already grounded or falling reasonably fast
+    // But skip this check if we're very close to ground (spawn case)
+    if (!this.grounded && this.body.velocity.y > -1.0) {
+      // Do a quick check - if ground is very close, still allow snapping
+      const bottomY = this.body.position.y - this.currentHalfHeight;
+      const probe = new CANNON.Ray(
+        new CANNON.Vec3(this.body.position.x, bottomY - 0.01, this.body.position.z),
+        new CANNON.Vec3(this.body.position.x, bottomY - maxSnapDownDistance, this.body.position.z)
+      );
+      const result = new CANNON.RaycastResult();
+      if (!probe.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) {
+        return; // No ground close enough
+      }
+    }
+
     const probes = [{ x: this.body.position.x, z: this.body.position.z }];
     if (wishDirection.lengthSq() > 0) {
       const direction = wishDirection.clone().normalize();
@@ -191,20 +230,23 @@ export class PlayerController {
     const currentBottom = this.body.position.y - this.currentHalfHeight;
     let bestHitY: number | null = null;
     for (const probe of probes) {
-      const from = new CANNON.Vec3(probe.x, currentBottom + 0.08, probe.z);
-      const to = new CANNON.Vec3(probe.x, currentBottom - this.maxStepDownHeight, probe.z);
+      // Start ray slightly below feet to avoid hitting player's own collider
+      const from = new CANNON.Vec3(probe.x, currentBottom - 0.001, probe.z);
+      const to = new CANNON.Vec3(probe.x, currentBottom - maxSnapDownDistance, probe.z);
       const ray = new CANNON.Ray(from, to);
       const result = new CANNON.RaycastResult();
       if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) continue;
       if (Math.abs(result.hitNormalWorld.y) < 0.45) continue;
+      // Only snap if hit is within small step down range
       const drop = currentBottom - result.hitPointWorld.y;
-      if (drop < -0.02 || drop > this.maxStepDownHeight) continue;
+      if (drop < 0 || drop > maxSnapDownDistance) continue;
       if (bestHitY === null || result.hitPointWorld.y > bestHitY) bestHitY = result.hitPointWorld.y;
     }
 
     if (bestHitY === null) return;
     const targetBodyY = bestHitY + this.currentHalfHeight + 0.01;
-    if (targetBodyY < this.body.position.y + 0.02) {
+    // Snap if within reasonable step-down range
+    if (targetBodyY < this.body.position.y + 0.05) {
       this.body.position.y = targetBodyY;
       if (this.body.velocity.y < 0) this.body.velocity.y = 0;
       this.grounded = true;
@@ -283,19 +325,25 @@ export class PlayerController {
   }
 
   private canJump(): boolean {
-    const rayStart = new CANNON.Vec3(this.body.position.x, this.body.position.y, this.body.position.z);
-    // 【修复】使用当前实际半高，确保空中蹲着时也能正确判定距离地面的距离
-    const rayEnd = new CANNON.Vec3(this.body.position.x, this.body.position.y - this.currentHalfHeight - 0.1, this.body.position.z);
+    const bottomY = this.body.position.y - this.currentHalfHeight;
+    // Start ray below feet - use long distance since cannon-es Trimesh doesn't support raycasting
+    // We rely on the global ground plane for grounded detection with mesh-based maps
+    const rayStart = new CANNON.Vec3(this.body.position.x, bottomY - 0.01, this.body.position.z);
+    const rayEnd = new CANNON.Vec3(this.body.position.x, bottomY - 3.0, this.body.position.z);
     const ray = new CANNON.Ray(rayStart, rayEnd);
     const result = new CANNON.RaycastResult();
-    return ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })
-      && Math.abs(result.hitNormalWorld.y) > 0.35;
+    if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) {
+      return false;
+    }
+    // Skip hits too close (possible self-intersection)
+    const hitDistance = rayStart.distanceTo(result.hitPointWorld);
+    return hitDistance > 0.01 && Math.abs(result.hitNormalWorld.y) > 0.35;
   }
 
   private resolveBodyYFromEyeY(eyeY: number): number {
-    const defaultStandingEyeY = this.standingHalfHeight + this.standingEyeHeight;
-    const normalizedEyeY = eyeY <= 1.0 ? defaultStandingEyeY : eyeY;
-    return Math.max(normalizedEyeY - this.eyeHeight, this.standingHalfHeight);
+    // Remove the <= 1.0 threshold check since Dust2 CT spawn has negative Y values
+    // Just ensure the body position is not lower than half height (to avoid spawning inside ground)
+    return Math.max(eyeY - this.eyeHeight, this.standingHalfHeight);
   }
 
   getPosition(): THREE.Vector3 {
@@ -387,7 +435,13 @@ export class PlayerController {
   }
 
   setPosition(position: THREE.Vector3): void {
-    this.body.position.set(position.x, this.resolveBodyYFromEyeY(position.y), position.z);
+    const bodyY = this.resolveBodyYFromEyeY(position.y);
+    this.body.position.set(position.x, bodyY, position.z);
+    this.body.velocity.set(0, 0, 0);
+    this.body.angularVelocity.set(0, 0, 0);
+    this.body.wakeUp(); // Ensure physics body is active
+    this.camera.position.set(position.x, position.y, position.z);
+    this.grounded = false;
   }
 
   setEyePositionForDebug(position: THREE.Vector3): void {

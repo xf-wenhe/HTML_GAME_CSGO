@@ -10,7 +10,7 @@ export class Physics {
 
   constructor() {
     this.world = new CANNON.World();
-    this.world.gravity.set(0, -8.0, 0);
+    this.world.gravity.set(0, -7.06, 0);  // CS1.6 optimized gravity
     this.world.defaultContactMaterial.friction = 0;
     this.world.defaultContactMaterial.restitution = 0;
 
@@ -28,10 +28,11 @@ export class Physics {
 
   setGlobalGroundEnabled(enabled: boolean): void {
     if (enabled && !this.groundBody) {
-      const groundShape = new CANNON.Plane();
+      // Use thick box instead of Plane - cannon-es Plane doesn't work well with raycasting
+      const groundShape = new CANNON.Box(new CANNON.Vec3(500, 0.5, 500));
       const groundBody = new CANNON.Body({ mass: 0, material: this.defaultMaterial });
       groundBody.addShape(groundShape);
-      groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+      groundBody.position.set(0, -0.5, 0);  // Top surface at y=0
       this.world.addBody(groundBody);
       this.bodies.push(groundBody);
       this.groundBody = groundBody;

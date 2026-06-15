@@ -122,6 +122,12 @@ export class Enemy {
 
     if (this.patrolPath.length > 0) {
       this.state = 'patrol';
+      this.botRouteIndex = 0;  // Ensure initial route index
+    }
+
+    // Debug log for bot initialization
+    if (typeof window !== 'undefined' && (window as any).__debugBots) {
+      console.log(`[Enemy] Spawned: id=${this.id}, state=${this.state}, pathLength=${this.patrolPath.length}, type=${this.type}`);
     }
   }
 
@@ -163,8 +169,15 @@ export class Enemy {
     return group;
   }
 
-  update(dt: number, playerPosition: THREE.Vector3, now: number, lineOfSightColliders: BoxSpec[] = []): number {
+  update(dt: number, playerPosition: THREE.Vector3, now: number, lineOfSightColliders: BoxSpec[] = [], canMove: boolean = true): number {
     if (this.state === 'dead') return 0;
+
+    // Freeze time restriction - bots should not move or attack during freeze
+    if (!canMove) {
+      this.body.velocity.x = 0;
+      this.body.velocity.z = 0;
+      return 0;
+    }
 
     // 【防飞天补丁】物理引擎卡模型时会产生极大的Y轴速度，我们强制截断向上的最大速度
     if (this.body.velocity.y > 2) {

@@ -32,10 +32,10 @@ export class EnemyManager {
     this.lineOfSightColliders = colliders;
   }
 
-  update(dt: number, playerPosition: THREE.Vector3, now: number): number {
+  update(dt: number, playerPosition: THREE.Vector3, now: number, lineOfSightColliders: BoxSpec[] = [], canMove: boolean = true): number {
     let damage = 0;
     this.enemies.forEach((enemy, id) => {
-      damage += enemy.update(dt, playerPosition, now, this.lineOfSightColliders);
+      damage += enemy.update(dt, playerPosition, now, lineOfSightColliders, canMove);
 
       if (enemy.isDead()) {
         setTimeout(() => {

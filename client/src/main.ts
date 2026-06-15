@@ -213,7 +213,9 @@ syncArenaPhysics();
 
 function syncArenaPhysics(): void {
   arenaColliderBodies.forEach(body => physics.removeBody(body));
-  physics.setGlobalGroundEnabled(scene.getArenaMeshes().length === 0);
+  // Always enable ground plane - cannon-es Trimesh doesn't support raycasting properly
+  // We need this for player grounded detection (canJump raycast)
+  physics.setGlobalGroundEnabled(true);
   const boxBodies = scene.getArenaColliders().map(collider => {
     const body = physics.addStaticBox(
       new CANNON.Vec3(collider.position.x, collider.position.y, collider.position.z),
@@ -283,13 +285,13 @@ mainMenu.on('spectateRoom', (roomId) => {
 });
 
 settings.onChange((s) => {
-  input.setMouseSettings({ baseSensitivity: 0.00165 * s.mouseSensitivity });
+  input.setMouseSettings({ baseSensitivity: 0.0035 * s.mouseSensitivity });
   applyCrosshairStyle(s.crosshairStyle, s.crosshairColor);
 });
 
 settings.onClose(() => {
   const s = settings.getSettings();
-  input.setMouseSettings({ baseSensitivity: 0.00165 * s.mouseSensitivity });
+  input.setMouseSettings({ baseSensitivity: 0.0035 * s.mouseSensitivity });
   applyCrosshairStyle(s.crosshairStyle, s.crosshairColor);
 });
 
@@ -333,7 +335,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   isSpectating = false;
   selectedMapId = mainMenu.getMapId();
   const currentSettings = settings.getSettings();
-  input.setMouseSettings({ baseSensitivity: 0.00165 * currentSettings.mouseSensitivity });
+  input.setMouseSettings({ baseSensitivity: 0.0035 * currentSettings.mouseSensitivity });
   applyCrosshairStyle(currentSettings.crosshairStyle, currentSettings.crosshairColor);
   const mapName = MULTIPLAYER_MAPS[selectedMapId]?.name ?? selectedMapId;
   hud.showMapLoading(mapName);
@@ -567,7 +569,8 @@ document.addEventListener('keydown', (e) => {
     if (inputMode === 'playing' || inputMode === 'scoreboard') {
       pauseGame();
     } else if (inputMode === 'paused' || inputMode === 'buyMenu' || inputMode === 'gameOver') {
-      hud.showLeaveConfirm(() => endGame());
+      // Directly end game without second confirmation popup
+      endGame();
     }
     return;
   }
@@ -734,6 +737,7 @@ document.addEventListener('pointerlockchange', () => {
 function endGame(): void {
   gameRunning = false;
   input.exitPointerLock();
+  debugPointerLockBypass = false;
   weaponManager.setAiming(false);
   hud.setScoped(false);
   hud.hide();
@@ -814,7 +818,7 @@ function gameLoop(now: number) {
     if (nearbyDrop) {
       hud.showNotification(`按 G 拾取 ${weaponDisplayName(nearbyDrop.weaponId)}`, 450);
     }
-    const enemyDamage = enemyManager.update(dt, playerPos, now);
+    const enemyDamage = enemyManager.update(dt, playerPos, now, scene.getArenaColliders(), botMatchCanMove);
     if (enemyDamage > 0 && player) {
       player.takeDamage(enemyDamage, 'chest', 0.28);
       hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
@@ -1168,16 +1172,6 @@ function requestGameFocus(): void {
   hud.toggleBuyMenu(false);
   input.clearActionKeys();
   setInputMode('playing');
-  // 【新增】Windows 沉浸感体验：请求游戏获得焦点时，同步请求网页全屏
-  if (!document.fullscreenElement && !input.isTouchControlsActive()) {
-    try {
-      document.body.requestFullscreen({ navigationUI: 'hide' }).catch(err => {
-        console.warn("Windows全屏请求被拦截，继续执行鼠标锁定:", err);
-      });
-    } catch (err) {
-      // 忽略部分旧版浏览器的同步调用异常
-    }
-  }
   if (input.isTouchControlsActive()) {
     pointerLockState = 'focusedNoLock';
     lockFailureReason = null;
@@ -1474,6 +1468,15 @@ window.__debugSetPlayerYaw = (yaw: number) => {
   player.setRotation(0, yaw);
   return true;
 };
+window.__debugShoot = (): boolean => {
+  if (!player || !weaponManager || !scene) return false;
+  const cam = scene.getCamera();
+  if (!cam) return false;
+  const result = weaponManager.shoot(cam, performance.now());
+  return result !== null;
+};
+(window as any).__debugMovement = true;  // Enable movement debug logs
+(window as any).__debugBots = true;      // Enable bot debug logs
 window.__debugTakeScreenshot = (): string | null => {
   const canvas = scene?.getRenderer()?.domElement as HTMLCanvasElement | undefined;
   if (!canvas) return null;

@@ -539,19 +539,19 @@ export const DUST2_BOMB_SITES = {
 export const DUST2_SPAWNS = {
   attackers: HAMMER_SPAWNS.attackers.map(spawn => ({
     x: hammerToGame(spawn.x),
-    y: PLAYER_EYE_HEIGHT,
+    y: hammerToGame(spawn.y) + PLAYER_EYE_HEIGHT,
     z: hammerToGame(-spawn.z)
   })),
   defenders: HAMMER_SPAWNS.defenders.map(spawn => ({
     x: hammerToGame(spawn.x),
-    y: PLAYER_EYE_HEIGHT,
+    y: hammerToGame(spawn.y) + PLAYER_EYE_HEIGHT,
     z: hammerToGame(-spawn.z)
   }))
 };
 
 export const DUST2_TDM_SPAWNS = HAMMER_SPAWNS.tdm.map(spawn => ({
   x: hammerToGame(spawn.x),
-  y: PLAYER_EYE_HEIGHT,
+  y: hammerToGame(spawn.y) + PLAYER_EYE_HEIGHT,
   z: hammerToGame(-spawn.z)
 }));
 
