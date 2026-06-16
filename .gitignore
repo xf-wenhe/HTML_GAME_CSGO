@@ -11,3 +11,34 @@ tmp-*
 
 # 测试产物
 test-results/
+
+# 游戏录制视频（大文件）
+game-recordings/
+
+# ========== 大文件清理规则 ==========
+
+# 外部依赖（CS16 服务器、SteamCMD 等，500MB+）
+.external/
+
+# CS 地图文件（BSP、WAD 等）
+cstrike/
+
+# macOS 系统文件
+**/.DS_Store
+
+# 临时截图和调试文件
+tmp-*.png
+tmp-*.mjs
+tmp-*/
+
+# 录制脚本（临时使用，不提交）
+inferno-auto-record.mjs
+inferno-bot-match-recorder.mjs
+record-inferno-*.mjs
+cleanup-git.sh
+
+# Playwright 浏览器二进制
+playwright/.cache/
+
+# 大型源数据文件
+client/src/game/source/*.json
