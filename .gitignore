@@ -3,9 +3,6 @@ dist/
 *.log
 .DS_Store
 
-# 生成的3D网格数据（极大，不应进版本控制）
-client/src/game/generated/
-
 # 临时调试文件
 tmp-*
 
@@ -39,6 +36,3 @@ cleanup-git.sh
 
 # Playwright 浏览器二进制
 playwright/.cache/
-
-# 大型源数据文件
-client/src/game/source/*.json
