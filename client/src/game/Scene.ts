@@ -158,6 +158,7 @@ export class Scene {
     this.meshes.forEach(spec => this.addMesh(spec));
 
     const isD2 = arena.name === 'Dust2';
+    const isInferno = arena.name === 'Inferno';
 
     if (isD2) {
       if (arena.source?.sourceBacked) {
@@ -261,7 +262,31 @@ export class Scene {
       tSpawnLight.position.set(0, 4.0, -61.44);
       this.addArenaObject(tSpawnLight);
       }
+    } else if (isInferno) {
+      // ── Inferno 专用灯光（验证地面碰撞）──────────────────────
+      const addLight = (position: THREE.Vector3, color: number, intensity: number, distance: number) => {
+        const light = new THREE.PointLight(color, intensity, distance, 1.9);
+        light.position.copy(position);
+        this.addArenaObject(light);
+      };
 
+      // T Spawn 灯光 - 红色（验证 T 出生点地面）
+      addLight(new THREE.Vector3(-16.0, 2.0, -5.0), 0xff4444, 2.5, 15);
+
+      // CT Spawn 灯光 - 蓝色（验证 CT 出生点地面）
+      addLight(new THREE.Vector3(24.0, 3.5, -22.0), 0x4444ff, 2.5, 15);
+
+      // Mid 区域灯光 - 白色
+      addLight(new THREE.Vector3(0, 3.0, 0), 0xffffff, 2.0, 20);
+
+      // Banana 通道灯光 - 黄色
+      addLight(new THREE.Vector3(-28.0, 2.0, 0), 0xffff44, 2.0, 15);
+
+      // A Site 灯光 - 绿色
+      addLight(new THREE.Vector3(-20.48, 2.0, -15.36), 0x44ff44, 2.2, 15);
+
+      // B Site 灯光 - 紫色
+      addLight(new THREE.Vector3(16.64, 3.0, -10.24), 0xff44ff, 2.2, 15);
     } else {
       // 其他地图通用灯光
       for (const position of [
