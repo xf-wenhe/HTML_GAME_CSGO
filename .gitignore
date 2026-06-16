@@ -33,6 +33,7 @@ inferno-auto-record.mjs
 inferno-bot-match-recorder.mjs
 record-inferno-*.mjs
 cleanup-git.sh
+cleanup-git-history.sh
 
 # Playwright 浏览器二进制
 playwright/.cache/
