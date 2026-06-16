@@ -21,69 +21,18 @@ import {
   STEP_HEIGHT_HAMMER,
   STEP_DEPTH_HAMMER,
 } from './constants/MapUnits.js';
+import {
+  MapCollider,
+  wall,
+  box,
+  plat,
+  stairsZ,
+  stairsX,
+  stairsL,
+} from './MapGeometryUtils.js';
 
-export interface InfernoCollider {
-  position: { x: number; y: number; z: number };
-  size: { x: number; y: number; z: number };
-  rotation?: { x: number; y: number; z: number };
-  name?: string;
-}
-
-function wall(x: number, z: number, w: number, d: number, h: number = WALL_HEIGHT_HAMMER, yOff: number = 0, name?: string): InfernoCollider {
-  return {
-    position: { x: hammerToGame(x), y: hammerToGame(h / 2 + yOff), z: hammerToGame(-z) },
-    size: { x: hammerToGame(w), y: hammerToGame(h), z: hammerToGame(d) },
-    name,
-  };
-}
-
-function box(x: number, z: number, w: number, d: number, h: number = STANDARD_BOX_HEIGHT_HAMMER, yOff: number = 0, name?: string): InfernoCollider {
-  return {
-    position: { x: hammerToGame(x), y: hammerToGame(h / 2 + yOff), z: hammerToGame(-z) },
-    size: { x: hammerToGame(w), y: hammerToGame(h), z: hammerToGame(d) },
-    name,
-  };
-}
-
-function plat(x: number, z: number, w: number, d: number, h: number = PLATFORM_HEIGHT_HAMMER, yOff: number = 0, name?: string): InfernoCollider {
-  return {
-    position: { x: hammerToGame(x), y: hammerToGame(h / 2 + yOff), z: hammerToGame(-z) },
-    size: { x: hammerToGame(w), y: hammerToGame(h), z: hammerToGame(d) },
-    name,
-  };
-}
-
-function stairsZ(x: number, z0: number, w: number, totalD: number, h0: number, h1: number, steps: number, name: string): InfernoCollider[] {
-  const sd = totalD / steps;
-  const dh = (h1 - h0) / steps;
-  return Array.from({ length: steps }, (_, i) => {
-    const stepZ = z0 + sd * (i + 0.5);
-    const stepH = h0 + dh * (i + 1);
-    return box(x, stepZ, w, sd, stepH, 0, `${name}-${i}`);
-  });
-}
-
-function stairsX(x0: number, z: number, totalW: number, d: number, h0: number, h1: number, steps: number, name: string): InfernoCollider[] {
-  const sw = totalW / steps;
-  const dh = (h1 - h0) / steps;
-  return Array.from({ length: steps }, (_, i) => {
-    const stepX = x0 + sw * (i + 0.5);
-    const stepH = h0 + dh * (i + 1);
-    return box(stepX, z, sw, d, stepH, 0, `${name}-${i}`);
-  });
-}
-
-function stairsL(name: string, startX: number, startZ: number, w: number, d: number, firstRise: number, secondRise: number, cornerX: number, cornerZ: number): InfernoCollider[] {
-  const firstRun = startZ - cornerZ;
-  const secondRun = cornerX - startX;
-  const firstCount = Math.max(1, Math.round(firstRun / STEP_DEPTH_HAMMER));
-  const secondCount = Math.max(1, Math.round(secondRun / STEP_DEPTH_HAMMER));
-  const legs = [
-    ...stairsZ(startX, startZ - firstRun, w, firstRun, 0, firstRise, firstCount, `${name}-leg1`),
-    ...stairsX(cornerX, cornerZ, secondRun, d, firstRise, firstRise + secondRise, secondCount, `${name}-leg2`),
-  ];
-  return legs;
-}
+// 类型别名，保持向后兼容
+export type InfernoCollider = MapCollider;
 
 const INFERNO_WIDTH = 7168;
 const INFERNO_DEPTH = 8192;

@@ -87,7 +87,13 @@ export class WeaponManager {
   }
 
   getCurrentWeapon(): Weapon {
-    return this.weapons.get(this.currentWeaponId)!;
+    const weapon = this.weapons.get(this.currentWeaponId);
+    if (!weapon) {
+      console.warn(`Weapon not found: ${this.currentWeaponId}, falling back to pistol`);
+      this.currentWeaponId = 'pistol';
+      return this.weapons.get('pistol')!;
+    }
+    return weapon;
   }
 
   getCurrentWeaponId(): string {
@@ -239,20 +245,24 @@ export class WeaponManager {
   }
 
   private async applyWeaponModel(): Promise<void> {
-    if (this.currentModel) {
-      this.weaponRoot.remove(this.currentModel);
-      this.currentModel = null;
+    try {
+      if (this.currentModel) {
+        this.weaponRoot.remove(this.currentModel);
+        this.currentModel = null;
+      }
+
+      const definition = ASSETS[this.currentWeaponId] ?? ASSETS[this.resolveWeaponAssetId(this.currentWeaponId)];
+      const model = definition ? await loadAsset(definition) : undefined;
+      if (!model) return;
+
+      this.currentAssetSource = model.userData.assetSource === 'glb' ? 'glb' : 'fallback';
+      this.currentModel = model;
+      this.weaponRoot.add(model);
+      this.weaponRoot.add(this.muzzleFlash);
+      this.setViewModelRenderOrder(model);
+    } catch (error) {
+      console.warn(`Failed to load weapon model for ${this.currentWeaponId}:`, error);
     }
-
-    const definition = ASSETS[this.currentWeaponId] ?? ASSETS[this.resolveWeaponAssetId(this.currentWeaponId)];
-    const model = definition ? await loadAsset(definition) : undefined;
-    if (!model) return;
-
-    this.currentAssetSource = model.userData.assetSource === 'glb' ? 'glb' : 'fallback';
-    this.currentModel = model;
-    this.weaponRoot.add(model);
-    this.weaponRoot.add(this.muzzleFlash);
-    this.setViewModelRenderOrder(model);
   }
 
   private setViewModelRenderOrder(model: THREE.Object3D): void {

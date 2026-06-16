@@ -150,7 +150,8 @@ export function createGameServer() {
     });
 
     socket.on('createRoom', (data: Partial<RoomConfig> & { mode?: MatchMode; maxPlayers?: number }) => {
-      const room = roomManager.createRoom(data.mode ? data : 'tdm', data.maxPlayers);
+      const config = data.mode ? data : { ...data, mode: 'tdm' as MatchMode };
+      const room = roomManager.createRoom(config, data.maxPlayers);
       socket.emit('roomCreated', { roomId: room.id, config: room.config });
       socket.emit('roomState', roomManager.getSnapshot(room.id));
       io.emit('roomList', roomManager.getRoomList());
@@ -254,6 +255,7 @@ export function createGameServer() {
   const tickDriftWindow: number[] = [];
   let currentInterval = TARGET_INTERVAL;
   let lastTick = Date.now();
+  const lastSnapshots = new Map<string, any>(); // 用于存放上一帧状态
 
   const tick = () => {
     const now = Date.now();
@@ -271,8 +273,6 @@ export function createGameServer() {
       debugLog(`Tick rate restored to ${TARGET_TICK}Hz`);
     }
 
-    const lastSnapshots = new Map<string, any>(); // 用于存放上一帧状态
-    
     // 替换原有的 tick 发送逻辑：
     roomManager.tick().forEach(snapshot => {
       const roomId = snapshot.roomId;
@@ -286,7 +286,7 @@ export function createGameServer() {
           data: delta
         });
       }
-      
+
       // 更新历史参照帧
       lastSnapshots.set(roomId, cloneSnapshot(snapshot));
     });

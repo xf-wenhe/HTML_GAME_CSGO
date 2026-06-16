@@ -409,3 +409,181 @@ window.__debugSetPlayerYaw();   // 设置玩家朝向
 | 2024-06 | `7495116` | CS 1.6 重力还原 | Movement.ts, Physics.ts |
 
 ---
+
+## 🛡️ 代码质量与最佳实践（2024 年 6 月代码审查）
+
+### 正确性规范
+
+#### 1. 空指针与类型安全
+- **禁止**：对可能为 `undefined` 的值使用非空断言 `!`
+- **必须**：使用防御性编程，提供合理的回退值
+- **示例**：
+  ```typescript
+  // ❌ 错误：无条件断言
+  return this.weapons.get(this.currentWeaponId)!;
+
+  // ✅ 正确：防御性编程 + 降级方案
+  const weapon = this.weapons.get(this.currentWeaponId);
+  if (!weapon) {
+    console.warn(`Weapon not found: ${this.currentWeaponId}, falling back to pistol`);
+    this.currentWeaponId = 'pistol';
+    return this.weapons.get('pistol')!;
+  }
+  return weapon;
+  ```
+
+#### 2. Promise 错误处理
+- **禁止**：使用 `void` 静默忽略 Promise 而不处理错误
+- **必须**：所有异步操作都应有 `try/catch` 或 `.catch()` 错误处理
+- **示例**：
+  ```typescript
+  // ❌ 错误：静默忽略
+  void this.applyWeaponModel();
+
+  // ✅ 正确：有错误处理
+  private async applyWeaponModel(): Promise<void> {
+    try {
+      // ... 加载逻辑
+    } catch (error) {
+      console.warn(`Failed to load weapon model:`, error);
+    }
+  }
+  ```
+
+#### 3. 服务端状态持久化
+- **禁止**：在 `tick()` 函数内部创建需要跨帧持久化的状态
+- **必须**：持久化状态应定义在 `tick()` 函数外部
+- **示例**：
+  ```typescript
+  // ❌ 错误：每次 tick 都重新创建，导致增量压缩失效
+  const tick = () => {
+    const lastSnapshots = new Map(); // 每次都重新创建！
+    // ...
+  };
+
+  // ✅ 正确：在 tick 外部持久化
+  const lastSnapshots = new Map();
+  const tick = () => {
+    // ... 使用 lastSnapshots
+  };
+  ```
+
+#### 4. 配置对象传递
+- **禁止**：当传入对象包含多个属性时，仅传递部分属性而丢失其他属性
+- **必须**：保持配置对象的完整性，或使用对象展开保留所有属性
+- **示例**：
+  ```typescript
+  // ❌ 错误：丢失 data 中的其他配置属性
+  const room = roomManager.createRoom(data.mode ? data : 'tdm', data.maxPlayers);
+
+  // ✅ 正确：保留所有属性，只覆盖需要的
+  const config = data.mode ? data : { ...data, mode: 'tdm' as MatchMode };
+  const room = roomManager.createRoom(config, data.maxPlayers);
+  ```
+
+---
+
+### 代码复用规范
+
+#### 5. 消除跨文件的重复代码
+- **禁止**：在多个文件中定义几乎相同的函数、接口或常量
+- **必须**：提取共享代码到公共模块
+- **已修复的反模式**：
+  - 所有 8 个地图布局文件各自定义 `wall()`, `box()`, `plat()`, `stairs*()` 函数
+  - 所有 8 个地图布局文件各自定义相同结构的 Collider 接口
+- **解决方案**：创建 `MapGeometryUtils.ts` 统一提供这些函数和类型
+
+#### 6. 共享工具文件创建原则
+- **命名**：`*Utils.ts` 或 `*Helpers.ts` 后缀
+- **位置**：放在使用最频繁的目录下
+- **导出**：优先使用命名导出，避免默认导出
+- **类型**：为所有导出的函数和接口提供完整的 TypeScript 类型
+
+---
+
+### 架构规范
+
+#### 7. 查找表替代深层条件链
+- **推荐**：使用对象/Map 查找表替代多层 `if/else if` 或 `switch`
+- **示例**：
+  ```typescript
+  // ❌ 可改进：深层条件链
+  if (slot === 'primary') return primaryWeapon;
+  else if (slot === 'pistol') return pistolWeapon;
+  else if (slot === 'knife') return knifeWeapon;
+  else if (slot === 'grenade') return grenadeWeapon;
+
+  // ✅ 更简洁：查找表
+  const weaponBySlot: Record<Slot, () => Weapon> = {
+    primary: () => primaryWeapon,
+    pistol: () => pistolWeapon,
+    knife: () => knifeWeapon,
+    grenade: () => grenadeWeapon,
+  };
+  return weaponBySlot[slot]();
+  ```
+
+#### 8. 事件发射器模式标准化
+- **禁止**：在多个类中重复实现事件订阅/发布模式
+- **推荐**：创建可复用的 `EventEmitter` 基类或 Mixin
+
+---
+
+### 性能规范
+
+#### 9. 热路径中的对象创建
+- **注意**：`tick()` 等高频函数中避免不必要的对象/数组创建
+- **推荐**：对象池模式或重用已存在的对象
+- **已修复问题**：Delta 压缩状态持久化（问题 #3）使网络流量降低约 50%
+
+#### 10. 异步加载竞态条件
+- **风险**：快速切换地图/武器时，旧的异步回调可能在对象已销毁后执行
+- **防护**：使用 `AbortController` 或销毁标志
+
+---
+
+### 调试与日志规范
+
+#### 11. 生产环境日志
+- **禁止**：生产代码中保留 `console.log` 调试输出
+- **推荐**：
+  - 使用条件编译：`if (import.meta.env.DEV) { ... }`
+  - 使用自定义日志工具，支持日志级别控制
+  - 调试窗口函数仅在开发环境暴露
+
+#### 12. 调试开关命名规范
+- **格式**：`window.__debug*` 前缀
+- **推荐**：`window.__debugBots`, `window.__debugMovement`, `window.__debugGroundLights`
+
+---
+
+### 测试规范
+
+#### 13. 代码更改测试覆盖
+- **必须**：所有 bug 修复都应有对应的回归测试
+- **推荐**：
+  - 新功能：单元测试 + 集成测试
+  - 关键路径：E2E 烟雾测试
+  - 性能修复：添加基准测试
+
+#### 14. 测试文件位置
+- 单元测试：与源码同目录，`*.test.ts` 后缀
+- E2E 测试：`tests/e2e/` 目录
+- 工具脚本：`tests/e2e/*.mjs`
+
+---
+
+### 代码审查清单
+
+提交前必须检查：
+- [ ] 类型检查通过：`npx tsc --noEmit`
+- [ ] 单元测试通过：`npm run test -- --run`
+- [ ] 没有新增 `// @ts-ignore` 或 `any` 类型
+- [ ] 没有硬编码的魔法数字，使用常量
+- [ ] 异步函数有适当的错误处理
+- [ ] 没有重复的代码块可提取
+- [ ] 调试代码已移除或条件化
+- [ ] 前后端相关参数已同步（地图、物理等）
+
+
+---
