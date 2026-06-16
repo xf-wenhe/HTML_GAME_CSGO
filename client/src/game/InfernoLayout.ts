@@ -96,32 +96,48 @@ export const INFERNO_COLLIDERS: InfernoCollider[] = [
   wall(3584, 0, WALL_THICKNESS_HAMMER, INFERNO_DEPTH, BOUNDARY_WALL_HEIGHT_HAMMER, 0, 'inferno-boundary-east'),
 
   // ── 地面碰撞体（关键修复：确保各区域有正确高度的地面）──
+  // 重要提示：plat(x, z, width, depth, height, yOffset, name)
+  // 注意：plat 内部会对 z 做 hammerToGame(-z) 转换，所以传入的 z 需要取反
+  //
+  // T Spawn 出生点游戏坐标: x=-15.44~-17.44, z=-2.64~-7.20
+  // → Hammer: x=-1544~-1744, z=264~720 (因为会被取反)
   // T Spawn 地面: y = -16 HU = -0.16 游戏单位
-  plat(0, 3584, 2048, 1536, 16, -16, 'inferno-t-spawn-ground'),
+  plat(-1664, 512, 1024, 1024, 16, -16, 'inferno-t-spawn-ground'),
 
+  // CT Spawn 出生点游戏坐标: x=23.04~24.00, z=-19.04~-24.64
+  // → Hammer: x=2304~2400, z=1904~2464 (因为会被取反)
   // CT Spawn 地面: y = 128 HU = 1.28 游戏单位
-  plat(0, -3584, 3072, 1536, 16, 128, 'inferno-ct-spawn-ground'),
+  plat(2368, 2304, 1024, 1536, 16, 128, 'inferno-ct-spawn-ground'),
 
+  // Mid 区域游戏坐标: x=-10~10, z=-10~10
+  // → Hammer: x=-1000~1000, z=-1000~1000
   // Mid 区域地面: y = 128 HU = 1.28 游戏单位
   plat(0, 0, 2048, 2048, 16, 128, 'inferno-mid-ground'),
 
+  // Banana 通道游戏坐标: x=-28左右, z=-20~20
+  // → Hammer: x=-2800左右, z=-2000~2000
   // Banana 通道地面: y = 0 HU = 0 游戏单位
   plat(-2816, 0, 1024, 4096, 16, 0, 'inferno-banana-ground'),
 
-  // A Long 通道地面: y = 0 HU = 0 游戏单位
+  // A Long 通道: y = 0 HU = 0 游戏单位
   plat(-3200, 0, 768, 2048, 16, 0, 'inferno-a-long-ground'),
 
-  // B Short 通道地面: y = 128 HU = 1.28 游戏单位
-  plat(2816, 0, 768, 2048, 16, 128, 'inferno-b-short-ground'),
+  // B Short 通道游戏坐标: x=25.60, z=10.24 → Hammer: x=2560, z=-1024
+  // B Short 通道: y = 128 HU = 1.28 游戏单位
+  plat(2560, -1024, 1024, 2048, 16, 128, 'inferno-b-short-ground'),
 
+  // A Site 区域游戏坐标: x=-20左右, z=-15左右 → 炸弹点位置: x=-20.48, z=-15.36
+  // → Hammer: x=-2048左右, z=1536左右 (因为 z 会被取反)
   // A Site 地面 (平台基础): y = 0 HU = 0 游戏单位
-  plat(-2048, -2560, 2048, 2048, 16, 0, 'inferno-a-site-ground'),
+  plat(-2048, 1536, 1536, 1536, 16, 0, 'inferno-a-site-ground'),
 
+  // B Site 区域游戏坐标: x=16左右, z=-10左右 → 炸弹点位置: x=16.64, z=-10.24
+  // → Hammer: x=1664左右, z=1024左右 (因为 z 会被取反)
   // B Site 地面 (平台基础): y = 128 HU = 1.28 游戏单位
-  plat(2048, -2560, 2048, 2048, 16, 128, 'inferno-b-site-ground'),
+  plat(1664, 1024, 1536, 1536, 16, 128, 'inferno-b-site-ground'),
 
   // Apartments 下层地面: y = 128 HU = 1.28 游戏单位
-  plat(-1280, -1280, 1024, 2560, 16, 128, 'inferno-apartments-lower-ground'),
+  plat(-1280, 1280, 1024, 2560, 16, 128, 'inferno-apartments-lower-ground'),
 
   // ── T Spawn 区域 ─────────────────────────────────────────────────────────
   wall(-512, 3072, WALL_THICKNESS_HAMMER, 1536, WALL_HEIGHT_HAMMER, 0, 'inferno-t-spawn-wall-left'),
