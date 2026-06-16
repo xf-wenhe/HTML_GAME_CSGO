@@ -42,6 +42,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `npx playwright install` — 安装浏览器运行时（首次运行前）
   - `npm run test:e2e:feel` — CSGO 手感验证烟雾测试
   - `npm run test:e2e:cs16-bot` — CS 1.6 风格 Bot 对局烟雾测试
+  - `node tests/e2e/test-jump-height.mjs` — 跳跃高度验证
+  - `node tests/e2e/verify-cs16-smoothness.mjs` — 移动平滑度验证
+  - `node tests/e2e/manual-inferno-test.mjs` — Inferno 手动交互测试
 - 类型检查：
   - `npx tsc --noEmit` — TypeScript 类型检查（无输出）
 
@@ -62,6 +65,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `npm run inferno:routes` — 验证路线
   - `npm run inferno:status` — 状态检查
   - `npm run inferno:screenshots` — 截图
+  - `node tests/e2e/verify-inferno.mjs` — Inferno 碰撞体与出生点验证（Playwright）
+  - `node tests/e2e/debug-inferno-collision.mjs` — 碰撞体调试工具
+  - `node tests/e2e/debug-spawn-functions.mjs` — 出生点函数调试
 
 **源文件路径**：地图原始数据（MAP/BSP）需放在指定路径，scripts/ 会自动查找。
 
@@ -239,6 +245,20 @@ feat(weapon): add shooting cooldown
 - A Site 平台：-28 HU（y = -0.28 游戏单位）
 - B Site：-88 HU（y = -0.88 游戏单位）
 
+**Inferno 地图高度（InfernoLayout.ts）：**
+- 各区域地面高度不同，需使用分区地面碰撞体
+- T Spawn：基于地图实际地形高度
+- CT Spawn：基于地图实际地形高度
+- A Site、B Site、Mid、Banana 等区域均有独立地面碰撞体
+- 使用 `plat()` 函数创建地面碰撞体，确保 `yOff` 参数正确设置实际地面高度
+
+**地面碰撞体规范（Inferno 多区域地形）：**
+- 复杂地形必须分区创建地面碰撞体（而非依赖单一全局地面）
+- 每个地图区域（T spawn、CT spawn、A site、B site、mid 等）独立地面碰撞体
+- 碰撞体使用 `plat()` 函数创建，厚度 `PLATFORM_HEIGHT_HAMMER = 16 HU`
+- 地面位置计算：`y: hammerToGame(h / 2 + yOff)`，其中 `yOff` 为实际地面 Y 坐标
+- `Scene.ts` 中支持区域验证灯光（zone-specific validation lights），便于调试地面位置
+
 **出生点计算方式：**
 ```typescript
 // ✅ 正确：使用实际地面高度 + 眼高
@@ -271,6 +291,18 @@ this.body.velocity.set(0, 0, 0);
 this.body.angularVelocity.set(0, 0, 0);
 this.body.wakeUp();
 ```
+
+## 地面稳定性增强（2024 修复）
+- **全局地面 + 分区地面双保险**：全局地面防止掉落，分区碰撞体提供真实地形支撑
+- **长距离 grounded 检测**：射线长度 3.0（原 1.0），确保在起伏地形上能检测到地面
+- **多区域独立碰撞体**：Inferno 等复杂地图按功能分区创建地面（T spawn、CT spawn、A site、B site、mid 等）
+- **验证灯光系统**：Scene.ts 支持 `__debugGroundLights` 显示地面碰撞体位置，便于调试
+
+## 跳跃高度与平滑度验证
+- 标准跳跃高度：45 HU（0.45 游戏单位）
+- 验证工具：`node tests/e2e/test-jump-height.mjs`
+- 平滑度验证：`node tests/e2e/verify-cs16-smoothness.mjs`
+- 手感测试单元：`client/src/game/test/PlayerControllerFeel.test.ts`
 
 # 🤖 Bot 对局规范（Cs16BotMatch）
 ## 冻结时间规则
@@ -317,7 +349,63 @@ window.__debugSetPlayerYaw();   // 设置玩家朝向
 - [ ] 调试开关是否关闭（提交时应设为 false）
 - [ ] 没有读取 `generated/` 目录下的大文件
 
+# 📚 开发历史归档
+
+## 2024 年 6 月开发迭代
+
+### Inferno 地图完善（4 个提交）
+**1. `bbde7f3` - 出生点、地面高度与队伍选择修复**
+- 修复 Inferno T/CT 出生点坐标与地面高度
+- 修正 MapData.ts 中地图配置
+- 同步 Movement.ts 与 Physics.ts 物理参数
+- 更新 Scene.ts 场景初始化逻辑
+- 服务端 gameConfig.ts 出生点同步
+
+**2. `2ab6eb7` - 全区域地面碰撞体添加**
+- 为 Inferno 所有地图区域添加独立地面碰撞体
+- T Spawn、CT Spawn、A Site、B Site、Mid、Banana 等分区地面
+- 使用 `plat()` 函数创建，厚度 16 HU
+- Scene.ts 添加碰撞体可视化支持
+
+**3. `d326f85` - 地面碰撞体位置修正**
+- 校正所有区域地面碰撞体的 Y 轴偏移
+- 确保碰撞体顶面与实际地面高度一致
+- 修复玩家出生时悬浮或陷地问题
+
+**4. `6d86c5a` - 区域验证灯光系统**
+- Scene.ts 添加 zone-specific validation lights
+- 每个地面碰撞体对应一盏位置指示灯
+- 调试开关：`window.__debugGroundLights = true`
+- 便于快速验证地面碰撞体位置是否正确
+
+### 物理稳定性增强（`91f52d1`）
+- **地面检测优化**：射线长度从 1.0 增加到 3.0
+- **全局地面开关**：`physics.setGlobalGroundEnabled(true)` 默认启用
+- **刚体唤醒机制**：出生时强制 `body.wakeUp()` 防止休眠
+- **速度重置**：出生时清零线速度与角速度
+- **新增测试文件**：
+  - `PlayerControllerFeel.test.ts` — 移动手感单元测试
+  - `test-jump-height.mjs` — 跳跃高度 E2E 验证
+  - `verify-cs16-smoothness.mjs` — 移动平滑度测试
+  - `verify-inferno.mjs` — Inferno 地图综合验证
+  - `debug-inferno-collision.mjs` — 碰撞体调试工具
+  - `debug-spawn-functions.mjs` — 出生点函数调试
+
+### CS 1.6 物理参数还原（`7495116`）
+- 重力恢复为 `CSGO_GRAVITY = 7.06`（CS 1.6 标准值）
+- 跳跃力 `PLAYER_JUMP_FORCE = 2.521`（达到 45 HU 高度）
+- 摩擦系数与地面检测逻辑修复
+- 移除过度的速度限制
+
+## 关键修复里程碑
+
+| 日期 | 提交 | 修复内容 | 影响文件 |
+|------|------|----------|----------|
+| 2024-06 | `6d86c5a` | Inferno 区域验证灯光 | Scene.ts |
+| 2024-06 | `d326f85` | 地面碰撞体位置校正 | InfernoLayout.ts |
+| 2024-06 | `2ab6eb7` | 全区域地面碰撞体 | InfernoLayout.ts, Scene.ts |
+| 2024-06 | `91f52d1` | 物理稳定性全面增强 | 10+ 文件 |
+| 2024-06 | `bbde7f3` | Inferno 出生点修复 | 7+ 文件 |
+| 2024-06 | `7495116` | CS 1.6 重力还原 | Movement.ts, Physics.ts |
 
 ---
-
-如果你需要我把 CLAUDE.md 翻译成英文、添加更多细节（例如具体文件清单或端口号行号提示：server/index.ts:1-200），或直接创建一个 git 提交，请告诉我下一步操作。
