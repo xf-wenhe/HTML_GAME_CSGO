@@ -6,6 +6,12 @@ import { ASSETS, createFallbackWeapon, loadAsset } from '../assets.js';
 describe('GLB asset registry', () => {
   it('ships local GLB files for all primary weapon and enemy assets', () => {
     for (const asset of Object.values(ASSETS)) {
+      if (asset.preferFallback) {
+        const fallback = asset.fallback();
+        const box = new THREE.Box3().setFromObject(fallback);
+        expect(box.isEmpty(), `${asset.id} fallback should produce visible geometry`).toBe(false);
+        continue;
+      }
       const localPath = `client/public${asset.path}`;
       expect(existsSync(localPath), `${asset.id} should have a local GLB`).toBe(true);
       expect(statSync(localPath).size, `${asset.id} GLB should not be empty`).toBeGreaterThan(1024);

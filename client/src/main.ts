@@ -109,6 +109,16 @@ declare global {
       mousePlatform: string;
       rawMouseInput: boolean;
       mouseSensitivity: number;
+      frameStats: {
+        dtMs: number;
+        logicMs: number;
+        renderMs: number;
+        totalMs: number;
+        fps: number;
+        drawCalls: number;
+        triangles: number;
+        pixelRatio: number;
+      };
       cs16BotMatch: ReturnType<Cs16BotMatch['getStats']> | null;
       botDebugStates: ReturnType<EnemyManager['getDebugStates']>;
     };
@@ -184,6 +194,16 @@ let pendingSpectator = false;
 let isSpectating = false;
 let lastNetworkInputAt = 0;
 let lastFrameTime = performance.now();
+let debugFrameStats = {
+  dtMs: 0,
+  logicMs: 0,
+  renderMs: 0,
+  totalMs: 0,
+  fps: 0,
+  drawCalls: 0,
+  triangles: 0,
+  pixelRatio: 1
+};
 let hadPointerLock = false;
 let usingGrenade = false;
 let activeSlot: 'primary' | 'pistol' | 'knife' | 'grenade' = 'pistol';
@@ -229,9 +249,10 @@ function syncArenaPhysics(): void {
   const meshBodies = scene.getArenaMeshes().map(mesh => {
     const collisionPositions = mesh.collisionPositions ?? mesh.positions;
     const collisionIndices = mesh.collisionIndices ?? mesh.indices;
+    if (collisionPositions.length < 3 || collisionIndices.length < 3) return null;
     const vertices = collisionPositions.flatMap(position => [position.x, position.y, position.z]);
     return physics.addStaticTrimesh(vertices, collisionIndices, mesh.name);
-  });
+  }).filter((body): body is CANNON.Body => body !== null);
   arenaColliderBodies = [...boxBodies, ...meshBodies];
   enemyManager.setLineOfSightColliders(scene.getArenaColliders());
 }
@@ -336,6 +357,8 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   gameRunning = true;
   setInputMode('playing');
   input.clearGameplayKeys();
+  prediction.reset();
+  lastNetworkInputAt = 0;
   lastFrameTime = performance.now();
   wasGrounded = true;
   debugPointerLockBypass = false;
@@ -547,7 +570,7 @@ network.on('roomList', (data) => {
 
 network.on('roomCreated', (data) => {
   currentPlayerName = currentPlayerName || createPlayerName();
-  network.send({ type: 'joinRoom', roomId: data.roomId, playerName: currentPlayerName });
+  network.send({ type: 'joinRoom', roomId: data.roomId, playerName: currentPlayerName, preferredTeam: desiredTeam });
 });
 
 network.on('roomJoined', (data) => {
@@ -822,6 +845,8 @@ function endGame(): void {
   hud.updateRoomPlayers(0, 0);
   currentSnapshot = null;
   localPlayerId = undefined;
+  prediction.reset();
+  lastNetworkInputAt = 0;
   pendingRoomId = null;
   pendingSpectator = false;
   isSpectating = false;
@@ -844,13 +869,17 @@ function endGame(): void {
 function gameLoop(now: number) {
   // 【修复闪退】顶层 try/catch 防止未捕获异常导致游戏循环退出
   try {
+    const frameStart = performance.now();
     const frameDt = Math.max(0, (now - lastFrameTime) / 1000);
     const dt = Math.min(frameDt, 0.033);
     const clockDt = Math.min(frameDt, 1);
     lastFrameTime = now;
 
     if (!gameRunning || inputMode === 'paused' || inputMode === 'gameOver') {
+      const renderStart = performance.now();
       scene.render();
+      const frameEnd = performance.now();
+      updateDebugFrameStats(frameDt, renderStart - frameStart, frameEnd - renderStart, frameEnd - frameStart);
       requestAnimationFrame(gameLoop);
       return;
     }
@@ -877,7 +906,10 @@ function gameLoop(now: number) {
       input.getMouseDelta();
     }
     physics.step(dt);
-    if (player) player.syncCameraToBody();
+    if (player) {
+      player.stickToGroundIfSupported();
+      player.syncCameraToBody();
+    }
     weaponManager.update(now, dt, player?.isMoving() ?? false);
     weaponManager.consumeFeedbackEvents().forEach(event => {
       audioFeedback.playWeapon(event.type, event.weaponId);
@@ -1090,7 +1122,10 @@ function gameLoop(now: number) {
     }
     camera.position.x += shakeOffset.x;
     camera.position.y += shakeOffset.y;
+    const renderStart = performance.now();
     scene.render();
+    const frameEnd = performance.now();
+    updateDebugFrameStats(frameDt, renderStart - frameStart, frameEnd - renderStart, frameEnd - frameStart);
     if (debugCameraPose) {
       camera.position.copy(originalCameraPosition);
       camera.rotation.copy(originalCameraRotation);
@@ -1110,6 +1145,20 @@ function gameLoop(now: number) {
 }
 
 gameLoop(performance.now());
+
+function updateDebugFrameStats(frameDt: number, logicMs: number, renderMs: number, totalMs: number): void {
+  const renderer = scene.getRenderer();
+  debugFrameStats = {
+    dtMs: frameDt * 1000,
+    logicMs,
+    renderMs,
+    totalMs,
+    fps: frameDt > 0 ? 1 / frameDt : 0,
+    drawCalls: renderer?.info.render.calls ?? 0,
+    triangles: renderer?.info.render.triangles ?? 0,
+    pixelRatio: renderer?.getPixelRatio() ?? 1
+  };
+}
 
 export { scene, physics, input, player, weaponManager, projectileSystem, network, enemyManager, hud, mainMenu };
 
@@ -1652,6 +1701,7 @@ window.__debugShoot = (): boolean => {
 window.__debugTakeScreenshot = (): string | null => {
   const canvas = scene?.getRenderer()?.domElement as HTMLCanvasElement | undefined;
   if (!canvas) return null;
+  scene.render();
   return canvas.toDataURL('image/png');
 };
 window.__debugInputState = () => ({
@@ -1690,6 +1740,7 @@ window.__debugInputState = () => ({
   mousePlatform: input.getMousePlatform(),
   rawMouseInput: input.getPointerLockInfo().rawMouseInput,
   mouseSensitivity: input.getMouseSettings().baseSensitivity * input.getMouseSettings().platformScale,
+  frameStats: debugFrameStats,
   cs16BotMatch: soloBotMatch?.getStats() ?? null,
   botDebugStates: enemyManager.getDebugStates()
 });

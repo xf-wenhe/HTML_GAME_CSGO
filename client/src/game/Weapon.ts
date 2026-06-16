@@ -109,6 +109,7 @@ export class Weapon {
     this.lastShotIndex = Math.min(this.recoilPattern.length - 1, Math.max(0, Math.floor(this.lastShotIndex)) + 1);
     this.shotPressure = Math.min(1.6, this.shotPressure + (this.recoilPattern.length > 10 ? 0.06 : 0.16));
     this.lastShotTime = now;
+    this.lastUpdateTime = now;
     return true;
   }
 

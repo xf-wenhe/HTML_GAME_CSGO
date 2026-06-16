@@ -2024,8 +2024,8 @@ export const ASSETS: Record<string, AssetDefinition> = {
 
   // ── 近战/装备 ────────────────────────────────────────────────────────
   knife: { id: 'knife', kind: 'weapon', path: '/assets/models/weapons/knife.glb', scale: 0.62, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.08, 0.12], preferFallback: false, fallback: () => createSpecificWeapon('knife') },
-  zeus: { id: 'zeus', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.50, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: false, fallback: () => createSpecificWeapon('zeus') },
-  grenade: { id: 'grenade', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.48, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: false, fallback: () => createSpecificWeapon('grenade') },
+  zeus: { id: 'zeus', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.50, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: true, fallback: () => createSpecificWeapon('zeus') },
+  grenade: { id: 'grenade', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.48, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: true, fallback: () => createSpecificWeapon('grenade') },
 
   // ── 旧别名兼容 ───────────────────────────────────────────────────────
   heavy_pistol: { id: 'heavy_pistol', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('heavy_pistol') },

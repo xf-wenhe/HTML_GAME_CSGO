@@ -66,11 +66,11 @@ export const MAP_CONFIGS: Record<MapId, ServerMapConfig> = {
     id: 'dust2',
     spawns: {
       attackers: [
-        { x: -8.32, y: 2.4, z: 8.00 },  // T Spawn stable lane
-        { x: -8.32, y: 2.4, z: 7.04 },  // T Spawn edge lane
-        { x: -8.32, y: 2.56, z: 8.96 }, // T Spawn (ground 1.92 + 0.64)
-        { x: -7.36, y: 2.56, z: 8.96 }, // T Spawn
-        { x: -6.40, y: 2.56, z: 8.96 }  // T Spawn
+        { x: -8.32, y: 1.92, z: 8.00 },  // T Spawn stable lane
+        { x: -8.32, y: 1.92, z: 7.04 },  // T Spawn edge lane
+        { x: -8.32, y: 1.92, z: 8.96 },  // T Spawn
+        { x: -7.36, y: 1.92, z: 8.96 },  // T Spawn
+        { x: -6.40, y: 1.92, z: 8.96 }   // T Spawn
       ],
       defenders: [
         { x: 4.48, y: -0.24, z: -24.64 }, // CT Spawn (eye height: ground -0.88 + 0.64)
@@ -82,8 +82,8 @@ export const MAP_CONFIGS: Record<MapId, ServerMapConfig> = {
     },
     tdmSpawns: [
       // T Spawn area
-      { x: -8.32, y: 2.4, z: 8.00 },
-      { x: -7.36, y: 2.56, z: 8.96 },
+      { x: -8.32, y: 1.92, z: 8.00 },
+      { x: -7.36, y: 1.92, z: 8.96 },
       // CT Spawn area
       { x: 4.48, y: -0.24, z: -24.64 },
       { x: 3.52, y: -0.24, z: -21.12 },
@@ -93,8 +93,8 @@ export const MAP_CONFIGS: Record<MapId, ServerMapConfig> = {
       { x: 25.60, y: -0.24, z: -15.36 }, // ground ~-0.88 + 0.64
       // A Long area
       { x: -35.20, y: 0.64, z: 0 },
-      // B Tunnels area
-      { x: 32.64, y: 0.64, z: 25.60 }
+      // Mid area
+      { x: -4.00, y: 1.92, z: 10.00 }
     ],
     bombSites: [
       { id: 'A', position: { x: -26.88, y: 0.36, z: -12.80 }, radius: 6 },

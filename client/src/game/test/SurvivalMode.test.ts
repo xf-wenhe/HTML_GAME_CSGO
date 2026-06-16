@@ -21,8 +21,9 @@ describe('SurvivalMode', () => {
   it('starts in prep, then spawns the first wave', () => {
     const enemies = createEnemyManagerStub();
     const mode = new SurvivalMode(enemies);
+    const spawns = [{ position: new THREE.Vector3(0, 0, -6), type: 'shooter' as const }];
 
-    mode.start(0);
+    mode.start(0, 'normal', spawns);
     expect(mode.getStats(0).prepRemaining).toBeGreaterThan(0);
 
     const stats = mode.update(3, 3000);

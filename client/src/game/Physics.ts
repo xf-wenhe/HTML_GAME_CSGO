@@ -7,12 +7,12 @@ export class Physics {
   private bodies: CANNON.Body[] = [];
   private groundBody: CANNON.Body | null = null;
   private defaultMaterial = new CANNON.Material('default');
-  private readonly fixedTimeStep = 1 / 120;
-  private readonly maxSubSteps = 6;
+  private readonly fixedTimeStep = 1 / 100;
+  private readonly maxSubSteps = 4;
 
   constructor() {
     this.world = new CANNON.World();
-    this.world.gravity.set(0, -7.06, 0); // CS1.6 标准重力（与 Movement.ts 保持同步）
+    this.world.gravity.set(0, -8.0, 0); // CS1.6 sv_gravity 800（与 Movement.ts 保持同步）
     this.world.defaultContactMaterial.friction = 0;
     this.world.defaultContactMaterial.restitution = 0;
 
@@ -89,6 +89,23 @@ export class Physics {
   removeBody(body: CANNON.Body): void {
     this.world.removeBody(body);
     this.bodies = this.bodies.filter(b => b !== body);
+  }
+
+  findStaticBoxTopBelow(x: number, z: number, bottomY: number, maxDistance: number): number | null {
+    let bestTop: number | null = null;
+    this.bodies.forEach(body => {
+      if (body.mass !== 0) return;
+      const shape = body.shapes[0];
+      if (!(shape instanceof CANNON.Box)) return;
+      const half = shape.halfExtents;
+      if (x < body.position.x - half.x || x > body.position.x + half.x) return;
+      if (z < body.position.z - half.z || z > body.position.z + half.z) return;
+      const top = body.position.y + half.y;
+      const drop = bottomY - top;
+      if (drop < -0.5 || drop > maxDistance) return;
+      if (bestTop === null || top > bestTop) bestTop = top;
+    });
+    return bestTop;
   }
 
   step(dt: number = 0.016): void {

@@ -28,6 +28,7 @@ export class PlayerController {
   private crouched = false;
   private crouchJumpActive = false;
   private lastLandingSpeed = 0;
+  private groundStickSuppressTime = 0;
 
   // 【大跳修复核心】分离站立和下蹲的碰撞盒高度
   private readonly standingHalfHeight = PLAYER_HEIGHT / 2;
@@ -54,11 +55,13 @@ export class PlayerController {
       fixedRotation: true
     });
     this.physics.addBody(this.body);
+    this.settleOnGroundBelow(2.0);
 
-    this.camera.position.set(position.x, bodyY + this.eyeHeight, position.z);
+    this.syncCameraToBody();
   }
 
   update(dt: number): void {
+    this.groundStickSuppressTime = Math.max(0, this.groundStickSuppressTime - dt);
     this.updateCrouchState(dt);
     this.updateLookRotation();
 
@@ -86,6 +89,7 @@ export class PlayerController {
         this.crouchJumpActive = this.crouched;
         this.body.velocity.y = this.jumpForce + (this.crouched ? PLAYER_CROUCH_JUMP_BONUS : 0);
         this.grounded = false;
+        this.groundStickSuppressTime = 0.12;
       }
     }
 
@@ -111,6 +115,19 @@ export class PlayerController {
       this.body.position.y + this.eyeHeight,
       this.body.position.z
     );
+  }
+
+  stickToGroundIfSupported(maxDistance = 2.0): void {
+    if (this.groundStickSuppressTime > 0) return;
+    if (!this.grounded) return;
+    const bottomY = this.body.position.y - this.currentHalfHeight;
+    const staticTop = this.physics.findStaticBoxTopBelow(this.body.position.x, this.body.position.z, bottomY, maxDistance);
+    if (staticTop === null) return;
+    const targetY = staticTop + this.currentHalfHeight;
+    if (Math.abs(this.body.position.y - targetY) <= 0.001) return;
+    this.body.position.y = targetY;
+    this.body.velocity.y = 0;
+    this.body.aabbNeedsUpdate = true;
   }
 
   private updateLookRotation(): void {
@@ -256,7 +273,7 @@ export class PlayerController {
     }
 
     if (bestHitY === null) return;
-    const targetBodyY = bestHitY + this.currentHalfHeight + 0.01;
+    const targetBodyY = bestHitY + this.currentHalfHeight;
     // Snap if within reasonable step-down range
     if (targetBodyY < this.body.position.y + 0.05) {
       this.body.position.y = targetBodyY;
@@ -348,6 +365,32 @@ export class PlayerController {
     const hitDistance = rayStart.distanceTo(result.hitPointWorld);
     const footDistance = Math.abs(bottomY - result.hitPointWorld.y);
     return hitDistance > 0.01 && footDistance <= 0.12 && Math.abs(result.hitNormalWorld.y) > 0.45;
+  }
+
+  private settleOnGroundBelow(maxDistance: number): void {
+    const bottomY = this.body.position.y - this.currentHalfHeight;
+    const staticTop = this.physics.findStaticBoxTopBelow(this.body.position.x, this.body.position.z, bottomY, maxDistance);
+    if (staticTop !== null) {
+      this.body.position.y = staticTop + this.currentHalfHeight;
+      this.body.velocity.y = 0;
+      this.grounded = true;
+      this.body.aabbNeedsUpdate = true;
+      return;
+    }
+
+    const ray = new CANNON.Ray(
+      new CANNON.Vec3(this.body.position.x, bottomY + 0.02, this.body.position.z),
+      new CANNON.Vec3(this.body.position.x, bottomY - maxDistance, this.body.position.z)
+    );
+    const result = new CANNON.RaycastResult();
+    if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) return;
+    if (Math.abs(result.hitNormalWorld.y) < 0.45) return;
+    const drop = bottomY - result.hitPointWorld.y;
+    if (drop < -0.02 || drop > maxDistance) return;
+    this.body.position.y = result.hitPointWorld.y + this.currentHalfHeight;
+    this.body.velocity.y = 0;
+    this.grounded = true;
+    this.body.aabbNeedsUpdate = true;
   }
 
   private resolveBodyYFromEyeY(eyeY: number): number {
@@ -447,6 +490,7 @@ export class PlayerController {
     this.body.position.set(position.x, bodyY, position.z);
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
+    this.settleOnGroundBelow(2.0);
     this.body.wakeUp(); // Ensure physics body is active
     this.syncCameraToBody();
     // Fix: Force immediate grounded check instead of setting to false

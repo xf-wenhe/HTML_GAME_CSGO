@@ -24,12 +24,15 @@ export class Scene {
   private frustumMatrix = new THREE.Matrix4();
   private frustumCullableObjects: THREE.Object3D[] = [];
   private previousCameraPosition = new THREE.Vector3();
-  private cameraMovementThreshold = 5; // 相机移动多少单位后更新视锥
+  private previousCameraQuaternion = new THREE.Quaternion();
+  private cameraMovementThreshold = 0.35; // 相机移动多少单位后更新视锥
+  private cameraRotationThreshold = 0.01;
 
   // 性能优化：距离剔除
   private cullingDistance = 100; // 超过这个距离的对象将被剔除
   private lodObjects: Map<THREE.Object3D, 'high' | 'low' | 'hidden'> = new Map();
   private handleResizeBound: (() => void) | null = null;
+  private readonly maxPixelRatio = 1.25;
 
   constructor(physics: Physics) {
     this.physics = physics;
@@ -51,12 +54,11 @@ export class Scene {
       this.renderer = new THREE.WebGLRenderer({
         antialias: true,
         powerPreference: 'high-performance',
-        preserveDrawingBuffer: true
+        preserveDrawingBuffer: false
       });
       this.renderer.setSize(window.innerWidth, window.innerHeight);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
-      this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio));
+      this.renderer.shadowMap.enabled = false;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       // 【修改 1】将曝光度从 1.22 提升到 1.85，画面瞬间明亮
       this.renderer.toneMappingExposure = 1.85; 
@@ -71,7 +73,7 @@ export class Scene {
     // 【修改 3】增强主光源（太阳），并调整照射角度
     const directionalLight = new THREE.DirectionalLight(0xffeedd, 2.6); 
     directionalLight.position.set(-25, 40, 20); 
-    directionalLight.castShadow = true;
+    directionalLight.castShadow = false;
     directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
     directionalLight.shadow.camera.near = 1;
@@ -96,6 +98,7 @@ export class Scene {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer?.setSize(window.innerWidth, window.innerHeight);
+    this.renderer?.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio));
   }
 
   setArena(mapId: MapId): void {
@@ -149,7 +152,9 @@ export class Scene {
     this.physics.setGlobalGroundEnabled(true, groundY);
     console.log(`[Scene] Global ground set to y=${groundY} for map: ${arena.name}`);
 
-    [...arena.colliders, ...arena.props].forEach(spec => this.addBox(spec));
+    [...arena.colliders, ...arena.props].forEach(spec => {
+      if (!spec.physicsOnly) this.addBox(spec);
+    });
     this.meshes.forEach(spec => this.addMesh(spec));
 
     const isD2 = arena.name === 'Dust2';
@@ -609,12 +614,14 @@ export class Scene {
 
     // 更新相机位置用于下次视锥更新
     this.previousCameraPosition.copy(this.camera.position);
+    this.previousCameraQuaternion.copy(this.camera.quaternion);
   }
 
   private updateFrustumCulling(): void {
     // 检查相机是否移动足够多来更新视锥
     const moved = this.camera.position.distanceTo(this.previousCameraPosition);
-    if (moved < this.cameraMovementThreshold && this.frustumCullableObjects.length > 0) {
+    const rotated = this.previousCameraQuaternion.angleTo(this.camera.quaternion);
+    if (moved < this.cameraMovementThreshold && rotated < this.cameraRotationThreshold && this.frustumCullableObjects.length > 0) {
       return;
     }
 

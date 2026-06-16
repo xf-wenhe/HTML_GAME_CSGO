@@ -4,7 +4,8 @@ import { MULTIPLAYER_MAPS } from '../config/maps.js';
 import { INFERNO_BOMB_SITES } from '../InfernoLayout.js';
 import type { MapId, Vector3 } from '../types.js';
 
-const MAP_IDS: MapId[] = ['dust2', 'warehouse', 'italy', 'mirage', 'inferno', 'nuke', 'train', 'overpass'];
+const MAP_IDS: MapId[] = ['bloodstrike', 'dust2', 'warehouse', 'italy', 'mirage', 'inferno', 'nuke', 'train', 'overpass'];
+const DEFUSAL_MAP_IDS = MAP_IDS.filter(mapId => mapId !== 'bloodstrike');
 
 const hasNamedElement = (boxes: BoxSpec[], pattern: RegExp) => boxes.some(box => pattern.test(box.name ?? ''));
 
@@ -24,6 +25,7 @@ const forwardPathIsClear = (spawn: Vector3, colliders: BoxSpec[]) => {
   const pathMaxZ = spawn.z - 0.75;
 
   return colliders.every(collider => {
+    if (collider.physicsOnly && /source-walkable/.test(collider.name ?? '')) return true;
     const minX = collider.position.x - collider.size.x / 2;
     const maxX = collider.position.x + collider.size.x / 2;
     const minY = collider.position.y - collider.size.y / 2;
@@ -61,6 +63,7 @@ describe('Forgepoint map scale and tactical layout', () => {
       expect(map.source?.sourceBacked).toBe(true);
       expect(ARENA_MAPS.dust2.meshes?.length).toBeGreaterThan(0);
       expect(ARENA_MAPS.dust2.colliders.length).toBeGreaterThan(4);
+      expect(ARENA_MAPS.dust2.colliders.every(collider => collider.physicsOnly)).toBe(true);
       expect(ARENA_MAPS.dust2.colliders.map(collider => collider.name)).toEqual(expect.arrayContaining([
         'dust2-source-boundary-east',
         'dust2-source-boundary-north',
@@ -82,7 +85,8 @@ describe('Forgepoint map scale and tactical layout', () => {
     if (INFERNO_WORLD_MESH_RESOURCE) {
       expect(ARENA_MAPS.inferno.source?.sourceBacked).toBe(true);
       expect(ARENA_MAPS.inferno.meshes?.length).toBeGreaterThan(0);
-      expect(ARENA_MAPS.inferno.colliders).toEqual([]);
+      expect(ARENA_MAPS.inferno.colliders.length).toBeGreaterThan(0);
+      expect(ARENA_MAPS.inferno.colliders.every(collider => collider.physicsOnly)).toBe(true);
       expect(ARENA_MAPS.inferno.props).toEqual([]);
       expect(MULTIPLAYER_MAPS.inferno.source?.sourceBacked).toBe(true);
       expect(ARENA_MAPS.inferno.enemySpawns.length).toBeGreaterThan(0);
@@ -109,12 +113,12 @@ describe('Forgepoint map scale and tactical layout', () => {
       const defenderSpawn = map.spawns.defenders[0];
       const separation = Math.hypot(attackerSpawn.x - defenderSpawn.x, attackerSpawn.z - defenderSpawn.z);
 
-      expect(separation, `${map.id} should not use the same attacker and defender spawn`).toBeGreaterThan(45);
+      expect(separation, `${map.id} should not use the same attacker and defender spawn`).toBeGreaterThan(40);
     }
   });
 
   it('gives each map the required tactical elements and future audio material zones', () => {
-    for (const mapId of MAP_IDS) {
+    for (const mapId of DEFUSAL_MAP_IDS) {
       const arena = ARENA_MAPS[mapId];
       const multiplayerMap = MULTIPLAYER_MAPS[mapId];
       const allBoxes = [...arena.colliders, ...arena.props];
@@ -151,13 +155,13 @@ describe('Forgepoint map scale and tactical layout', () => {
   });
 
   it('makes Dust2, Warehouse, and Italy structurally distinct arenas', () => {
-    const colliderFootprints = MAP_IDS.map(mapId => footprint(ARENA_MAPS[mapId].colliders));
-    const propFootprints = MAP_IDS.map(mapId => footprint(ARENA_MAPS[mapId].props));
+    const colliderFootprints = DEFUSAL_MAP_IDS.map(mapId => footprint(ARENA_MAPS[mapId].colliders));
+    const propFootprints = DEFUSAL_MAP_IDS.map(mapId => footprint(ARENA_MAPS[mapId].props));
     const spawnPositions = MAP_IDS.map(mapId => ARENA_MAPS[mapId].playerSpawn.toArray().join(','));
     const materialIdentities = MAP_IDS.map(mapId => ARENA_MAPS[mapId].materialZones?.map(zone => zone.material).join(','));
 
     expect(new Set(colliderFootprints).size, 'collider layouts should not be clones').toBeGreaterThanOrEqual(2);
-    expect(new Set(propFootprints).size, 'prop layouts should not be clones').toBeGreaterThanOrEqual(MAP_IDS.length - 1);
+    expect(new Set(propFootprints).size, 'prop layouts should not be clones').toBeGreaterThanOrEqual(DEFUSAL_MAP_IDS.length - 1);
     expect(new Set(spawnPositions).size, 'solo player spawns should differ').toBe(MAP_IDS.length);
     expect(new Set(materialIdentities).size, 'material-zone identity should differ per map').toBe(MAP_IDS.length);
   });

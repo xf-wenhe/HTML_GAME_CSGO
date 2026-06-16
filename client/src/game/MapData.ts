@@ -39,6 +39,7 @@ export interface BoxSpec {
   name?: string;
   rotation?: { x: number; y: number; z: number };
   textureKey?: 'sand' | 'concrete' | 'wood' | 'metal' | 'plaster';
+  physicsOnly?: boolean;
 }
 
 export interface MeshSpec {
@@ -98,10 +99,9 @@ export const resolveDust2SourceGeometry = (
   placeholderColliders: BoxSpec[],
   placeholderProps: BoxSpec[]
 ) => {
-  // 同时使用 BSP 网格和碰撞盒（双重碰撞保障）
   if (sourceMeshes.length > 0) {
-    console.log('[MapData] Using BSP mesh geometry with placeholder colliders as fallback');
-    return { colliders: placeholderColliders, props: placeholderProps, meshes: sourceMeshes };
+    console.log('[MapData] Using BSP mesh geometry with generated stable player colliders');
+    return { colliders: [], props: [], meshes: sourceMeshes };
   }
   return { colliders: placeholderColliders, props: placeholderProps, meshes: [] };
 };
@@ -111,10 +111,9 @@ export const resolveInfernoSourceGeometry = (
   placeholderColliders: BoxSpec[],
   placeholderProps: BoxSpec[]
 ) => {
-  // 同时使用 BSP 网格和碰撞盒（双重碰撞保障）
   if (sourceMeshes.length > 0) {
-    console.log('[MapData] Using BSP mesh geometry with placeholder colliders as fallback');
-    return { colliders: placeholderColliders, props: placeholderProps, meshes: sourceMeshes };
+    console.log('[MapData] Using BSP mesh geometry with generated stable player colliders');
+    return { colliders: [], props: [], meshes: sourceMeshes };
   }
   return { colliders: placeholderColliders, props: placeholderProps, meshes: [] };
 };
@@ -227,8 +226,13 @@ export const resolveDust2SourceSpawns = (
 ) => {
   const entitySpawns = resource?.source.manifest.entities?.playerSpawns ?? [];
   const worldBounds = getDust2WorldBounds(resource);
+  const stableEyeYForSpawn = (position: { x: number; y: number; z: number }) => {
+    if (position.z > 2 && position.x >= -12 && position.x <= 2) return 1.92;
+    if (position.z < -18 && position.x >= -2 && position.x <= 8) return -0.24;
+    return position.y;
+  };
   const toPlayerPosition = (position: { x: number; y: number; z: number }) =>
-    new THREE.Vector3(position.x, position.y + PLAYER_EYE_HEIGHT + 0.15, position.z); // +0.15 offset to spawn slightly above ground
+    new THREE.Vector3(position.x, stableEyeYForSpawn(position), position.z);
   const withinWorld = (position: THREE.Vector3) =>
     isFiniteVector(position)
     && (!worldBounds
@@ -314,17 +318,39 @@ function createDust2SourceSafetyColliders(resource: Dust2WorldMeshResource | nul
   const depth = bounds.maxs.z - bounds.mins.z + margin * 2;
 
   return [
-    box(centerX, y, bounds.mins.z - margin, width, height, thickness, 0x000000, 'dust2-source-boundary-north', 0, 1, 0),
-    box(centerX, y, bounds.maxs.z + margin, width, height, thickness, 0x000000, 'dust2-source-boundary-south', 0, 1, 0),
-    box(bounds.mins.x - margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-west', 0, 1, 0),
-    box(bounds.maxs.x + margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-east', 0, 1, 0),
+    { ...box(centerX, y, bounds.mins.z - margin, width, height, thickness, 0x000000, 'dust2-source-boundary-north', 0, 1, 0), physicsOnly: true },
+    { ...box(centerX, y, bounds.maxs.z + margin, width, height, thickness, 0x000000, 'dust2-source-boundary-south', 0, 1, 0), physicsOnly: true },
+    { ...box(bounds.mins.x - margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-west', 0, 1, 0), physicsOnly: true },
+    { ...box(bounds.maxs.x + margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-east', 0, 1, 0), physicsOnly: true },
   ];
 }
 
-function createDust2SourceWalkableColliders(meshes: MeshSpec[]): BoxSpec[] {
-  const cellSize = 0.48;
+function createDust2SourceStabilityFloors(): BoxSpec[] {
+  const floor = (
+    name: string,
+    x: number,
+    eyeY: number,
+    z: number,
+    sx: number,
+    sz: number
+  ): BoxSpec => ({
+    ...box(x, eyeY - PLAYER_EYE_HEIGHT - 0.08, z, sx, 0.16, sz, 0x000000, name, 0, 1, 0),
+    physicsOnly: true,
+  });
+
+  return [
+    floor('dust2-source-stable-t-spawn', -7.8, 1.92, 10.8, 8.0, 14.0),
+    floor('dust2-source-stable-ct-spawn', 3.2, -0.24, -23.0, 20.0, 30.0),
+    floor('dust2-source-stable-a-site', -26.9, 0.36, -12.8, 9.0, 8.0),
+    floor('dust2-source-stable-b-site', 25.6, -0.24, -15.4, 9.0, 8.0),
+    floor('dust2-source-stable-a-long', -35.2, 0.64, 0, 6.0, 18.0),
+  ];
+}
+
+function createSourceWalkableColliders(meshes: MeshSpec[], prefix: string): BoxSpec[] {
+  const cellSize = 0.96;
   const yStep = 0.16;
-  const thickness = 0.5; // Increased from 0.08 to prevent falling through
+  const thickness = 0.16;
   const occupied = new Map<string, { x: number; z: number; y: number }>();
   const edgeA = new THREE.Vector3();
   const edgeB = new THREE.Vector3();
@@ -385,17 +411,18 @@ function createDust2SourceWalkableColliders(meshes: MeshSpec[]): BoxSpec[] {
       const centerZ = (row.z + 0.5) * cellSize;
       colliders.push(box(
         centerX,
-        row.y,
+        row.y - thickness / 2,
         centerZ,
         cells * cellSize,
         thickness,
         cellSize,
         0x000000,
-        `dust2-source-walkable-${colliders.length}`,
+        `${prefix}-source-walkable-${colliders.length}`,
         0,
         1,
         0
       ));
+      colliders[colliders.length - 1].physicsOnly = true;
     };
 
     for (let i = 1; i < xs.length; i += 1) {
@@ -412,6 +439,49 @@ function createDust2SourceWalkableColliders(meshes: MeshSpec[]): BoxSpec[] {
   });
 
   return colliders;
+}
+
+function createNonWalkableCollisionMesh(mesh: MeshSpec): MeshSpec {
+  const positions = mesh.collisionPositions ?? mesh.positions;
+  const indices = mesh.collisionIndices ?? mesh.indices;
+  const filteredIndices: number[] = [];
+  const edgeA = new THREE.Vector3();
+  const edgeB = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+
+  for (let i = 0; i < indices.length; i += 3) {
+    const a = positions[indices[i]];
+    const b = positions[indices[i + 1]];
+    const c = positions[indices[i + 2]];
+    if (!a || !b || !c) continue;
+
+    edgeA.subVectors(b, a);
+    edgeB.subVectors(c, a);
+    normal.crossVectors(edgeA, edgeB);
+    if (normal.lengthSq() <= 0.000001) continue;
+    normal.normalize();
+
+    if (Math.abs(normal.y) >= 0.2) continue;
+    filteredIndices.push(indices[i], indices[i + 1], indices[i + 2]);
+  }
+
+  return {
+    ...mesh,
+    collisionPositions: positions,
+    collisionIndices: filteredIndices,
+  };
+}
+
+function createVisualOnlyMesh(mesh: MeshSpec): MeshSpec {
+  return {
+    ...mesh,
+    collisionPositions: [],
+    collisionIndices: [],
+  };
+}
+
+function createDust2SourceWalkableColliders(meshes: MeshSpec[]): BoxSpec[] {
+  return createSourceWalkableColliders(meshes, 'dust2');
 }
 
 export const resolveDust2SourceBombSites = (
@@ -791,9 +861,10 @@ function buildInfernoArena(): ArenaData {
     A: new THREE.Vector3(INFERNO_BOMB_SITES.A.position.x, 0.04, INFERNO_BOMB_SITES.A.position.z),
     B: new THREE.Vector3(INFERNO_BOMB_SITES.B.position.x, 0.04, INFERNO_BOMB_SITES.B.position.z),
   };
-  const sourceMeshes = INFERNO_WORLD_MESH_RESOURCE
+  const rawSourceMeshes = INFERNO_WORLD_MESH_RESOURCE
     ? [meshSpecFromInfernoWorldMeshResource(INFERNO_WORLD_MESH_RESOURCE)]
     : [];
+  const sourceMeshes = rawSourceMeshes.map(createNonWalkableCollisionMesh);
   const sourceGeometry = resolveInfernoSourceGeometry(sourceMeshes, colliderBoxes, [
     box(INFERNO_BOMB_SITES.A.position.x, INFERNO_BOMB_SITES.A.position.y, INFERNO_BOMB_SITES.A.position.z, 3.84, 0.04, 3.84, 0xd4a017, 'inferno-a-bomb-marker', 0.1, 0.6),
     box(INFERNO_BOMB_SITES.B.position.x, INFERNO_BOMB_SITES.B.position.y, INFERNO_BOMB_SITES.B.position.z, 3.84, 0.04, 3.84, 0xd4a017, 'inferno-b-bomb-marker', 0.1, 0.6),
@@ -825,7 +896,9 @@ function buildInfernoArena(): ArenaData {
     bounds: { width: 71.68, depth: 81.92, centerZ: sourceBombSites.A.z + 1.92 },
     enemySpawns: sourceSpawns.enemySpawns,
     bombSites: sourceBombSites,
-    colliders: sourceGeometry.colliders,
+    colliders: sourceGeometry.meshes.length > 0
+      ? createSourceWalkableColliders(rawSourceMeshes, 'inferno')
+      : sourceGeometry.colliders,
     props: sourceGeometry.props,
     meshes: sourceGeometry.meshes,
     source: INFERNO_WORLD_MESH_RESOURCE
@@ -1342,9 +1415,10 @@ function buildDust2Arena(): ArenaData {
     box(H(3072), 0.30, H(-256), H(64), 0.96, H(64), 0x5a5a5a, 'dust2-upper-dark-crate-1', 0.08, 0.80),
     box(H(3328), 0.30, H(-256), H(64), 0.96, H(64), 0x5a5a5a, 'dust2-upper-dark-crate-2', 0.08, 0.80),
   ];
-  const sourceMeshes = DUST2_WORLD_MESH_RESOURCE
+  const rawSourceMeshes = DUST2_WORLD_MESH_RESOURCE
     ? [meshSpecFromDust2WorldMeshResource(DUST2_WORLD_MESH_RESOURCE)]
     : [];
+  const sourceMeshes = rawSourceMeshes.map(createVisualOnlyMesh);
   const sourceGeometry = resolveDust2SourceGeometry(sourceMeshes, colliderBoxes, props);
   const fallbackPlayerSpawn = new THREE.Vector3(0, PLAYER_EYE_HEIGHT, H(-6144));
   const fallbackEnemySpawns = [
@@ -1382,7 +1456,7 @@ function buildDust2Arena(): ArenaData {
     bombSites: sourceBombSites,
     colliders: sourceGeometry.meshes.length > 0
       ? [
-          ...createDust2SourceWalkableColliders(sourceGeometry.meshes),
+          ...createDust2SourceStabilityFloors(),
           ...createDust2SourceSafetyColliders(DUST2_WORLD_MESH_RESOURCE),
         ]
       : sourceGeometry.colliders,
@@ -1436,7 +1510,7 @@ export function getInfernoSpawnForTeam(preferredTeam: 't' | 'ct' | 'auto'): { pl
 }
 
 export function getDust2SpawnForTeam(preferredTeam: 't' | 'ct' | 'auto'): { playerSpawn: THREE.Vector3; enemySpawns: EnemySpawnPoint[] } {
-  const fallbackPlayerSpawn = new THREE.Vector3(-8.32, 2.56, 8.96);
-  const fallbackEnemySpawns: EnemySpawnPoint[] = [{ position: new THREE.Vector3(4.48, 1.92, -24.64), type: 'shooter' }];
+  const fallbackPlayerSpawn = new THREE.Vector3(-8.32, 1.92, 8.96);
+  const fallbackEnemySpawns: EnemySpawnPoint[] = [{ position: new THREE.Vector3(4.48, -0.24, -24.64), type: 'shooter' }];
   return resolveDust2SourceSpawns(DUST2_WORLD_MESH_RESOURCE, fallbackPlayerSpawn, fallbackEnemySpawns, preferredTeam);
 }

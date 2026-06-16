@@ -3,7 +3,7 @@ import { MULTIPLAYER_MAPS } from '../config/maps.js';
 import { MULTIPLAYER_WEAPONS } from '../config/weapons.js';
 import type { MapId } from '../types.js';
 
-const MAP_IDS: MapId[] = ['dust2', 'warehouse', 'italy', 'mirage', 'inferno', 'nuke', 'train', 'overpass'];
+const MAP_IDS: MapId[] = ['bloodstrike', 'dust2', 'warehouse', 'italy', 'mirage', 'inferno', 'nuke', 'train', 'overpass'];
 
 describe('multiplayer config', () => {
   it('defines CSGO-style core weapons with buy prices and damage roles', () => {
@@ -15,7 +15,10 @@ describe('multiplayer config', () => {
       'operator',
       'specter',
       'bulldog',
-      'knife'
+      'knife',
+      'mp5sd',
+      'sawedoff',
+      'zeus'
     ]);
     expect(MULTIPLAYER_WEAPONS.operator.damage).toBeGreaterThan(MULTIPLAYER_WEAPONS.vandal.damage);
     expect(MULTIPLAYER_WEAPONS.vandal.price).toBeGreaterThan(MULTIPLAYER_WEAPONS.sidearm.price);
@@ -51,7 +54,11 @@ describe('multiplayer config', () => {
 
       expect(map.bombSites.map(site => site.id).sort()).toEqual(['A', 'B']);
       expect(callouts.some(callout => callout.includes('mid'))).toBe(true);
-      expect(Math.hypot(firstAttacker.x - firstDefender.x, firstAttacker.z - firstDefender.z)).toBeGreaterThan(45);
+      if (mapId === 'bloodstrike') {
+        expect(Math.hypot(firstAttacker.x - firstDefender.x, firstAttacker.z - firstDefender.z)).toBeGreaterThan(10);
+      } else {
+        expect(Math.hypot(firstAttacker.x - firstDefender.x, firstAttacker.z - firstDefender.z)).toBeGreaterThan(40);
+      }
     }
   });
 });

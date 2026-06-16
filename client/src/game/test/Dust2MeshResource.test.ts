@@ -7,7 +7,6 @@ import {
 } from '../Dust2MeshResource.js';
 import { ARENA_MAPS, resolveDust2SourceBombSites, resolveDust2SourceGeometry, resolveDust2SourceSpawns } from '../MapData.js';
 import dust2WorldMeshResourceJson from '../source/dust2-world-mesh.json';
-import { PLAYER_EYE_HEIGHT } from '../constants/MapUnits.js';
 
 const DUST2_WORLD_MESH_RESOURCE = dust2WorldMeshResourceJson as Dust2WorldMeshResource;
 
@@ -269,11 +268,11 @@ describe('Dust2 mesh resource conversion', () => {
         type: 'patrol' as const,
       },
     ];
-    const spawns = resolveDust2SourceSpawns(resource(), fallbackPlayerSpawn, fallbackEnemySpawns);
+    const spawns = resolveDust2SourceSpawns(resource(), fallbackPlayerSpawn, fallbackEnemySpawns, 't');
 
-    expect(spawns.playerSpawn.toArray()).toEqual([-1.28, 0.32 + PLAYER_EYE_HEIGHT + 0.15, 2.56]);
+    expect(spawns.playerSpawn.toArray()).toEqual([-1.28, 1.92, 2.56]);
     expect(spawns.enemySpawns).toHaveLength(1);
-    expect(spawns.enemySpawns[0].position.toArray()).toEqual([1.28, 0.64 + PLAYER_EYE_HEIGHT + 0.15, -2.56]);
+    expect(spawns.enemySpawns[0].position.toArray()).toEqual([1.28, 0.64, -2.56]);
     expect(spawns.enemySpawns[0].type).toBe('shooter');
   });
 
