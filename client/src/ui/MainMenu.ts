@@ -1,7 +1,8 @@
-import type { MapId, RoomListItem } from '../game/types.js';
+import type { MapId, RoomListItem, Team } from '../game/types.js';
 import { MULTIPLAYER_MAPS } from '../game/config/maps.js';
 
 type GameMode = 'solo' | 'tdm' | 'defusal';
+type TeamPreference = Team | 'auto';
 type MenuMapOption = {
   id: MapId;
   label: string;
@@ -41,6 +42,7 @@ export class MainMenu {
   private buttons: Map<string, HTMLButtonElement> = new Map();
   private difficulty: 'easy' | 'normal' | 'hard' | 'expert' = 'normal';
   private selectedMode: GameMode = 'tdm';
+  private preferredTeam: TeamPreference = 'auto';
   private mapId: MapId = getDefaultMapId(this.selectedMode);
 
   constructor() {
@@ -187,6 +189,12 @@ export class MainMenu {
           <label for="profile-name">ID</label>
           <input id="profile-name" class="profile-name-input" type="text" maxlength="18" value="${this.escapeHtml(this.loadProfileName())}" autocomplete="nickname">
         </div>
+        <div class="team-select-panel" role="group" aria-label="阵营选择">
+          <span class="team-select-label">阵营</span>
+          <button class="team-select-option active" data-team="auto" type="button">自动</button>
+          <button class="team-select-option team-select-ct" data-team="defenders" type="button">警察</button>
+          <button class="team-select-option team-select-t" data-team="attackers" type="button">匪徒</button>
+        </div>
         <nav class="menu-buttons" role="navigation" aria-label="游戏模式">
           <button class="menu-button menu-button-solo" data-action="solo" type="button">
             <span class="menu-btn-icon">⚔</span>
@@ -267,6 +275,14 @@ export class MainMenu {
         this.element.querySelectorAll('.difficulty-option').forEach(item => item.classList.toggle('active', item === button));
       });
     });
+    this.element.querySelectorAll<HTMLButtonElement>('.team-select-option').forEach(button => {
+      button.addEventListener('click', () => {
+        const selected = button.dataset.team as TeamPreference | undefined;
+        if (!selected) return;
+        this.preferredTeam = selected;
+        this.element.querySelectorAll('.team-select-option').forEach(item => item.classList.toggle('active', item === button));
+      });
+    });
     this.element.querySelectorAll<HTMLButtonElement>('.map-option').forEach(button => {
       button.addEventListener('click', () => {
         const selected = button.dataset.map as MapId | undefined;
@@ -320,6 +336,10 @@ export class MainMenu {
     const input = this.element.querySelector<HTMLInputElement>('.profile-name-input');
     const name = input?.value.trim() || this.loadProfileName();
     return name || `Player-${Math.floor(Math.random() * 1000)}`;
+  }
+
+  getPreferredTeam(): Team | undefined {
+    return this.preferredTeam === 'auto' ? undefined : this.preferredTeam;
   }
 
   updateRooms(rooms: RoomListItem[]): void {

@@ -341,9 +341,7 @@ export class PlayerController {
   }
 
   private resolveBodyYFromEyeY(eyeY: number): number {
-    // Remove the <= 1.0 threshold check since Dust2 CT spawn has negative Y values
-    // Just ensure the body position is not lower than half height (to avoid spawning inside ground)
-    return Math.max(eyeY - this.eyeHeight, this.standingHalfHeight);
+    return eyeY - this.eyeHeight;
   }
 
   getPosition(): THREE.Vector3 {

@@ -1,0 +1,156 @@
+{
+  "timestamp": "2026-06-15T08:29:29.484Z",
+  "baseline": {
+    "movement": {
+      "runSpeed": 250,
+      "walkSpeed": 110,
+      "crouchSpeed": 85,
+      "stopDistance": 1.23,
+      "accelerationTime": 0.35,
+      "airControl": 0.3
+    },
+    "jump": {
+      "height": 45,
+      "timeToPeak": 0.38,
+      "gravity": 800
+    },
+    "friction": {
+      "groundFriction": 4,
+      "stopSpeed": 75
+    },
+    "weapons": {
+      "ak47": {
+        "recoil": 2,
+        "spread": 0.03
+      },
+      "m4a1": {
+        "recoil": 1.5,
+        "spread": 0.02
+      }
+    },
+    "timing": {
+      "freezeTime": 5,
+      "roundTime": 115
+    }
+  },
+  "measured": {
+    "movement": {
+      "runSpeedHu": 227.03531326137013
+    },
+    "jump": {
+      "heightHu": 52.69373091282117,
+      "timeToPeak": 0.15003000000000002
+    },
+    "bots": {
+      "count": 5,
+      "moving": 0,
+      "movementRatio": 0
+    },
+    "weapons": {
+      "ammoWorks": true
+    }
+  },
+  "comparison": [
+    {
+      "category": "movement",
+      "metric": "奔跑速度",
+      "measured": 227.03531326137013,
+      "baseline": 250,
+      "unit": " HU/s",
+      "diffPercent": 9.185874695451945,
+      "passed": true,
+      "score": 38.76083536365369
+    },
+    {
+      "category": "jump",
+      "metric": "跳跃高度",
+      "measured": 52.69373091282117,
+      "baseline": 45,
+      "unit": " HU",
+      "diffPercent": 17.09717980626926,
+      "passed": true,
+      "score": 31.611280774922967
+    },
+    {
+      "category": "jump",
+      "metric": "跳跃上升时间",
+      "measured": 0.15003000000000002,
+      "baseline": 0.38,
+      "unit": "s",
+      "diffPercent": 60.518421052631574,
+      "passed": false,
+      "score": 0
+    },
+    {
+      "category": "movement",
+      "metric": "蹲下移动速度",
+      "measured": 84.97181348237478,
+      "baseline": 85,
+      "unit": " HU/s",
+      "diffPercent": 0.03316060897084165,
+      "passed": true,
+      "score": 99.77892927352772
+    },
+    {
+      "category": "movement",
+      "metric": "静步速度",
+      "measured": 9.990991917496151,
+      "baseline": 110,
+      "unit": " HU/s",
+      "diffPercent": 90.9172800750035,
+      "passed": false,
+      "score": 0
+    },
+    {
+      "category": "bots",
+      "metric": "Bot移动比例",
+      "measured": 0,
+      "baseline": 0.5,
+      "unit": "",
+      "diffPercent": 100,
+      "passed": false,
+      "score": 0
+    },
+    {
+      "category": "bots",
+      "metric": "Bot生成数量",
+      "measured": 5,
+      "baseline": 5,
+      "unit": " bots",
+      "diffPercent": 0,
+      "passed": true,
+      "score": 100
+    },
+    {
+      "category": "timing",
+      "metric": "冻结时间",
+      "measured": 5,
+      "baseline": 5,
+      "unit": "s",
+      "diffPercent": 0,
+      "passed": true,
+      "score": 100
+    }
+  ],
+  "score": 46.26888067651305,
+  "issues": [
+    {
+      "severity": "P0",
+      "category": "jump",
+      "metric": "跳跃上升时间",
+      "message": "跳跃上升时间: 0.15s vs CS1.6 0.38s (60.5% difference)"
+    },
+    {
+      "severity": "P0",
+      "category": "movement",
+      "metric": "静步速度",
+      "message": "静步速度: 9.99 HU/s vs CS1.6 110 HU/s (90.9% difference)"
+    },
+    {
+      "severity": "P0",
+      "category": "bots",
+      "metric": "Bot移动比例",
+      "message": "Bot移动比例: 0.00 vs CS1.6 0.5 (100.0% difference)"
+    }
+  ]
+}

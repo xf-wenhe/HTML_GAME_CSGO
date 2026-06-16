@@ -23,7 +23,7 @@ import { AudioFeedback } from './game/AudioFeedback.js';
 import { AudioManager } from './game/AudioManager.js';
 import { WEAPON_DEFINITIONS } from './game/Weapons.js';
 import { Prediction } from './network/Prediction.js';
-import type { BuyRequest, GrenadeThrowRequest, MapId, MatchMode, MatchSnapshot, PlayerSnapshot, WeaponId } from './game/types.js';
+import type { BuyRequest, GrenadeThrowRequest, MapId, MatchMode, MatchSnapshot, PlayerSnapshot, Team, WeaponId } from './game/types.js';
 import { InputMode, PointerLockState, canMove, canShoot } from './game/InputMode.js';
 import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
@@ -175,6 +175,7 @@ let networkLatencyMs: number | null = null;
 const allowDebugPointerLockBypass = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
 let currentMode: 'solo' | 'multiplayer' | null = null;
 let desiredMultiplayerMode: MatchMode = 'tdm';
+let desiredTeam: Team | undefined;
 let currentSnapshot: MatchSnapshot | null = null;
 let localPlayerId: string | undefined;
 let pendingRoomId: string | null = null;
@@ -213,9 +214,8 @@ syncArenaPhysics();
 
 function syncArenaPhysics(): void {
   arenaColliderBodies.forEach(body => physics.removeBody(body));
-  // Always enable ground plane - cannon-es Trimesh doesn't support raycasting properly
-  // We need this for player grounded detection (canJump raycast)
-  physics.setGlobalGroundEnabled(true);
+  const globalGroundY = scene.getCurrentArena().source?.sourceBacked ? -1.2 : 0;
+  physics.setGlobalGroundEnabled(true, globalGroundY);
   const boxBodies = scene.getArenaColliders().map(collider => {
     const body = physics.addStaticBox(
       new CANNON.Vec3(collider.position.x, collider.position.y, collider.position.z),
@@ -272,6 +272,7 @@ mainMenu.on('refreshRooms', () => {
 
 mainMenu.on('joinRoom', (roomId) => {
   if (typeof roomId !== 'string') return;
+  desiredTeam = mainMenu.getPreferredTeam();
   pendingRoomId = roomId;
   pendingSpectator = false;
   startGame('multiplayer');
@@ -320,6 +321,7 @@ hud.onLeaveRequest(() => {
 
 function startMultiplayer(mode: MatchMode): void {
   desiredMultiplayerMode = mode;
+  desiredTeam = mainMenu.getPreferredTeam();
   pendingRoomId = null;
   pendingSpectator = false;
   startGame('multiplayer');
@@ -360,6 +362,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   tracerSystem.clear();
 
   player = new PlayerController(scene, physics, input, scene.getCurrentArena().playerSpawn.clone());
+  player.setRotation(0, getDefaultSpawnYaw(mode === 'solo' ? 'attackers' : undefined));
   player.healFull();
   weaponManager.setPlayerCamera(scene.getCamera());
   weaponManager.switchWeapon(equippedPistol);
@@ -409,6 +412,7 @@ function restartSoloBotRound(): void {
   equippedPrimary = '';
   equippedPistol = 'pistol';
   player.setEyePositionForDebug(scene.getCurrentArena().playerSpawn.clone());
+  player.setRotation(0, getDefaultSpawnYaw('attackers'));
   player.resetVelocity();
   player.healFull();
   weaponManager.switchWeapon(equippedPistol);
@@ -469,7 +473,7 @@ function joinMultiplayerAfterConnection(): void {
     currentPlayerName = mainMenu.getPlayerName();
     network.send(pendingSpectator
       ? { type: 'spectateRoom', roomId: pendingRoomId }
-      : { type: 'joinRoom', roomId: pendingRoomId, playerName: currentPlayerName });
+      : { type: 'joinRoom', roomId: pendingRoomId, playerName: currentPlayerName, preferredTeam: desiredTeam });
     return;
   }
   const savedSession = loadMultiplayerSession();
@@ -537,10 +541,8 @@ network.on('roomJoined', (data) => {
     syncArenaPhysics();
     const localSnapshot = data.snapshot.players.find(snapshotPlayer => snapshotPlayer.id === data.playerId);
     if (player && localSnapshot) {
-      // Fix: Set position and immediately check grounded state to prevent oscillation
       player.setPosition(new THREE.Vector3(localSnapshot.position.x, localSnapshot.position.y, localSnapshot.position.z));
-      // Force grounded check on next frame to stabilize physics
-      player.update(0.001);
+      player.setRotation(localSnapshot.rotation.x, localSnapshot.rotation.y || getDefaultSpawnYaw(localSnapshot.team));
     }
     hud.updateRoomPlayers(data.snapshot.players.length, data.snapshot.config.maxPlayers);
   }
@@ -808,7 +810,9 @@ function endGame(): void {
 function gameLoop(now: number) {
   // 【修复闪退】顶层 try/catch 防止未捕获异常导致游戏循环退出
   try {
-    const dt = Math.min((now - lastFrameTime) / 1000, 0.033);
+    const frameDt = Math.max(0, (now - lastFrameTime) / 1000);
+    const dt = Math.min(frameDt, 0.033);
+    const clockDt = Math.min(frameDt, 1);
     lastFrameTime = now;
 
     if (!gameRunning || inputMode === 'paused' || inputMode === 'gameOver') {
@@ -819,9 +823,10 @@ function gameLoop(now: number) {
     handleVirtualActions();
 
     const botMatchCanMove = !soloBotMatch || soloBotMatch.canPlayerMove();
+    const botMatchCanMoveBots = !soloBotMatch || soloBotMatch.canBotsMove();
     const botMatchCanShoot = !soloBotMatch || soloBotMatch.canPlayerShoot();
 
-    if (player && !isSpectating && canMove(inputMode) && hasGameplayFocus() && botMatchCanMove) {
+    if (player && !isSpectating && canMove(inputMode) && botMatchCanMove) {
       player.update(dt);
       audioFeedback.playFootstep({
         moving: player.isMoving(),
@@ -853,7 +858,7 @@ function gameLoop(now: number) {
     if (nearbyDrop) {
       hud.showNotification(`按 G 拾取 ${weaponDisplayName(nearbyDrop.weaponId)}`, 450);
     }
-    const enemyDamage = enemyManager.update(dt, playerPos, now, scene.getArenaColliders(), botMatchCanMove);
+    const enemyDamage = enemyManager.update(dt, playerPos, now, scene.getArenaColliders(), botMatchCanMoveBots);
     if (enemyDamage > 0 && player) {
       player.takeDamage(enemyDamage, 'chest', 0.28);
       hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
@@ -890,7 +895,7 @@ function gameLoop(now: number) {
     });
 
     if (soloBotMatch && gameRunning) {
-      updateSoloBotMatch(dt);
+      updateSoloBotMatch(clockDt);
     } else if (currentMode === 'solo' && gameRunning) {
       hud.updateSurvival(survival.update(dt, now));
     } else if (currentMode === 'multiplayer' && currentSnapshot) {
@@ -1168,12 +1173,18 @@ function joinOrCreateCurrentRoom(): void {
     mode: desiredMultiplayerMode,
     playerName: currentPlayerName,
     mapId: selectedMapId,
+    preferredTeam: desiredTeam,
     startingMoney: settings.getSettings().startingMoney
   });
 }
 
 function createPlayerName(): string {
   return `Player-${Math.floor(Math.random() * 1000)}`;
+}
+
+function getDefaultSpawnYaw(team?: Team): number {
+  if (selectedMapId === 'dust2' && team === 'attackers') return -Math.PI / 2;
+  return 0;
 }
 
 function loadMultiplayerSession(): SavedMultiplayerSession | null {
@@ -1517,8 +1528,8 @@ window.__debugShoot = (): boolean => {
   const result = weaponManager.shoot(cam, performance.now());
   return result !== null;
 };
-(window as any).__debugMovement = true;  // Enable movement debug logs
-(window as any).__debugBots = true;      // Enable bot debug logs
+(window as any).__debugMovement = false;
+(window as any).__debugBots = false;
 window.__debugTakeScreenshot = (): string | null => {
   const canvas = scene?.getRenderer()?.domElement as HTMLCanvasElement | undefined;
   if (!canvas) return null;
@@ -1534,6 +1545,9 @@ window.__debugInputState = () => ({
   isBuyMenuOpen: hud.isBuyMenuOpen(),
   isScoreboardOpen: hud.isScoreboardOpen(),
   pointerLocked: input.isPointerLocked(),
+  playerPosition: player ? vectorToPlain(player.getPosition()) : null,
+  rotation: player?.getRotation() ?? null,
+  localTeam: currentSnapshot?.players.find(snapshotPlayer => snapshotPlayer.id === localPlayerId)?.team ?? null,
   horizontalSpeed: player?.getHorizontalSpeed() ?? 0,
   grounded: player?.isGrounded() ?? false,
   airborneTime: player?.getAirborneTime() ?? 0,

@@ -63,6 +63,20 @@ describe('Server', () => {
     expect(snapshot.players.find(player => player.team === 'defenders')?.weaponId).toBe('usp_s');
   });
 
+  it('honors preferred teams when that side has room', () => {
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 4 });
+
+    expect(rooms.addPlayerToRoom(room.id, 'ct-1', { name: 'Bravo', preferredTeam: 'defenders' })).toBe(true);
+    expect(rooms.addPlayerToRoom(room.id, 'ct-2', { name: 'Delta', preferredTeam: 'defenders' })).toBe(true);
+    expect(rooms.addPlayerToRoom(room.id, 'ct-3', { name: 'Echo', preferredTeam: 'defenders' })).toBe(true);
+
+    const snapshot = rooms.getSnapshot(room.id)!;
+    expect(snapshot.players.find(player => player.id === 'ct-1')?.team).toBe('defenders');
+    expect(snapshot.players.find(player => player.id === 'ct-2')?.team).toBe('defenders');
+    expect(snapshot.players.find(player => player.id === 'ct-3')?.team).toBe('attackers');
+  });
+
   it('uses configurable starting money for new rooms', () => {
     const rooms = new RoomManager();
     const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 2, startingMoney: 1600 });
@@ -191,7 +205,7 @@ describe('Server', () => {
 
   it('uses separated attacker and defender spawns in team modes', () => {
     const rooms = new RoomManager();
-    const room = rooms.createRoom({ mode: 'tdm', maxPlayers: 2, mapId: 'dust2' as any });
+    const room = rooms.createRoom({ mode: 'tdm', maxPlayers: 2, mapId: 'warehouse' });
     rooms.addPlayerToRoom(room.id, 'p1', 'Alpha');
     rooms.addPlayerToRoom(room.id, 'p2', 'Bravo');
 
@@ -204,7 +218,7 @@ describe('Server', () => {
 
   it('handles defusal bomb plant and defuse', () => {
     const rooms = new RoomManager();
-    const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 2 });
+    const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 2, mapId: 'warehouse' });
     rooms.addPlayerToRoom(room.id, 'attacker', 'Attacker');
     rooms.addPlayerToRoom(room.id, 'defender', 'Defender');
     rooms.setReady('attacker', true);

@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import { pathToFileURL } from 'url';
 import { RoomManager } from './rooms.js';
 import { SERVER_CONFIG } from './config.js';
-import { BombActionRequest, BuyRequest, GrenadeThrowRequest, MapId, MatchMode, PlayerInputRequest, RoomConfig, ShootRequest, WeaponId } from './types.js';
+import { BombActionRequest, BuyRequest, GrenadeThrowRequest, MapId, MatchMode, PlayerInputRequest, RoomConfig, ShootRequest, Team, WeaponId } from './types.js';
 import { PROTOCOL_VERSION } from '../shared/protocol.js';
 
 const debugLog = (...args: unknown[]) => {
@@ -121,12 +121,12 @@ export function createGameServer() {
       reply?.();
     });
 
-    socket.on('joinOrCreateRoom', (data: { mode: MatchMode; playerName: string; mapId?: MapId; startingMoney?: number }) => {
+    socket.on('joinOrCreateRoom', (data: { mode: MatchMode; playerName: string; mapId?: MapId; startingMoney?: number; preferredTeam?: Team }) => {
       const mode = data.mode ?? 'tdm';
       const playerName = data.playerName?.trim() || `Player-${Math.floor(Math.random() * 1000)}`;
       const room = roomManager.findJoinableRoom(mode, data.mapId) ?? roomManager.createRoom({ mode, mapId: data.mapId ?? 'dust2', startingMoney: data.startingMoney });
 
-      if (roomManager.addPlayerToRoom(room.id, socket.id, playerName)) {
+      if (roomManager.addPlayerToRoom(room.id, socket.id, { name: playerName, preferredTeam: data.preferredTeam })) {
         socket.join(room.id);
         const snapshot = roomManager.getSnapshot(room.id);
         socket.emit('roomJoined', { roomId: room.id, playerId: socket.id, sessionId: roomManager.getPlayerSessionId(socket.id), snapshot });
@@ -156,14 +156,14 @@ export function createGameServer() {
       io.emit('roomList', roomManager.getRoomList());
     });
 
-    socket.on('joinRoom', (data: { roomId: string; playerName: string }) => {
+    socket.on('joinRoom', (data: { roomId: string; playerName: string; preferredTeam?: Team }) => {
       const room = roomManager.getRoom(data.roomId);
       if (!room) {
         socket.emit('roomError', { message: 'Room not found' });
         return;
       }
 
-      if (roomManager.addPlayerToRoom(data.roomId, socket.id, data.playerName)) {
+      if (roomManager.addPlayerToRoom(data.roomId, socket.id, { name: data.playerName, preferredTeam: data.preferredTeam })) {
         socket.join(data.roomId);
         const snapshot = roomManager.getSnapshot(data.roomId);
         socket.emit('roomJoined', { roomId: data.roomId, playerId: socket.id, sessionId: roomManager.getPlayerSessionId(socket.id), snapshot });

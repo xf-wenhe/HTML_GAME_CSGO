@@ -26,16 +26,21 @@ export class Physics {
     this.setGlobalGroundEnabled(true);
   }
 
-  setGlobalGroundEnabled(enabled: boolean): void {
+  setGlobalGroundEnabled(enabled: boolean, topY = 0): void {
     if (enabled && !this.groundBody) {
       // Use thick box instead of Plane - cannon-es Plane doesn't work well with raycasting
       const groundShape = new CANNON.Box(new CANNON.Vec3(500, 0.5, 500));
       const groundBody = new CANNON.Body({ mass: 0, material: this.defaultMaterial });
       groundBody.addShape(groundShape);
-      groundBody.position.set(0, -0.5, 0);  // Top surface at y=0
+      groundBody.position.set(0, topY - 0.5, 0);
       this.world.addBody(groundBody);
       this.bodies.push(groundBody);
       this.groundBody = groundBody;
+      return;
+    }
+    if (enabled && this.groundBody) {
+      this.groundBody.position.y = topY - 0.5;
+      this.groundBody.aabbNeedsUpdate = true;
       return;
     }
     if (!enabled && this.groundBody) {

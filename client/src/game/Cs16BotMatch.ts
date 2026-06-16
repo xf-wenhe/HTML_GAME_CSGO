@@ -154,7 +154,11 @@ export class Cs16BotMatch {
   }
 
   canPlayerMove(): boolean {
-    return this.phase !== 'freezeTime' && this.phase !== 'roundEnd';
+    return this.phase !== 'roundEnd';
+  }
+
+  canBotsMove(): boolean {
+    return this.phase === 'live';
   }
 
   canPlayerShoot(): boolean {

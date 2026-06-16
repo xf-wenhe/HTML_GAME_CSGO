@@ -71,6 +71,10 @@ interface ActiveGrenade {
   exploded: boolean;
 }
 
+interface JoinPlayerOptions extends Partial<PlayerSnapshot> {
+  preferredTeam?: Team;
+}
+
 interface MatchRoom {
   id: string;
   config: RoomConfig;
@@ -160,11 +164,11 @@ export class RoomManager {
     this.rooms.delete(id);
   }
 
-  addPlayerToRoom(roomId: string, playerId: string, nameOrState: string | Partial<PlayerSnapshot> = 'Player'): boolean {
+  addPlayerToRoom(roomId: string, playerId: string, nameOrState: string | JoinPlayerOptions = 'Player'): boolean {
     const room = this.rooms.get(roomId);
     if (!room || room.players.size >= room.config.maxPlayers || room.players.has(playerId)) return false;
 
-    const team = this.pickTeam(room);
+    const team = this.pickTeam(room, typeof nameOrState === 'string' ? undefined : nameOrState.preferredTeam ?? nameOrState.team);
     const spawn = this.nextSpawn(room, team);
     const name = typeof nameOrState === 'string' ? nameOrState : nameOrState.name ?? 'Player';
     const weaponId: WeaponId = typeof nameOrState === 'string' ? defaultWeaponForTeam(team) : nameOrState.weaponId ?? defaultWeaponForTeam(team);
@@ -541,9 +545,11 @@ export class RoomManager {
     };
   }
 
-  private pickTeam(room: MatchRoom): Team {
+  private pickTeam(room: MatchRoom, preferredTeam?: Team): Team {
     const counts = { attackers: 0, defenders: 0 };
     room.players.forEach(player => counts[player.team]++);
+    const maxPerTeam = Math.ceil(room.config.maxPlayers / 2);
+    if (preferredTeam && counts[preferredTeam] < maxPerTeam) return preferredTeam;
     return counts.attackers <= counts.defenders ? 'attackers' : 'defenders';
   }
 

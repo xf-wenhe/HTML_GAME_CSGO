@@ -72,4 +72,22 @@ describe('MainMenu room browser', () => {
 
     menu.dispose();
   });
+
+  it('lets the player choose a preferred multiplayer team', () => {
+    const menu = new MainMenu();
+    document.body.appendChild(menu.getElement());
+
+    expect(menu.getPreferredTeam()).toBeUndefined();
+
+    menu.getElement().querySelector<HTMLButtonElement>('.team-select-option[data-team="defenders"]')?.click();
+    expect(menu.getPreferredTeam()).toBe('defenders');
+
+    menu.getElement().querySelector<HTMLButtonElement>('.team-select-option[data-team="attackers"]')?.click();
+    expect(menu.getPreferredTeam()).toBe('attackers');
+
+    menu.getElement().querySelector<HTMLButtonElement>('.team-select-option[data-team="auto"]')?.click();
+    expect(menu.getPreferredTeam()).toBeUndefined();
+
+    menu.dispose();
+  });
 });

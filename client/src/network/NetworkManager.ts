@@ -12,6 +12,7 @@ import {
   RoomConfig,
   RoomListItem,
   ShootRequest,
+  Team,
   WeaponId
 } from '../game/types.js';
 import { PROTOCOL_VERSION } from '../../../shared/protocol.js';
@@ -35,10 +36,10 @@ export type ServerEvent =
 
 export type ClientEvent =
   | { type: 'joinLobby' }
-  | { type: 'joinOrCreateRoom'; mode: MatchMode; playerName: string; mapId?: MapId; startingMoney?: number }
+  | { type: 'joinOrCreateRoom'; mode: MatchMode; playerName: string; mapId?: MapId; startingMoney?: number; preferredTeam?: Team }
   | { type: 'resumeSession'; roomId: string; playerId: string; sessionId: string }
   | { type: 'createRoom'; config: Partial<RoomConfig> & { mode: MatchMode } }
-  | { type: 'joinRoom'; roomId: string; playerName: string }
+  | { type: 'joinRoom'; roomId: string; playerName: string; preferredTeam?: Team }
   | { type: 'spectateRoom'; roomId: string }
   | { type: 'setReady'; ready: boolean }
   | { type: 'playerInput'; input: PlayerInputRequest }
@@ -123,7 +124,7 @@ export class NetworkManager {
         this.socket.emit('joinLobby');
         break;
       case 'joinOrCreateRoom':
-        this.socket.emit('joinOrCreateRoom', { mode: event.mode, playerName: event.playerName, mapId: event.mapId, startingMoney: event.startingMoney });
+        this.socket.emit('joinOrCreateRoom', { mode: event.mode, playerName: event.playerName, mapId: event.mapId, startingMoney: event.startingMoney, preferredTeam: event.preferredTeam });
         break;
       case 'resumeSession':
         this.socket.emit('resumeSession', { roomId: event.roomId, playerId: event.playerId, sessionId: event.sessionId });
@@ -132,7 +133,7 @@ export class NetworkManager {
         this.socket.emit('createRoom', event.config);
         break;
       case 'joinRoom':
-        this.socket.emit('joinRoom', { roomId: event.roomId, playerName: event.playerName });
+        this.socket.emit('joinRoom', { roomId: event.roomId, playerName: event.playerName, preferredTeam: event.preferredTeam });
         break;
       case 'spectateRoom':
         this.socket.emit('spectateRoom', { roomId: event.roomId });
