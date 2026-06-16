@@ -146,9 +146,9 @@ export class Scene {
     // 避免 Z-fighting（多个地面在同一 y 高度导致材质闪烁）
 
     // 动态设置全局地面高度，确保射线检测能正常工作
-    // Inferno: T 出生点地面约 y=-0.16，CT 出生点地面约 y=1.28，最低地面约 y=-0.16
+    // Inferno: 最低地面在 T Spawn 区域 y=-0.16，全局地面设置在 y=-1.0 确保覆盖
     // Dust2: T 出生点地面约 y=1.92，CT 出生点地面约 y=-0.24
-    const groundY = arena.name === 'Inferno' ? -0.5 : arena.name === 'Dust2' ? -1.0 : 0;
+    const groundY = arena.name === 'Inferno' ? -1.0 : arena.name === 'Dust2' ? -1.0 : 0;
     this.physics.setGlobalGroundEnabled(true, groundY);
     console.log(`[Scene] Global ground set to y=${groundY} for map: ${arena.name}`);
 

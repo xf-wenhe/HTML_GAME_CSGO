@@ -89,12 +89,41 @@ const INFERNO_WIDTH = 7168;
 const INFERNO_DEPTH = 8192;
 
 export const INFERNO_COLLIDERS: InfernoCollider[] = [
+  // ── 边界墙 ─────────────────────────────────────────────────────────
   wall(0, 4096, INFERNO_WIDTH, WALL_THICKNESS_HAMMER, BOUNDARY_WALL_HEIGHT_HAMMER, 0, 'inferno-boundary-south'),
   wall(0, -4096, INFERNO_WIDTH, WALL_THICKNESS_HAMMER, BOUNDARY_WALL_HEIGHT_HAMMER, 0, 'inferno-boundary-north'),
   wall(-3584, 0, WALL_THICKNESS_HAMMER, INFERNO_DEPTH, BOUNDARY_WALL_HEIGHT_HAMMER, 0, 'inferno-boundary-west'),
   wall(3584, 0, WALL_THICKNESS_HAMMER, INFERNO_DEPTH, BOUNDARY_WALL_HEIGHT_HAMMER, 0, 'inferno-boundary-east'),
 
-  wall(0, 3840, 1024, WALL_THICKNESS_HAMMER, WALL_HEIGHT_HAMMER, 0, 'inferno-t-spawn-wall-back'),
+  // ── 地面碰撞体（关键修复：确保各区域有正确高度的地面）──
+  // T Spawn 地面: y = -16 HU = -0.16 游戏单位
+  plat(0, 3584, 2048, 1536, 16, -16, 'inferno-t-spawn-ground'),
+
+  // CT Spawn 地面: y = 128 HU = 1.28 游戏单位
+  plat(0, -3584, 3072, 1536, 16, 128, 'inferno-ct-spawn-ground'),
+
+  // Mid 区域地面: y = 128 HU = 1.28 游戏单位
+  plat(0, 0, 2048, 2048, 16, 128, 'inferno-mid-ground'),
+
+  // Banana 通道地面: y = 0 HU = 0 游戏单位
+  plat(-2816, 0, 1024, 4096, 16, 0, 'inferno-banana-ground'),
+
+  // A Long 通道地面: y = 0 HU = 0 游戏单位
+  plat(-3200, 0, 768, 2048, 16, 0, 'inferno-a-long-ground'),
+
+  // B Short 通道地面: y = 128 HU = 1.28 游戏单位
+  plat(2816, 0, 768, 2048, 16, 128, 'inferno-b-short-ground'),
+
+  // A Site 地面 (平台基础): y = 0 HU = 0 游戏单位
+  plat(-2048, -2560, 2048, 2048, 16, 0, 'inferno-a-site-ground'),
+
+  // B Site 地面 (平台基础): y = 128 HU = 1.28 游戏单位
+  plat(2048, -2560, 2048, 2048, 16, 128, 'inferno-b-site-ground'),
+
+  // Apartments 下层地面: y = 128 HU = 1.28 游戏单位
+  plat(-1280, -1280, 1024, 2560, 16, 128, 'inferno-apartments-lower-ground'),
+
+  // ── T Spawn 区域 ─────────────────────────────────────────────────────────
   wall(-512, 3072, WALL_THICKNESS_HAMMER, 1536, WALL_HEIGHT_HAMMER, 0, 'inferno-t-spawn-wall-left'),
   wall(512, 3072, WALL_THICKNESS_HAMMER, 1536, WALL_HEIGHT_HAMMER, 0, 'inferno-t-spawn-wall-right'),
 
