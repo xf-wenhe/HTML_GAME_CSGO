@@ -168,57 +168,57 @@ export const INFERNO_COLLIDERS: InfernoCollider[] = [
   box(512, 384, 64, 64, 64, 0, 'inferno-mid-right-crate'),
 ];
 
+// CS1.6 de_inferno 真实出生点坐标（BSP 导入数据）
+// T 出生点地面高度：y = -0.16，眼睛高度 = -0.16 + 0.64 = 0.48
+// CT 出生点地面高度：y = 1.28，眼睛高度 = 1.28 + 0.64 = 1.92
 export const INFERNO_SPAWNS = {
   attackers: [
-    { x: hammerToGame(-128), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-3072) },
-    { x: hammerToGame(-256), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-3072) },
-    { x: hammerToGame(0), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-3072) },
-    { x: hammerToGame(128), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-3072) },
-    { x: hammerToGame(256), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-3072) },
+    { x: -15.44, y: 0.48, z: -2.64 },
+    { x: -16.56, y: 0.48, z: -5.12 },
+    { x: -17.44, y: 0.48, z: -7.20 },
+    { x: -15.44, y: 0.48, z: -6.16 },
+    { x: -16.56, y: 0.48, z: -3.68 },
   ],
   defenders: [
-    { x: hammerToGame(-128), y: PLAYER_EYE_HEIGHT, z: hammerToGame(3840) },
-    { x: hammerToGame(-256), y: PLAYER_EYE_HEIGHT, z: hammerToGame(3840) },
-    { x: hammerToGame(0), y: PLAYER_EYE_HEIGHT, z: hammerToGame(3840) },
-    { x: hammerToGame(128), y: PLAYER_EYE_HEIGHT, z: hammerToGame(3840) },
-    { x: hammerToGame(256), y: PLAYER_EYE_HEIGHT, z: hammerToGame(3840) },
+    { x: 24.00, y: 1.92, z: -22.08 },
+    { x: 24.00, y: 1.92, z: -23.52 },
+    { x: 23.04, y: 1.92, z: -20.16 },
+    { x: 24.00, y: 1.92, z: -24.64 },
+    { x: 23.04, y: 1.92, z: -19.04 },
   ],
 };
 
 export const INFERNO_TDM_SPAWNS = [
-  { x: hammerToGame(-128), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-3072) },
-  { x: hammerToGame(128), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-3072) },
-  { x: hammerToGame(0), y: PLAYER_EYE_HEIGHT, z: hammerToGame(3840) },
-  { x: hammerToGame(-256), y: PLAYER_EYE_HEIGHT, z: hammerToGame(3840) },
-  { x: hammerToGame(-2816), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-1024) },
-  { x: hammerToGame(-1536), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-512) },
-  { x: hammerToGame(1536), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-512) },
-  { x: hammerToGame(0), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-2048) },
-  { x: hammerToGame(-384), y: PLAYER_EYE_HEIGHT, z: hammerToGame(2560) },
-  { x: hammerToGame(384), y: PLAYER_EYE_HEIGHT, z: hammerToGame(2560) },
-  { x: hammerToGame(-384), y: PLAYER_EYE_HEIGHT, z: hammerToGame(1280) },
-  { x: hammerToGame(384), y: PLAYER_EYE_HEIGHT, z: hammerToGame(1280) },
+  { x: -15.44, y: 0.48, z: -2.64 },
+  { x: -16.56, y: 0.48, z: -5.12 },
+  { x: 24.00, y: 1.92, z: -22.08 },
+  { x: 23.04, y: 1.92, z: -20.16 },
+  { x: -12.80, y: 1.28, z: -12.80 },
+  { x: 12.80, y: 1.28, z: -12.80 },
+  { x: 0, y: 1.28, z: 0 },
+  { x: -6.40, y: 1.28, z: 6.40 },
 ];
 
+// 基于 CS1.6 de_inferno 实际位置
 export const INFERNO_BOMB_SITES = {
   A: {
-    position: { x: hammerToGame(-1536), y: hammerToGame(PLATFORM_HEIGHT_HAMMER), z: hammerToGame(2048) },
-    radius: hammerToGame(512),
+    position: { x: -20.48, y: 0.64, z: -15.36 },
+    radius: 5.12,
   },
   B: {
-    position: { x: hammerToGame(1536), y: hammerToGame(PLATFORM_HEIGHT_HAMMER), z: hammerToGame(2048) },
-    radius: hammerToGame(512),
+    position: { x: 16.64, y: 1.28, z: -10.24 },
+    radius: 5.12,
   },
 };
 
 export const INFERNO_CALLOUTS = [
-  { name: 'A Site', position: { x: hammerToGame(-1536), y: PLAYER_EYE_HEIGHT, z: hammerToGame(2048) }, radius: hammerToGame(640) },
-  { name: 'B Site', position: { x: hammerToGame(1536), y: PLAYER_EYE_HEIGHT, z: hammerToGame(2048) }, radius: hammerToGame(640) },
-  { name: 'Mid', position: { x: hammerToGame(0), y: PLAYER_EYE_HEIGHT, z: hammerToGame(0) }, radius: hammerToGame(640) },
-  { name: 'Banana', position: { x: hammerToGame(-2816), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-1024) }, radius: hammerToGame(640) },
-  { name: 'Apartments', position: { x: hammerToGame(-1280), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-512) }, radius: hammerToGame(512) },
-  { name: 'T Spawn', position: { x: hammerToGame(0), y: PLAYER_EYE_HEIGHT, z: hammerToGame(-3072) }, radius: hammerToGame(512) },
-  { name: 'CT Spawn', position: { x: hammerToGame(0), y: PLAYER_EYE_HEIGHT, z: hammerToGame(3840) }, radius: hammerToGame(512) },
-  { name: 'A Long', position: { x: hammerToGame(-3072), y: PLAYER_EYE_HEIGHT, z: hammerToGame(1024) }, radius: hammerToGame(640) },
-  { name: 'B Short', position: { x: hammerToGame(3072), y: PLAYER_EYE_HEIGHT, z: hammerToGame(1024) }, radius: hammerToGame(640) },
+  { name: 'A Site', position: { x: -20.48, y: 0.64 + 0.64, z: -15.36 }, radius: 6.40 },
+  { name: 'B Site', position: { x: 16.64, y: 1.28 + 0.64, z: -10.24 }, radius: 6.40 },
+  { name: 'Mid', position: { x: 0, y: 1.28 + 0.64, z: 0 }, radius: 6.40 },
+  { name: 'Banana', position: { x: -28.16, y: 0.64, z: -10.24 }, radius: 6.40 },
+  { name: 'Apartments', position: { x: -12.80, y: 1.92, z: -5.12 }, radius: 5.12 },
+  { name: 'T Spawn', position: { x: -15.44, y: 0.48, z: -2.64 }, radius: 5.12 },
+  { name: 'CT Spawn', position: { x: 24.00, y: 1.92, z: -22.08 }, radius: 5.12 },
+  { name: 'A Long', position: { x: -30.72, y: 0.64, z: 10.24 }, radius: 6.40 },
+  { name: 'B Short', position: { x: 25.60, y: 1.28, z: 10.24 }, radius: 6.40 },
 ];

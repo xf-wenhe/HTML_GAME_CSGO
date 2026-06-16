@@ -23,6 +23,7 @@ import { AudioFeedback } from './game/AudioFeedback.js';
 import { AudioManager } from './game/AudioManager.js';
 import { WEAPON_DEFINITIONS } from './game/Weapons.js';
 import { Prediction } from './network/Prediction.js';
+import { getInfernoSpawnForTeam, getDust2SpawnForTeam } from './game/MapData.js';
 import type { BuyRequest, GrenadeThrowRequest, MapId, MatchMode, MatchSnapshot, PlayerSnapshot, Team, WeaponId } from './game/types.js';
 import { InputMode, PointerLockState, canLook, canMove, canShoot } from './game/InputMode.js';
 import { HUD } from './ui/HUD.js';
@@ -118,8 +119,8 @@ declare global {
   }
 }
 
-const scene = new Scene();
 const physics = new Physics();
+const scene = new Scene(physics);
 const input = new InputManager();
 const weaponManager = new WeaponManager();
 const projectileSystem = new ProjectileSystem(scene.getScene(), physics);
@@ -246,6 +247,7 @@ mainMenu.show();
 hud.hide();
 
 mainMenu.on('solo', () => {
+  desiredTeam = mainMenu.getPreferredTeam();
   startGame('solo');
 });
 
@@ -348,6 +350,31 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   scene.setArena(selectedMapId);
   hud.hideMapLoading();
   syncArenaPhysics();
+
+  // 根据玩家选择的队伍决定出生点
+  const arena = scene.getCurrentArena();
+  let playerSpawn = arena.playerSpawn.clone();
+  let enemySpawns = arena.enemySpawns;
+
+  // desiredTeam 是 'attackers' | 'defenders' | undefined
+  let teamPref: 't' | 'ct' | 'auto' = 'auto';
+  if (desiredTeam === 'attackers') teamPref = 't';
+  else if (desiredTeam === 'defenders') teamPref = 'ct';
+
+  // 如果是 Inferno 或 Dust2 地图，根据队伍选择重新计算出生点
+  const mapId = scene.getCurrentMapId();
+  if (mapId === 'inferno') {
+    const result = getInfernoSpawnForTeam(teamPref);
+    playerSpawn = result.playerSpawn;
+    enemySpawns = result.enemySpawns;
+  } else if (mapId === 'dust2') {
+    const result = getDust2SpawnForTeam(teamPref);
+    playerSpawn = result.playerSpawn;
+    enemySpawns = result.enemySpawns;
+  }
+
+  console.log(`[Main] Final spawn: map=${mapId}, team=${teamPref}, desiredTeam=${desiredTeam || 'undefined'}, x=${playerSpawn.x.toFixed(2)}, y=${playerSpawn.y.toFixed(2)}, z=${playerSpawn.z.toFixed(2)}`);
+
   usingGrenade = false;
   activeSlot = 'pistol';
   equippedPrimary = '';
@@ -364,7 +391,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   shellCasingManager.clear();
   tracerSystem.clear();
 
-  player = new PlayerController(scene, physics, input, scene.getCurrentArena().playerSpawn.clone());
+  player = new PlayerController(scene, physics, input, playerSpawn);
   player.setRotation(0, getDefaultSpawnYaw(mode === 'solo' ? 'attackers' : undefined));
   player.healFull();
   weaponManager.setPlayerCamera(scene.getCamera());
@@ -382,7 +409,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
     restartSoloBotRound();
     hud.showNotification('Dust2 CS1.6 Bot Match 已开始');
   } else if (mode === 'solo') {
-    survival.start(performance.now(), mainMenu.getDifficulty(), scene.getCurrentArena().enemySpawns);
+    survival.start(performance.now(), mainMenu.getDifficulty(), enemySpawns);
   } else {
     if (network.isConnected()) joinMultiplayerAfterConnection();
     else network.connect();
@@ -1513,6 +1540,87 @@ window.__debugSetPlayerPosition = (x: number, z: number, yaw = 0, y = 1.7) => {
   player.setRotation(0, yaw);
   player.resetVelocity();
   return true;
+};
+window.__debugTeleportToTSpawn = () => {
+  // Inferno T 出生点: x=-15.44, y=0.48, z=-2.64
+  if (selectedMapId === 'inferno') {
+    const result = getInfernoSpawnForTeam('t');
+    console.log('[Debug] 传送到 T 出生点:', result.playerSpawn);
+    if (player) {
+      player.setEyePositionForDebug(result.playerSpawn);
+      player.resetVelocity();
+    }
+    return true;
+  }
+  // Dust2 T 出生点
+  return window.__debugSetPlayerPosition(-8.32, 8.96, 0, 2.56);
+};
+window.__debugTeleportToCTSpawn = () => {
+  // Inferno CT 出生点: x=24.00, y=1.92, z=-22.08
+  if (selectedMapId === 'inferno') {
+    const result = getInfernoSpawnForTeam('ct');
+    console.log('[Debug] 传送到 CT 出生点:', result.playerSpawn);
+    if (player) {
+      player.setEyePositionForDebug(result.playerSpawn);
+      player.resetVelocity();
+    }
+    return true;
+  }
+  // Dust2 CT 出生点
+  return window.__debugSetPlayerPosition(2.56, -22.4, Math.PI, -0.24);
+};
+
+// 测试出生点
+window.__debugTestSpawns = () => {
+  console.log('=== Inferno 出生点测试 ===');
+  const resultT = getInfernoSpawnForTeam('t');
+  console.log('选择匪徒 (T):', { x: resultT.playerSpawn.x.toFixed(2), y: resultT.playerSpawn.y.toFixed(2), z: resultT.playerSpawn.z.toFixed(2) });
+  const resultCT = getInfernoSpawnForTeam('ct');
+  console.log('选择警察 (CT):', { x: resultCT.playerSpawn.x.toFixed(2), y: resultCT.playerSpawn.y.toFixed(2), z: resultCT.playerSpawn.z.toFixed(2) });
+  console.log('敌人数量 - T:', resultCT.enemySpawns.length, '- CT:', resultT.enemySpawns.length);
+  return '测试完成，查看控制台输出';
+};
+
+// 测试碰撞体
+window.__debugTestColliders = () => {
+  const arena = scene.getCurrentArena();
+  console.log('=== 碰撞体测试 ===');
+  console.log('Box 碰撞体数量:', arena.colliders.length);
+  console.log('Mesh 碰撞体数量:', arena.meshes.length);
+  console.log('全局重力 Y:', physics.getWorld().gravity.y);
+  console.log('所有碰撞体名称:', arena.colliders.map(c => c.name));
+
+  const colliderCount = physics.getWorld().bodies.length;
+  console.log('物理世界中碰撞体总数:', colliderCount);
+
+  const collisionTypes = new Map<string, number>();
+  physics.getWorld().bodies.forEach(b => {
+    b.shapes.forEach(s => {
+      const type = s.type === 4 ? 'Box' : s.type === 16 ? 'Trimesh' : `Type${s.type}`;
+      collisionTypes.set(type, (collisionTypes.get(type) || 0) + 1);
+    });
+  });
+  console.log('碰撞体类型统计:', Object.fromEntries(collisionTypes));
+  return `测试完成 - Box: ${collisionTypes.get('Box') || 0}, Trimesh: ${collisionTypes.get('Trimesh') || 0}`;
+};
+
+// No-clip 模式测试（穿墙）
+window.__debugNoclip = (enabled = true) => {
+  if (player) {
+    // @ts-ignore
+    player.noclip = enabled;
+    console.log(`[Debug] No-clip ${enabled ? '开启' : '关闭'}`);
+  }
+  return enabled;
+};
+window.__debugGetPhysicsBodies = () => {
+  if (!physics) return [];
+  return physics.getWorld().bodies.map((b, i) => ({
+    index: i,
+    name: (b as any).userData?.name,
+    position: { x: b.position.x, y: b.position.y, z: b.position.z },
+    shapes: b.shapes.map(s => s.type)
+  }));
 };
 window.__debugSetCameraPoseForScreenshot = (x: number, y: number, z: number, yaw: number, pitch = 0) => {
   debugCameraPose = { x, y, z, yaw, pitch };

@@ -37,8 +37,9 @@ export const CSGO_MOVEMENT: MovementParams = {
   airControl: 0.16
 };
 
-export const CSGO_GRAVITY = 8; // CS1.6 sv_gravity 800 scaled to game units
-export const PLAYER_JUMP_FORCE = 2.68; // ~45 HU jump height with CS1.6 gravity
+// CS1.6 标准物理参数（与 Physics.ts 保持同步）
+export const CSGO_GRAVITY = 7.06; // CS1.6 sv_gravity 800 精确换算值
+export const PLAYER_JUMP_FORCE = 2.521; // 精确达到 45 HU 跳跃高度
 export const PLAYER_CROUCH_JUMP_BONUS = hammerToGame(8); // 0.08
 
 export interface StepUpCheck {

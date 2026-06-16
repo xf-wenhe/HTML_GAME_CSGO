@@ -12,7 +12,7 @@ export class Physics {
 
   constructor() {
     this.world = new CANNON.World();
-    this.world.gravity.set(0, -8, 0);
+    this.world.gravity.set(0, -7.06, 0); // CS1.6 标准重力（与 Movement.ts 保持同步）
     this.world.defaultContactMaterial.friction = 0;
     this.world.defaultContactMaterial.restitution = 0;
 

@@ -97,22 +97,33 @@ export const resolveDust2SourceGeometry = (
   sourceMeshes: MeshSpec[],
   placeholderColliders: BoxSpec[],
   placeholderProps: BoxSpec[]
-) => sourceMeshes.length > 0
-  ? { colliders: [] as BoxSpec[], props: [] as BoxSpec[], meshes: sourceMeshes }
-  : { colliders: placeholderColliders, props: placeholderProps, meshes: [] as MeshSpec[] };
+) => {
+  // 同时使用 BSP 网格和碰撞盒（双重碰撞保障）
+  if (sourceMeshes.length > 0) {
+    console.log('[MapData] Using BSP mesh geometry with placeholder colliders as fallback');
+    return { colliders: placeholderColliders, props: placeholderProps, meshes: sourceMeshes };
+  }
+  return { colliders: placeholderColliders, props: placeholderProps, meshes: [] };
+};
 
 export const resolveInfernoSourceGeometry = (
   sourceMeshes: MeshSpec[],
   placeholderColliders: BoxSpec[],
   placeholderProps: BoxSpec[]
-) => sourceMeshes.length > 0
-  ? { colliders: [] as BoxSpec[], props: [] as BoxSpec[], meshes: sourceMeshes }
-  : { colliders: placeholderColliders, props: placeholderProps, meshes: [] as MeshSpec[] };
+) => {
+  // 同时使用 BSP 网格和碰撞盒（双重碰撞保障）
+  if (sourceMeshes.length > 0) {
+    console.log('[MapData] Using BSP mesh geometry with placeholder colliders as fallback');
+    return { colliders: placeholderColliders, props: placeholderProps, meshes: sourceMeshes };
+  }
+  return { colliders: placeholderColliders, props: placeholderProps, meshes: [] };
+};
 
 export const resolveInfernoSourceSpawns = (
   resource: InfernoWorldMeshResource | null,
   fallbackPlayerSpawn: THREE.Vector3,
-  fallbackEnemySpawns: EnemySpawnPoint[]
+  fallbackEnemySpawns: EnemySpawnPoint[],
+  preferredTeam?: 't' | 'ct' | 'auto'
 ) => {
   const entitySpawns = resource?.source.manifest.entities?.playerSpawns ?? [];
   const toPlayerPosition = (position: { x: number; y: number; z: number }) =>
@@ -127,11 +138,39 @@ export const resolveInfernoSourceSpawns = (
       type: 'shooter' as const,
     }));
 
-  return {
-    playerSpawn: tSpawns.find(isFiniteVector)?.clone() ?? fallbackPlayerSpawn,
-    enemySpawns: ctSpawns.some(spawn => isFiniteVector(spawn.position))
+  // 根据玩家选择的队伍决定出生点
+  let playerSpawn: THREE.Vector3;
+  let enemySpawns: EnemySpawnPoint[];
+
+  if (preferredTeam === 'ct') {
+    // 玩家选择 CT: 在 CT 出生点出生，敌人在 T 出生点
+    const ctSpawn = ctSpawns.find(s => isFiniteVector(s.position));
+    playerSpawn = ctSpawn?.position.clone() ?? fallbackPlayerSpawn;
+    enemySpawns = tSpawns.filter(isFiniteVector).map(pos => ({ position: pos, type: 'shooter' as const }));
+  } else if (preferredTeam === 't') {
+    // 玩家选择 T: 在 T 出生点出生，敌人在 CT 出生点
+    playerSpawn = tSpawns.find(isFiniteVector)?.clone() ?? fallbackPlayerSpawn;
+    enemySpawns = ctSpawns.some(spawn => isFiniteVector(spawn.position))
       ? ctSpawns.filter(spawn => isFiniteVector(spawn.position))
-      : fallbackEnemySpawns,
+      : fallbackEnemySpawns;
+  } else {
+    // 自动选择: 随机选择一个队伍
+    const randomIsT = Math.random() > 0.5;
+    if (randomIsT && tSpawns.some(isFiniteVector)) {
+      playerSpawn = tSpawns.find(isFiniteVector)!.clone();
+      enemySpawns = ctSpawns.filter(spawn => isFiniteVector(spawn.position));
+    } else {
+      const firstCt = ctSpawns.find(s => isFiniteVector(s.position));
+      playerSpawn = firstCt?.position.clone() ?? fallbackPlayerSpawn;
+      enemySpawns = tSpawns.filter(isFiniteVector).map(pos => ({ position: pos, type: 'shooter' as const }));
+    }
+  }
+
+  console.log(`[MapData] Spawn resolved: team=${preferredTeam || 'auto'}, player at x=${playerSpawn.x.toFixed(2)}, y=${playerSpawn.y.toFixed(2)}, z=${playerSpawn.z.toFixed(2)}`);
+
+  return {
+    playerSpawn,
+    enemySpawns: enemySpawns.length > 0 ? enemySpawns : fallbackEnemySpawns,
   };
 };
 
@@ -183,7 +222,8 @@ export const resolveInfernoSourceBombSites = (
 export const resolveDust2SourceSpawns = (
   resource: Dust2WorldMeshResource | null,
   fallbackPlayerSpawn: THREE.Vector3,
-  fallbackEnemySpawns: EnemySpawnPoint[]
+  fallbackEnemySpawns: EnemySpawnPoint[],
+  preferredTeam?: 't' | 'ct' | 'auto'
 ) => {
   const entitySpawns = resource?.source.manifest.entities?.playerSpawns ?? [];
   const worldBounds = getDust2WorldBounds(resource);
@@ -212,9 +252,36 @@ export const resolveDust2SourceSpawns = (
     }))
     .filter(spawn => withinWorld(spawn.position));
 
+  // 根据玩家选择的队伍决定出生点
+  let playerSpawn: THREE.Vector3;
+  let enemySpawns: EnemySpawnPoint[];
+
+  if (preferredTeam === 'ct') {
+    // 玩家选择 CT: 在 CT 出生点出生，敌人在 T 出生点
+    playerSpawn = ctSpawns.find(s => withinWorld(s.position))?.position?.clone() ?? fallbackPlayerSpawn;
+    enemySpawns = tSpawns.filter(withinWorld).map(pos => ({ position: pos, type: 'shooter' as const }));
+  } else if (preferredTeam === 't') {
+    // 玩家选择 T: 在 T 出生点出生，敌人在 CT 出生点
+    playerSpawn = tSpawns.find(withinWorld)?.clone() ?? fallbackPlayerSpawn;
+    enemySpawns = ctSpawns.length > 0 ? ctSpawns : fallbackEnemySpawns;
+  } else {
+    // 自动选择: 随机选择一个队伍
+    const randomIsT = Math.random() > 0.5;
+    if (randomIsT && tSpawns.some(withinWorld)) {
+      playerSpawn = tSpawns.find(withinWorld)!.clone();
+      enemySpawns = ctSpawns;
+    } else {
+      const firstCt = ctSpawns.find(s => withinWorld(s.position));
+      playerSpawn = firstCt?.position?.clone() ?? fallbackPlayerSpawn;
+      enemySpawns = tSpawns.filter(withinWorld).map(pos => ({ position: pos, type: 'shooter' as const }));
+    }
+  }
+
+  console.log(`[MapData] Dust2 spawn resolved: team=${preferredTeam || 'auto'}, player at x=${playerSpawn.x.toFixed(2)}, y=${playerSpawn.y.toFixed(2)}, z=${playerSpawn.z.toFixed(2)}`);
+
   return {
-    playerSpawn: tSpawns[0]?.clone() ?? fallbackPlayerSpawn,
-    enemySpawns: ctSpawns.length > 0 ? ctSpawns : fallbackEnemySpawns,
+    playerSpawn,
+    enemySpawns: enemySpawns.length > 0 ? enemySpawns : fallbackEnemySpawns,
   };
 };
 
@@ -1360,3 +1427,16 @@ export const ARENA_MAPS: Record<MapId, ArenaData> = {
   overpass: buildOverpassArena(),
   bloodstrike: buildBloodStrikeArena()
 };
+
+// 运行时队伍选择出生点解析器（用于 main.ts）
+export function getInfernoSpawnForTeam(preferredTeam: 't' | 'ct' | 'auto'): { playerSpawn: THREE.Vector3; enemySpawns: EnemySpawnPoint[] } {
+  const fallbackPlayerSpawn = new THREE.Vector3(-12.8, 1.92, -20.48);
+  const fallbackEnemySpawns: EnemySpawnPoint[] = [{ position: new THREE.Vector3(12.8, 1.92, -20.48), type: 'shooter' }];
+  return resolveInfernoSourceSpawns(INFERNO_WORLD_MESH_RESOURCE, fallbackPlayerSpawn, fallbackEnemySpawns, preferredTeam);
+}
+
+export function getDust2SpawnForTeam(preferredTeam: 't' | 'ct' | 'auto'): { playerSpawn: THREE.Vector3; enemySpawns: EnemySpawnPoint[] } {
+  const fallbackPlayerSpawn = new THREE.Vector3(-8.32, 2.56, 8.96);
+  const fallbackEnemySpawns: EnemySpawnPoint[] = [{ position: new THREE.Vector3(4.48, 1.92, -24.64), type: 'shooter' }];
+  return resolveDust2SourceSpawns(DUST2_WORLD_MESH_RESOURCE, fallbackPlayerSpawn, fallbackEnemySpawns, preferredTeam);
+}

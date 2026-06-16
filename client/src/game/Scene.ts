@@ -3,6 +3,7 @@ import { ARENA_MAPS, ArenaData, BoxSpec, MeshSpec } from './MapData.js';
 import { MapId } from './types.js';
 import { PLAYER_EYE_HEIGHT } from './constants/MapUnits.js';
 import { getTexture, loadPBRTextureSet, PBRTextureKey } from './ProceduralTextures.js';
+import { Physics } from './Physics.js';
 
 export class Scene {
   private scene: THREE.Scene;
@@ -16,6 +17,7 @@ export class Scene {
   private arenaInspectionMode = false;
   private skyDome: THREE.Mesh | null = null;
   private currentMapId: MapId = 'dust2';
+  private physics: Physics;
 
   // 性能优化：视锥剔除
   private frustum = new THREE.Frustum();
@@ -29,7 +31,8 @@ export class Scene {
   private lodObjects: Map<THREE.Object3D, 'high' | 'low' | 'hidden'> = new Map();
   private handleResizeBound: (() => void) | null = null;
 
-  constructor() {
+  constructor(physics: Physics) {
+    this.physics = physics;
     this.handleResizeBound = this.handleResize.bind(this);
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x5b8cbf);
@@ -138,6 +141,13 @@ export class Scene {
 
     // 注意：地面几何体由 MapData.ts 的 props 定义，不再在此创建 PlaneGeometry
     // 避免 Z-fighting（多个地面在同一 y 高度导致材质闪烁）
+
+    // 动态设置全局地面高度，确保射线检测能正常工作
+    // Inferno: T 出生点地面约 y=-0.16，CT 出生点地面约 y=1.28，最低地面约 y=-0.16
+    // Dust2: T 出生点地面约 y=1.92，CT 出生点地面约 y=-0.24
+    const groundY = arena.name === 'Inferno' ? -0.5 : arena.name === 'Dust2' ? -1.0 : 0;
+    this.physics.setGlobalGroundEnabled(true, groundY);
+    console.log(`[Scene] Global ground set to y=${groundY} for map: ${arena.name}`);
 
     [...arena.colliders, ...arena.props].forEach(spec => this.addBox(spec));
     this.meshes.forEach(spec => this.addMesh(spec));
@@ -413,7 +423,7 @@ export class Scene {
     mesh.receiveShadow = true;
     mesh.name = spec.name ?? 'arena-mesh';
 
-    if (mesh.name.includes('dust2-goldsrc')) {
+    if (mesh.name.includes('dust2-goldsrc') || mesh.name.includes('inferno-goldsrc')) {
       const edges = new THREE.LineSegments(
         new THREE.EdgesGeometry(geometry, 24),
         new THREE.LineBasicMaterial({
@@ -425,6 +435,18 @@ export class Scene {
       );
       edges.name = `${mesh.name}-inspection-edges`;
       mesh.add(edges);
+    }
+
+    // 添加 trimesh 碰撞体（如果有碰撞数据）
+    if (spec.collisionPositions && spec.collisionIndices && spec.collisionIndices.length > 0) {
+      const collisionVertices: number[] = [];
+      spec.collisionPositions.forEach((position) => {
+        collisionVertices.push(position.x, position.y, position.z);
+      });
+      const body = this.physics.addStaticTrimesh(collisionVertices, spec.collisionIndices, spec.name ?? 'trimesh-collision');
+      console.log(`[Scene] Added trimesh collision for ${spec.name}:`, collisionVertices.length / 3, 'vertices,', spec.collisionIndices.length / 3, 'triangles');
+    } else {
+      console.warn(`[Scene] No collision data for mesh: ${spec.name}`);
     }
 
     if (this.arenaInspectionMode) {
