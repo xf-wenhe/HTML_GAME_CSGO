@@ -234,6 +234,34 @@ export class InputManager {
     this.keys.delete('Digit4');
   }
 
+  clearGameplayKeys(): void {
+    [
+      'KeyW',
+      'KeyA',
+      'KeyS',
+      'KeyD',
+      'ShiftLeft',
+      'ShiftRight',
+      'ControlLeft',
+      'ControlRight',
+      'MouseLeft',
+      'MouseRight',
+      'Space',
+      'KeyR',
+      'KeyG',
+      'KeyB',
+      'KeyE',
+      'KeyQ',
+      'Tab',
+      'Digit1',
+      'Digit2',
+      'Digit3',
+      'Digit4',
+    ].forEach(key => this.keys.delete(key));
+    this.mouseDelta = { x: 0, y: 0 };
+    this.smoothedMouseDelta = { x: 0, y: 0 };
+  }
+
   private normalizeMouseDelta(x: number, y: number): MouseDelta {
     const settings = this.mouseSettings;
     

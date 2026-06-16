@@ -42,17 +42,18 @@ describe('Cs16BotMatch', () => {
     expect(match.tryBuy({ armor: true }, true).ok).toBe(false);
   });
 
-  it('allows the player to move during buy time while keeping bots and shooting frozen', () => {
+  it('keeps movement, bots, and shooting frozen during buy time', () => {
     const match = new Cs16BotMatch({ freezeSeconds: 2 });
     match.update(0, false);
 
     expect(match.getStats().phase).toBe('freezeTime');
-    expect(match.canPlayerMove()).toBe(true);
+    expect(match.canPlayerMove()).toBe(false);
     expect(match.canBotsMove()).toBe(false);
     expect(match.canPlayerShoot()).toBe(false);
 
     match.update(2.1, false);
     expect(match.getStats().phase).toBe('live');
+    expect(match.canPlayerMove()).toBe(true);
     expect(match.canBotsMove()).toBe(true);
     expect(match.canPlayerShoot()).toBe(true);
   });

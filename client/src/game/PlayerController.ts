@@ -5,6 +5,7 @@ import { InputManager } from './InputManager.js';
 import { Scene } from './Scene.js';
 import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, accelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle, MovementParams } from './Movement.js';
 import { DamageProfile, HitRegion, calculateDamage } from './Combat.js';
+import { hammerToGame, PLAYER_EYE_HEIGHT, PLAYER_HEIGHT } from './constants/MapUnits.js';
 
 export class PlayerController {
   private body: CANNON.Body;
@@ -22,10 +23,6 @@ export class PlayerController {
   private maxArmor = 100;
   private moving = false;
   
-  private eyeHeight = 0.64;
-  private readonly standingEyeHeight = 0.64;
-  private readonly crouchEyeHeight = 0.46;
-  
   private grounded = false;
   private airborneTime = 0;
   private crouched = false;
@@ -33,9 +30,12 @@ export class PlayerController {
   private lastLandingSpeed = 0;
 
   // 【大跳修复核心】分离站立和下蹲的碰撞盒高度
-  private readonly standingHalfHeight = 0.36; // 站立时的半高 (总高0.72)
-  private readonly crouchingHalfHeight = 0.27; // 下蹲时的半高 (总高0.54，缩减了约18单位)
-  private currentHalfHeight = 0.36;
+  private readonly standingHalfHeight = PLAYER_HEIGHT / 2;
+  private readonly crouchingHalfHeight = 0.27; // crouched hull, kept slightly taller than CS duck hull for stable step clearance
+  private readonly standingEyeOffset = PLAYER_EYE_HEIGHT - this.standingHalfHeight;
+  private readonly crouchEyeOffset = hammerToGame(46) - this.crouchingHalfHeight;
+  private eyeHeight = this.standingEyeOffset;
+  private currentHalfHeight = this.standingHalfHeight;
   private readonly maxStepHeight = 0.18;
   private readonly maxStepDownHeight = 2.0; // Increased to reach ground plane at spawn
 
@@ -60,21 +60,7 @@ export class PlayerController {
 
   update(dt: number): void {
     this.updateCrouchState(dt);
-    this.camera.position.set(
-      this.body.position.x,
-      this.body.position.y + this.eyeHeight,
-      this.body.position.z
-    );
-
-    const mouseDelta = this.input.getMouseDelta();
-    this.yaw -= mouseDelta.x;
-    this.pitch -= mouseDelta.y;
-
-    this.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.pitch));
-
-    this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch;
+    this.updateLookRotation();
 
     const forward = new THREE.Vector3(0, 0, -1);
     forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
@@ -111,6 +97,32 @@ export class PlayerController {
     if (!wasGrounded && this.grounded) {
       this.lastLandingSpeed = landingVelocity;
     }
+  }
+
+  updateLookOnly(dt: number): void {
+    this.updateCrouchState(dt);
+    this.updateLookRotation();
+    this.moving = false;
+  }
+
+  syncCameraToBody(): void {
+    this.camera.position.set(
+      this.body.position.x,
+      this.body.position.y + this.eyeHeight,
+      this.body.position.z
+    );
+  }
+
+  private updateLookRotation(): void {
+    const mouseDelta = this.input.getMouseDelta();
+    this.yaw -= mouseDelta.x;
+    this.pitch -= mouseDelta.y;
+
+    this.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.pitch));
+
+    this.camera.rotation.order = 'YXZ';
+    this.camera.rotation.y = this.yaw;
+    this.camera.rotation.x = this.pitch;
   }
 
   private applyMovement(wishDirection: THREE.Vector3, dt: number): void {
@@ -275,7 +287,7 @@ export class PlayerController {
       }
     }
 
-    const targetEyeHeight = this.crouched ? this.crouchEyeHeight : this.standingEyeHeight;
+    const targetEyeHeight = this.crouched ? this.crouchEyeOffset : this.standingEyeOffset;
     this.eyeHeight = THREE.MathUtils.lerp(this.eyeHeight, targetEyeHeight, 1 - Math.exp(-8 * dt));
     if (this.grounded) this.crouchJumpActive = false;
   }
@@ -326,18 +338,16 @@ export class PlayerController {
 
   private canJump(): boolean {
     const bottomY = this.body.position.y - this.currentHalfHeight;
-    // Start ray below feet - use long distance since cannon-es Trimesh doesn't support raycasting
-    // We rely on the global ground plane for grounded detection with mesh-based maps
-    const rayStart = new CANNON.Vec3(this.body.position.x, bottomY - 0.01, this.body.position.z);
-    const rayEnd = new CANNON.Vec3(this.body.position.x, bottomY - 3.0, this.body.position.z);
+    const rayStart = new CANNON.Vec3(this.body.position.x, bottomY + 0.03, this.body.position.z);
+    const rayEnd = new CANNON.Vec3(this.body.position.x, bottomY - 0.12, this.body.position.z);
     const ray = new CANNON.Ray(rayStart, rayEnd);
     const result = new CANNON.RaycastResult();
     if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) {
       return false;
     }
-    // Skip hits too close (possible self-intersection)
     const hitDistance = rayStart.distanceTo(result.hitPointWorld);
-    return hitDistance > 0.01 && Math.abs(result.hitNormalWorld.y) > 0.35;
+    const footDistance = Math.abs(bottomY - result.hitPointWorld.y);
+    return hitDistance > 0.01 && footDistance <= 0.12 && Math.abs(result.hitNormalWorld.y) > 0.45;
   }
 
   private resolveBodyYFromEyeY(eyeY: number): number {
@@ -438,7 +448,7 @@ export class PlayerController {
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
     this.body.wakeUp(); // Ensure physics body is active
-    this.camera.position.set(position.x, position.y, position.z);
+    this.syncCameraToBody();
     // Fix: Force immediate grounded check instead of setting to false
     // This prevents physics oscillation when spawning
     this.grounded = this.canJump();
@@ -446,11 +456,21 @@ export class PlayerController {
 
   setEyePositionForDebug(position: THREE.Vector3): void {
     this.body.position.set(position.x, position.y - this.eyeHeight, position.z);
-    this.camera.position.copy(position);
+    this.body.velocity.set(0, 0, 0);
+    this.body.angularVelocity.set(0, 0, 0);
+    this.body.wakeUp();
+    this.syncCameraToBody();
+    this.grounded = this.canJump();
   }
 
   resetVelocity(): void {
     this.body.velocity.set(0, 0, 0);
+  }
+
+  stopHorizontalMovement(): void {
+    this.body.velocity.x = 0;
+    this.body.velocity.z = 0;
+    this.moving = false;
   }
 
   dispose(): void {

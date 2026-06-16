@@ -271,9 +271,9 @@ describe('Dust2 mesh resource conversion', () => {
     ];
     const spawns = resolveDust2SourceSpawns(resource(), fallbackPlayerSpawn, fallbackEnemySpawns);
 
-    expect(spawns.playerSpawn.toArray()).toEqual([-1.28, 0.32 + PLAYER_EYE_HEIGHT, 2.56]);
+    expect(spawns.playerSpawn.toArray()).toEqual([-1.28, 0.32 + PLAYER_EYE_HEIGHT + 0.15, 2.56]);
     expect(spawns.enemySpawns).toHaveLength(1);
-    expect(spawns.enemySpawns[0].position.toArray()).toEqual([1.28, 0.64 + PLAYER_EYE_HEIGHT, -2.56]);
+    expect(spawns.enemySpawns[0].position.toArray()).toEqual([1.28, 0.64 + PLAYER_EYE_HEIGHT + 0.15, -2.56]);
     expect(spawns.enemySpawns[0].type).toBe('shooter');
   });
 

@@ -7,10 +7,12 @@ export class Physics {
   private bodies: CANNON.Body[] = [];
   private groundBody: CANNON.Body | null = null;
   private defaultMaterial = new CANNON.Material('default');
+  private readonly fixedTimeStep = 1 / 120;
+  private readonly maxSubSteps = 6;
 
   constructor() {
     this.world = new CANNON.World();
-    this.world.gravity.set(0, -7.06, 0);  // CS1.6 optimized gravity
+    this.world.gravity.set(0, -8, 0);
     this.world.defaultContactMaterial.friction = 0;
     this.world.defaultContactMaterial.restitution = 0;
 
@@ -90,7 +92,7 @@ export class Physics {
   }
 
   step(dt: number = 0.016): void {
-    this.world.step(dt);
+    this.world.step(this.fixedTimeStep, Math.min(dt, 0.05), this.maxSubSteps);
   }
 
   dispose(): void {

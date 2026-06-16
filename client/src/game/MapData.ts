@@ -24,9 +24,10 @@ import {
 import { type Dust2WorldMeshResource, meshSpecFromDust2WorldMeshResource } from './Dust2MeshResource.js';
 import { type InfernoWorldMeshResource, meshSpecFromInfernoWorldMeshResource } from './InfernoMeshResource.js';
 import dust2WorldMeshResourceJson from './source/dust2-world-mesh.json';
+import { INFERNO_WORLD_MESH_RESOURCE as infernoWorldMeshResource } from './generated/inferno-world-mesh.js';
 
 export const DUST2_WORLD_MESH_RESOURCE = dust2WorldMeshResourceJson as Dust2WorldMeshResource;
-export const INFERNO_WORLD_MESH_RESOURCE: InfernoWorldMeshResource | null = null;
+export const INFERNO_WORLD_MESH_RESOURCE = infernoWorldMeshResource;
 
 export interface BoxSpec {
   position: THREE.Vector3;
@@ -89,6 +90,9 @@ export interface ArenaData {
   };
 }
 
+const isFiniteVector = (position: THREE.Vector3): boolean =>
+  Number.isFinite(position.x) && Number.isFinite(position.y) && Number.isFinite(position.z);
+
 export const resolveDust2SourceGeometry = (
   sourceMeshes: MeshSpec[],
   placeholderColliders: BoxSpec[],
@@ -124,8 +128,10 @@ export const resolveInfernoSourceSpawns = (
     }));
 
   return {
-    playerSpawn: tSpawns[0]?.clone() ?? fallbackPlayerSpawn,
-    enemySpawns: ctSpawns.length > 0 ? ctSpawns : fallbackEnemySpawns,
+    playerSpawn: tSpawns.find(isFiniteVector)?.clone() ?? fallbackPlayerSpawn,
+    enemySpawns: ctSpawns.some(spawn => isFiniteVector(spawn.position))
+      ? ctSpawns.filter(spawn => isFiniteVector(spawn.position))
+      : fallbackEnemySpawns,
   };
 };
 
@@ -184,7 +190,8 @@ export const resolveDust2SourceSpawns = (
   const toPlayerPosition = (position: { x: number; y: number; z: number }) =>
     new THREE.Vector3(position.x, position.y + PLAYER_EYE_HEIGHT + 0.15, position.z); // +0.15 offset to spawn slightly above ground
   const withinWorld = (position: THREE.Vector3) =>
-    !worldBounds
+    isFiniteVector(position)
+    && (!worldBounds
     || (
       position.x >= worldBounds.mins.x - 0.5
       && position.x <= worldBounds.maxs.x + 0.5
@@ -192,7 +199,7 @@ export const resolveDust2SourceSpawns = (
       && position.z <= worldBounds.maxs.z + 0.5
       && position.y >= worldBounds.mins.y - 0.25
       && position.y <= worldBounds.maxs.y + PLAYER_EYE_HEIGHT + 1.5
-    );
+    ));
   const tSpawns = entitySpawns
     .filter(spawn => spawn.team === 't' && spawn.gamePosition)
     .map(spawn => toPlayerPosition(spawn.gamePosition!))

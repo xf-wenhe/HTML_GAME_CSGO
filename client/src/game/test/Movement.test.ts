@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, accelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle } from '../Movement.js';
+import { CSGO_GRAVITY, CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, accelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle } from '../Movement.js';
 import { PLAYER_RUN_SPEED } from '../constants/MapUnits.js';
 
 describe('CSGO-style movement helpers', () => {
@@ -27,19 +27,20 @@ describe('CSGO-style movement helpers', () => {
   it('crouch speed is slower and crouch jump has a bounded boost', () => {
     expect(CSGO_MOVEMENT.crouchSpeed).toBeLessThan(CSGO_MOVEMENT.walkSpeed);
     const crouchJump = PLAYER_JUMP_FORCE + PLAYER_CROUCH_JUMP_BONUS;
-    const gravity = 8;
-    const crouchJumpHeight = (crouchJump * crouchJump) / (2 * gravity);
+    const crouchJumpHeight = (crouchJump * crouchJump) / (2 * CSGO_GRAVITY);
     expect(crouchJump).toBeGreaterThan(PLAYER_JUMP_FORCE);
     // CSGO crouch jump height is slightly higher than regular jump
-    expect(crouchJumpHeight).toBeGreaterThan(PLAYER_JUMP_FORCE * PLAYER_JUMP_FORCE / (2 * gravity));
+    expect(crouchJumpHeight).toBeGreaterThan(PLAYER_JUMP_FORCE * PLAYER_JUMP_FORCE / (2 * CSGO_GRAVITY));
   });
 
   it('jump parameters imply a quick grounded arc', () => {
-    const gravity = 8;
-    const airtime = (2 * PLAYER_JUMP_FORCE) / gravity;
+    const airtime = (2 * PLAYER_JUMP_FORCE) / CSGO_GRAVITY;
+    const jumpHeight = (PLAYER_JUMP_FORCE * PLAYER_JUMP_FORCE) / (2 * CSGO_GRAVITY);
     // CSGO jump is quick (~0.8s total airtime)
-    expect(airtime).toBeGreaterThan(0.1);
-    expect(airtime).toBeLessThan(1.0);
+    expect(airtime).toBeGreaterThan(0.55);
+    expect(airtime).toBeLessThan(0.75);
+    expect(jumpHeight).toBeGreaterThan(0.42);
+    expect(jumpHeight).toBeLessThan(0.48);
   });
 
   it('keeps diagonal movement under the max speed cap', () => {

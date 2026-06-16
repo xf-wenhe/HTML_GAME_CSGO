@@ -24,7 +24,7 @@ import { AudioManager } from './game/AudioManager.js';
 import { WEAPON_DEFINITIONS } from './game/Weapons.js';
 import { Prediction } from './network/Prediction.js';
 import type { BuyRequest, GrenadeThrowRequest, MapId, MatchMode, MatchSnapshot, PlayerSnapshot, Team, WeaponId } from './game/types.js';
-import { InputMode, PointerLockState, canMove, canShoot } from './game/InputMode.js';
+import { InputMode, PointerLockState, canLook, canMove, canShoot } from './game/InputMode.js';
 import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
 import { Settings } from './ui/Settings.js';
@@ -333,6 +333,9 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   hud.setTouchControlsVisible(input.isTouchControlsActive());
   gameRunning = true;
   setInputMode('playing');
+  input.clearGameplayKeys();
+  lastFrameTime = performance.now();
+  wasGrounded = true;
   debugPointerLockBypass = false;
   currentMode = mode;
   isSpectating = false;
@@ -773,6 +776,10 @@ function endGame(): void {
   console.log('[Debug] endGame called', { gameRunning, inputMode });
   gameRunning = false;
   input.exitPointerLock();
+  input.clearGameplayKeys();
+  hadPointerLock = false;
+  pointerLockState = 'supported';
+  lockFailureReason = null;
   debugPointerLockBypass = false;
   weaponManager.setAiming(false);
   hud.setScoped(false);
@@ -836,10 +843,14 @@ function gameLoop(now: number) {
       }, now);
       if (!wasGrounded && player.isGrounded()) audioFeedback.playLand(player.getLastLandingSpeed());
       wasGrounded = player.isGrounded();
+    } else if (player && !isSpectating && canLook(inputMode)) {
+      if (!botMatchCanMove) player.stopHorizontalMovement();
+      player.updateLookOnly(dt);
     } else {
       input.getMouseDelta();
     }
     physics.step(dt);
+    if (player) player.syncCameraToBody();
     weaponManager.update(now, dt, player?.isMoving() ?? false);
     weaponManager.consumeFeedbackEvents().forEach(event => {
       audioFeedback.playWeapon(event.type, event.weaponId);
