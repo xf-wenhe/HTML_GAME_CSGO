@@ -56,12 +56,13 @@ export const INFERNO_COLLIDERS: InfernoCollider[] = [
   // CT Spawn 出生点游戏坐标: x=23.04~24.00, z=-19.04~-24.64
   // → Hammer: x=2304~2400, z=1904~2464 (因为会被取反)
   // CT Spawn 地面: y = 128 HU = 1.28 游戏单位
-  plat(2368, 2304, 1024, 1536, 16, 128, 'inferno-ct-spawn-ground'),
+  // 注意: yOff 是碰撞体底部位置，顶面高度 = yOff + h = 112 + 16 = 128 HU
+  plat(2368, 2304, 1024, 1536, 16, 112, 'inferno-ct-spawn-ground'),
 
   // Mid 区域游戏坐标: x=-10~10, z=-10~10
   // → Hammer: x=-1000~1000, z=-1000~1000
   // Mid 区域地面: y = 128 HU = 1.28 游戏单位
-  plat(0, 0, 2048, 2048, 16, 128, 'inferno-mid-ground'),
+  plat(0, 0, 2048, 2048, 16, 112, 'inferno-mid-ground'),
 
   // Banana 通道游戏坐标: x=-28左右, z=-20~20
   // → Hammer: x=-2800左右, z=-2000~2000

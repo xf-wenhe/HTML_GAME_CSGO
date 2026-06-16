@@ -112,8 +112,12 @@ export const resolveInfernoSourceGeometry = (
   placeholderProps: BoxSpec[]
 ) => {
   if (sourceMeshes.length > 0) {
-    console.log('[MapData] Using BSP mesh geometry with generated stable player colliders');
-    return { colliders: [], props: [], meshes: sourceMeshes };
+    console.log('[MapData] Using BSP mesh geometry with manual ground colliders');
+    // 保留手动定义的地面碰撞体（因为 Trimesh raycasting 在 cannon-es 中有问题）
+    const groundColliders = placeholderColliders
+      .filter(c => c.name?.includes('-ground') || c.name?.includes('-floor'))
+      .map(c => ({ ...c, name: `${c.name}-source-walkable`, physicsOnly: true }));
+    return { colliders: groundColliders, props: [], meshes: sourceMeshes };
   }
   return { colliders: placeholderColliders, props: placeholderProps, meshes: [] };
 };
@@ -897,7 +901,10 @@ function buildInfernoArena(): ArenaData {
     enemySpawns: sourceSpawns.enemySpawns,
     bombSites: sourceBombSites,
     colliders: sourceGeometry.meshes.length > 0
-      ? createSourceWalkableColliders(rawSourceMeshes, 'inferno')
+      ? [
+          ...createSourceWalkableColliders(rawSourceMeshes, 'inferno'),
+          ...sourceGeometry.colliders
+        ]
       : sourceGeometry.colliders,
     props: sourceGeometry.props,
     meshes: sourceGeometry.meshes,
