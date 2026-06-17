@@ -71,6 +71,20 @@ export class SurvivalMode {
     this.enemies.clear();
   }
 
+  stop(): void {
+    this.phase = 'menu';
+    this.wave = 0;
+    this.kills = 0;
+    this.score = 0;
+    this.waveKills = 0;
+    this.waveTarget = 0;
+    this.prepRemaining = 0;
+    this.startedAt = 0;
+    this.lastSpawnIndex = 0;
+    this.arenaSpawns = [];
+    this.enemies.clear();
+  }
+
   getStats(now: number = performance.now()): SurvivalStats {
     return {
       phase: this.phase,

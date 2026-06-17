@@ -366,6 +366,10 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   impactDecalManager.clear();
   shellCasingManager.clear();
   tracerSystem.clear();
+  survival.stop();
+  // 清理物理碰撞体
+  arenaColliderBodies.forEach(body => physics.removeBody(body));
+  arenaColliderBodies = [];
   if (connectionTimeoutId) {
     clearTimeout(connectionTimeoutId);
     connectionTimeoutId = null;
@@ -875,8 +879,22 @@ function endGame(): void {
   hud.hide();
   mainMenu.show();
   setInputMode('menu');
+
+  // 清理所有管理器
   enemyManager.clear();
   remotePlayers.clear();
+  droppedWeapons.clear();
+  survival.stop(); // 停止生存模式
+  grenades.reset(); // 重置手雷系统
+  projectileSystem.dispose(); // 清理投射物
+  impactDecalManager.dispose(); // 清理弹痕
+  tracerSystem.dispose(); // 清理弹道
+  shellCasingManager.clear(); // 清理弹壳
+
+  // 清理物理碰撞体
+  arenaColliderBodies.forEach(body => physics.removeBody(body));
+  arenaColliderBodies = [];
+
   if (connectionTimeoutId) {
     clearTimeout(connectionTimeoutId);
     connectionTimeoutId = null;
@@ -898,7 +916,6 @@ function endGame(): void {
   botRoundRespawnPending = false;
   usingGrenade = false;
   activeSlot = 'pistol';
-  droppedWeapons.clear();
   nearbyDrop = null;
   weaponManager.dispose();
   hud.hideResults();
