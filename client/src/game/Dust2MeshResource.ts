@@ -197,7 +197,7 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
     throw new Error('Dust2 world mesh indices must be an array of triangles.');
   }
 
-  if (resource.mesh.indices.length !== geometryManifest.exportedMeshTriangleCount * 3) {
+  if (resource.mesh.indices.length !== geometryManifest.exportedMeshTriangleCount! * 3) {
     throw new Error('Dust2 world mesh indices must match exported BSP model mesh triangle count.');
   }
 
@@ -207,7 +207,7 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
   if (!Array.isArray(collisionMesh.positions) || collisionMesh.positions.length !== collisionVertexCount) {
     throw new Error('Dust2 world mesh collision positions must match source collision mesh vertex count.');
   }
-  if (!Array.isArray(collisionMesh.indices) || collisionMesh.indices.length !== collisionTriangleCount * 3) {
+  if (!Array.isArray(collisionMesh.indices) || collisionMesh.indices.length !== collisionTriangleCount! * 3) {
     throw new Error('Dust2 world mesh collision indices must match source collision mesh triangle count.');
   }
 

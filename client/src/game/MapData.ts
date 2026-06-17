@@ -234,13 +234,15 @@ export const resolveDust2SourceSpawns = (
 ) => {
   const entitySpawns = resource?.source.manifest.entities?.playerSpawns ?? [];
   const worldBounds = getDust2WorldBounds(resource);
-  const stableEyeYForSpawn = (position: { x: number; y: number; z: number }) => {
-    if (position.z > 2 && position.x >= -12 && position.x <= 2) return 1.92;
-    if (position.z < -18 && position.x >= -2 && position.x <= 8) return -0.24;
+  const groundYForSpawn = (position: { x: number; y: number; z: number }) => {
+    if (position.z > 2 && position.x >= -12 && position.x <= 2) return 1.76; // T spawn ground
+    if (position.z < -18 && position.x >= -2 && position.x <= 8) return -0.88; // CT spawn ground
     return position.y;
   };
   const toPlayerPosition = (position: { x: number; y: number; z: number }) =>
-    new THREE.Vector3(position.x, stableEyeYForSpawn(position), position.z);
+    new THREE.Vector3(position.x, groundYForSpawn(position) + PLAYER_EYE_HEIGHT, position.z);
+  const toEnemyPosition = (position: { x: number; y: number; z: number }) =>
+    new THREE.Vector3(position.x, groundYForSpawn(position), position.z);
   const withinWorld = (position: THREE.Vector3) =>
     isFiniteVector(position)
     && (!worldBounds
@@ -259,7 +261,7 @@ export const resolveDust2SourceSpawns = (
   const ctSpawns = entitySpawns
     .filter(spawn => spawn.team === 'ct' && spawn.gamePosition)
     .map(spawn => ({
-      position: toPlayerPosition(spawn.gamePosition!),
+      position: toEnemyPosition(spawn.gamePosition!),
       type: 'shooter' as const,
     }))
     .filter(spawn => withinWorld(spawn.position));
@@ -271,7 +273,15 @@ export const resolveDust2SourceSpawns = (
   if (preferredTeam === 'ct') {
     // 玩家选择 CT: 在 CT 出生点出生，敌人在 T 出生点
     playerSpawn = ctSpawns.find(s => withinWorld(s.position))?.position?.clone() ?? fallbackPlayerSpawn;
-    enemySpawns = tSpawns.filter(withinWorld).map(pos => ({ position: pos, type: 'shooter' as const }));
+    // 需要把playerSpawn改回眼睛高度
+    const playerSpawnGround = playerSpawn.clone();
+    playerSpawnGround.y = groundYForSpawn(playerSpawnGround) + PLAYER_EYE_HEIGHT;
+    playerSpawn = playerSpawnGround;
+    enemySpawns = tSpawns.filter(withinWorld).map(pos => {
+      const enemyPos = pos.clone();
+      enemyPos.y = groundYForSpawn(enemyPos);
+      return { position: enemyPos, type: 'shooter' as const };
+    });
   } else if (preferredTeam === 't') {
     // 玩家选择 T: 在 T 出生点出生，敌人在 CT 出生点
     playerSpawn = tSpawns.find(withinWorld)?.clone() ?? fallbackPlayerSpawn;
@@ -285,7 +295,13 @@ export const resolveDust2SourceSpawns = (
     } else {
       const firstCt = ctSpawns.find(s => withinWorld(s.position));
       playerSpawn = firstCt?.position?.clone() ?? fallbackPlayerSpawn;
-      enemySpawns = tSpawns.filter(withinWorld).map(pos => ({ position: pos, type: 'shooter' as const }));
+      // 把playerSpawn改回眼睛高度
+      playerSpawn.y = groundYForSpawn(playerSpawn) + PLAYER_EYE_HEIGHT;
+      enemySpawns = tSpawns.filter(withinWorld).map(pos => {
+        const enemyPos = pos.clone();
+        enemyPos.y = groundYForSpawn(enemyPos);
+        return { position: enemyPos, type: 'shooter' as const };
+      });
     }
   }
 

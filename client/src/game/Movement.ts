@@ -45,20 +45,20 @@ export const CSGO_MOVEMENT: MovementParams = {
 // => g = 2h/t² = 2*0.45/(0.38²) ≈ 6.23
 // => v0 = g*t = 6.23*0.38 ≈ 2.37
 // 实际游戏中需要增大重力确保下落真实（对抗 cannon-es 的阻尼）
-export const CSGO_GRAVITY = 8.5;
-export const PLAYER_JUMP_FORCE = 2.8;
+export const CSGO_GRAVITY = 7.06;
+export const PLAYER_JUMP_FORCE = 2.521;
 export const PLAYER_CROUCH_JUMP_BONUS = hammerToGame(8); // 0.08
 
 // CS1.6 摔落伤害参数
 // 安全下落高度：216 HU（不会受伤）
 // 从高度 h 下落的着陆速度：v = sqrt(2gh)
 // 转换为游戏单位：
-//   g = 8.5, h_safe = 2.16 (216 HU)
-//   v_safe = sqrt(2*8.5*2.16) ≈ 6.06 游戏单位/秒
+//   g = 7.06, h_safe = 2.16 (216 HU)
+//   v_safe = sqrt(2*7.06*2.16) ≈ 5.52 游戏单位/秒
 // 超过安全高度后：每增加 1 HU 造成约 1 点伤害
-export const FALL_DAMAGE_SAFE_SPEED = 6.06; // 安全着陆速度（游戏单位/秒）
+export const FALL_DAMAGE_SAFE_SPEED = 5.52; // 安全着陆速度（游戏单位/秒）
 export const FALL_DAMAGE_PER_HU = 1.0; // 每 HU 额外高度的伤害
-export const FALL_DAMAGE_SPEED_PER_HU = 0.41; // 每 HU 高度对应的速度增量 (sqrt(2*8.5*0.01) ≈ 0.41)
+export const FALL_DAMAGE_SPEED_PER_HU = 0.376; // 每 HU 高度对应的速度增量 (sqrt(2*7.06*0.01) ≈ 0.376)
 
 export interface StepUpCheck {
   grounded: boolean;

@@ -176,14 +176,14 @@ export class Scene {
         const aSite = arena.bombSites?.A.clone() ?? new THREE.Vector3(-15.36, 0.04, -26.88);
         const bSite = arena.bombSites?.B.clone() ?? new THREE.Vector3(11.52, 0.04, -24.64);
 
-        addLight(new THREE.Vector3(tSpawn.x, 4.2, tSpawn.z), 0xffeebb, 1.7, 20);
-        addLight(new THREE.Vector3(ctCenter.x, 3.8, ctCenter.z), 0xfffae8, 1.9, 20);
-        addLight(new THREE.Vector3(aSite.x, 4.8, aSite.z), 0xffefdc, 2.0, 18);
-        addLight(new THREE.Vector3(bSite.x, 4.8, bSite.z), 0xffeedd, 1.8, 18);
-        addLight(new THREE.Vector3(-3.2, 3.4, -11.8), 0xffd8a0, 1.4, 16);
-        addLight(new THREE.Vector3(-9.6, 3.2, -15.1), 0xffe2b0, 1.1, 12);
-        addLight(new THREE.Vector3(5.2, 2.7, -5.1), 0xff9930, 1.0, 10);
-        addLight(new THREE.Vector3(12.8, 3.0, -1.5), 0x8090a0, 0.7, 10);
+        addLight(new THREE.Vector3(tSpawn.x, 4.2, tSpawn.z), 0xffeebb, 1.0, 20);
+        addLight(new THREE.Vector3(ctCenter.x, 3.8, ctCenter.z), 0xfffae8, 1.1, 20);
+        addLight(new THREE.Vector3(aSite.x, 4.8, aSite.z), 0xffefdc, 1.2, 18);
+        addLight(new THREE.Vector3(bSite.x, 4.8, bSite.z), 0xffeedd, 1.1, 18);
+        addLight(new THREE.Vector3(-3.2, 3.4, -11.8), 0xffd8a0, 0.9, 16);
+        addLight(new THREE.Vector3(-9.6, 3.2, -15.1), 0xffe2b0, 0.7, 12);
+        addLight(new THREE.Vector3(5.2, 2.7, -5.1), 0xff9930, 0.6, 10);
+        addLight(new THREE.Vector3(12.8, 3.0, -1.5), 0x8090a0, 0.5, 10);
       } else {
       // ── Dust2 专用灯光 ──────────────────────────────────────
       // CT Spawn 路灯（明亮白光）
@@ -193,7 +193,7 @@ export class Scene {
         new THREE.Vector3( 0,    3.6, -33.28),
       ];
       ctLamps.forEach(pos => {
-        const l = new THREE.PointLight(0xfffae8, 2.2, 18, 2.0);
+        const l = new THREE.PointLight(0xfffae8, 1.2, 18, 2.0);
         l.position.copy(pos);
         this.addArenaObject(l);
       });
@@ -205,7 +205,7 @@ export class Scene {
         new THREE.Vector3(-28.8, 4.7, 10.2),
       ];
       aSiteLamps.forEach(pos => {
-        const l = new THREE.PointLight(0xffefdc, 2.0, 18, 1.8);
+        const l = new THREE.PointLight(0xffefdc, 1.2, 18, 1.8);
         l.position.copy(pos);
         this.addArenaObject(l);
       });
@@ -217,30 +217,30 @@ export class Scene {
         new THREE.Vector3( 22.0, 4.5,  16.0),
       ];
       bSiteLamps.forEach(pos => {
-        const l = new THREE.PointLight(0xffeedd, 1.8, 20, 1.8);
+        const l = new THREE.PointLight(0xffeedd, 1.1, 20, 1.8);
         l.position.copy(pos);
         this.addArenaObject(l);
       });
 
       // Lower B Tunnels 壁灯 — 入口略亮，出口略暗
       [55.0, 42.0, 28.0, 14.0].forEach((zHU, i) => {
-        const intensity = i < 2 ? 1.2 : 1.0;
+        const intensity = i < 2 ? 0.7 : 0.6;
         const l = new THREE.PointLight(0xff9930, intensity, 10, 2.4);
         l.position.set(32.64, 2.0, -zHU);
         this.addArenaObject(l);
       });
       // Upper Dark — 极暗冷光，强化暗角感
-      const upperDarkLight = new THREE.PointLight(0x8090a0, 0.5, 8, 2.8);
+      const upperDarkLight = new THREE.PointLight(0x8090a0, 0.3, 8, 2.8);
       upperDarkLight.position.set(32.64, 3.8, -5.12);
       this.addArenaObject(upperDarkLight);
       // B Site 额外补光 — 比洞道亮
-      const bSiteExtraLight = new THREE.PointLight(0xffeedd, 1.4, 16, 1.8);
+      const bSiteExtraLight = new THREE.PointLight(0xffeedd, 0.8, 16, 1.8);
       bSiteExtraLight.position.set(25.6, 4.8, 12.8);
       this.addArenaObject(bSiteExtraLight);
 
       // A Long 走廊壁灯（橙黄色，较暗）
       [50.0, 35.0, 15.0].forEach(zHU => {
-        const l = new THREE.PointLight(0xff9930, 1.2, 12, 2.2);
+        const l = new THREE.PointLight(0xff9930, 0.7, 12, 2.2);
         l.position.set(-39.04, 2.0, -zHU);
         this.addArenaObject(l);
       });

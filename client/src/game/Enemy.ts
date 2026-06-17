@@ -48,8 +48,8 @@ export class Enemy {
   public type: EnemyType;
   public state: EnemyState = 'idle';
   public health: number;
-  public readonly maxHealth: number;
-  public readonly speed: number;
+  public maxHealth: number;
+  public speed: number;
   public readonly detectionRange: number;
   public readonly attackRange: number;
 
@@ -71,7 +71,7 @@ export class Enemy {
   private botRouteIndex = 0;
   public readonly damage = 10;
 
-  constructor(config: EnemyConfig, scene: THREE.Scene, physics: Physics) {
+  constructor(config: EnemyConfig, scene: THREE.Scene, physics: Physics, isPreload: boolean = false) {
     this.id = `enemy_${Math.random().toString(36).substr(2, 9)}`;
     this.type = config.type;
     this.health = config.health ?? 100;
@@ -105,6 +105,9 @@ export class Enemy {
       this.mesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.8, 0.3), new THREE.MeshStandardMaterial({ color: 0x555555 })));
     }
     this.mesh.position.copy(config.position);
+    if (isPreload) {
+      this.mesh.visible = false;
+    }
     markRaycastIgnore(this.mesh);
     scene.add(this.mesh);
 
@@ -456,6 +459,10 @@ export class Enemy {
 
   isDead(): boolean {
     return this.state === 'dead';
+  }
+
+  setVisible(visible: boolean): void {
+    this.mesh.visible = visible;
   }
 
   getPosition(): THREE.Vector3 {

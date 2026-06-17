@@ -219,6 +219,7 @@ let arenaColliderBodies: CANNON.Body[] = [];
 let wasGrounded = true;
 let soloBotMatch: Cs16BotMatch | null = null;
 let botRoundRespawnPending = false;
+let currentEnemySpawns: EnemySpawnPoint[] = []; // 保存当前地图根据队伍选择的敌方出生点
 const multiplayerSessionStorageKey = 'fps-web-game:multiplayer-session:v1';
 let currentPlayerName = '';
 
@@ -432,6 +433,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
     playerSpawn = result.playerSpawn;
     enemySpawns = result.enemySpawns;
   }
+  currentEnemySpawns = enemySpawns; // 保存敌方出生点供后续使用
 
   console.log(`[Main] Final spawn: map=${mapId}, team=${teamPref}, desiredTeam=${desiredTeam || 'undefined'}, x=${playerSpawn.x.toFixed(2)}, y=${playerSpawn.y.toFixed(2)}, z=${playerSpawn.z.toFixed(2)}`);
 
@@ -453,6 +455,15 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
 
   if (mode === 'solo' && selectedMapId === 'dust2') {
     enemyManager.preloadEnemies(5);
+    // 初始化 CS1.6 Bot Match
+    soloBotMatch = new Cs16BotMatch({
+      freezeSeconds: 5,
+      roundSeconds: 115,
+      roundEndSeconds: 4,
+      botCount: 5,
+      playerTeam: desiredTeam || 'attackers',
+      startingMoney: 800
+    });
   }
 
   if (soloBotMatch) {
@@ -512,7 +523,7 @@ function restartSoloBotRound(): void {
   syncWeaponHud();
   hud.updateWeapon(weaponManager.getCurrentWeapon());
   hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
-  const botSpawns = scene.getCurrentArena().enemySpawns.map(spawn => spawn.position);
+  const botSpawns = currentEnemySpawns.map(spawn => spawn.position); // 使用保存的敌方出生点
   soloBotMatch.createBotPlans(botSpawns, getDust2BotRoute).forEach(plan => {
     enemyManager.spawnEnemy({
       type: 'shooter',

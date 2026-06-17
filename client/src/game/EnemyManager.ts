@@ -55,8 +55,8 @@ export class EnemyManager {
 
     if (this.enemyPool.length > 0) {
       enemy = this.enemyPool.pop()!;
-      enemy.reset(config.position, config.health, config.speed, config.botProfile);
-      enemy.mesh.visible = true;
+      enemy.reset(config.position, config.health ?? 100, config.speed ?? 2.15, config.botProfile);
+      enemy.setVisible(true);
     } else {
       enemy = new Enemy(config, this.scene, this.physics);
     }
