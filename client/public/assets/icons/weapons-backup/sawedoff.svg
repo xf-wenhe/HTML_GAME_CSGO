@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 70">
+  <defs>
+    <linearGradient id="sawedoff-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8C070"/>
+      <stop offset="100%" stop-color="#A87030"/>
+    </linearGradient>
+  </defs>
+  <!-- Sawed-Off: short double barrel + cut-down stock -->
+  <g fill="url(#sawedoff-grad)">
+    <!-- Receiver (compact) -->
+    <rect x="42" y="22" width="38" height="20" rx="4"/>
+    <!-- Top barrel (short) -->
+    <rect x="20" y="18" width="42" height="6" rx="2.5"/>
+    <!-- Bottom barrel (short) -->
+    <rect x="20" y="32" width="42" height="6" rx="2.5"/>
+    <!-- Barrel connector/bracket -->
+    <rect x="22" y="23" width="4" height="10" rx="1" opacity="0.7"/>
+    <!-- Trigger guard -->
+    <path d="M52 40 Q54 50 60 52 Q68 50 70 44 L70 40Z" opacity="0.85"/>
+    <!-- Pistol grip (cut down) -->
+    <rect x="70" y="40" width="12" height="20" rx="4" transform="rotate(8, 70, 40)"/>
+    <!-- Cut-down stock (short, no buttplate) -->
+    <rect x="78" y="24" width="14" height="10" rx="3"/>
+    <!-- Receiver detail - break action hinge -->
+    <rect x="40" y="28" width="4" height="4" rx="1" opacity="0.6"/>
+    <!-- Barrel short muzzle cuts -->
+    <rect x="18" y="16" width="3" height="4" rx="0.5" opacity="0.5"/>
+    <rect x="18" y="34" width="3" height="4" rx="0.5" opacity="0.5"/>
+  </g>
+</svg>

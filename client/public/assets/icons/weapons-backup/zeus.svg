@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 70">
+  <defs>
+    <linearGradient id="zeus-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE870"/>
+      <stop offset="100%" stop-color="#D4A020"/>
+    </linearGradient>
+  </defs>
+  <!-- Zeus x27: taser with prongs + handle -->
+  <g fill="url(#zeus-grad)">
+    <!-- Body -->
+    <rect x="50" y="24" width="38" height="14" rx="4"/>
+    <!-- Electrode prongs -->
+    <rect x="30" y="18" width="22" height="4" rx="2"/>
+    <rect x="30" y="40" width="22" height="4" rx="2"/>
+    <!-- Prong tips (sharp) -->
+    <polygon points="28,16 22,20 28,24"/>
+    <polygon points="28,38 22,42 28,46"/>
+    <!-- Handle -->
+    <rect x="86" y="28" width="10" height="24" rx="4" transform="rotate(10, 86, 28)"/>
+    <!-- Trigger guard -->
+    <path d="M70 40 Q72 48 78 50 Q83 49 85 44 L85 40Z" opacity="0.8"/>
+    <!-- Trigger -->
+    <rect x="72" y="42" width="5" height="3" rx="1" opacity="0.6"/>
+    <!-- Flash bolt (lightning icon area) -->
+    <path d="M55 18 L58 24 L55 24 L59 30 L55 30 L59 36" fill="none" stroke="#FFD700" stroke-width="1.5" opacity="0.7"/>
+    <!-- Safety switch -->
+    <rect x="54" y="35" width="6" height="3" rx="1" fill="#E0B030" opacity="0.6"/>
+  </g>
+</svg>

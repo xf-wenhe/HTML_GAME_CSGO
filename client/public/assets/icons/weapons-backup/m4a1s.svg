@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 70">
+  <defs>
+    <linearGradient id="m4s-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F0C060"/>
+      <stop offset="100%" stop-color="#D4942A"/>
+    </linearGradient>
+  </defs>
+  <!-- M4A1-S: suppressed barrel, similar to M4A4 but with silencer -->
+  <g fill="url(#m4s-grad)">
+    <!-- Suppressor -->
+    <rect x="2" y="31" width="28" height="7" rx="3" opacity="0.8"/>
+    <!-- Barrel -->
+    <rect x="28" y="30" width="62" height="9" rx="2"/>
+    <!-- Handguard -->
+    <rect x="40" y="28" width="48" height="14" rx="2" opacity="0.7"/>
+    <!-- Receiver -->
+    <rect x="76" y="24" width="50" height="18" rx="3"/>
+    <!-- Rail -->
+    <rect x="86" y="16" width="28" height="8" rx="2"/>
+    <!-- Magazine -->
+    <rect x="98" y="42" width="10" height="22" rx="2"/>
+    <!-- Stock -->
+    <rect x="126" y="28" width="60" height="12" rx="4"/>
+    <rect x="180" y="26" width="8" height="22" rx="2.5"/>
+    <!-- Trigger guard -->
+    <path d="M106 42 Q108 50 112 52 Q116 52 118 46 L118 42Z" opacity="0.85"/>
+    <!-- Pistol grip -->
+    <rect x="114" y="42" width="10" height="24" rx="3"/>
+  </g>
+</svg>
