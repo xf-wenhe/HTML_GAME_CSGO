@@ -100,8 +100,12 @@ export const resolveDust2SourceGeometry = (
   placeholderProps: BoxSpec[]
 ) => {
   if (sourceMeshes.length > 0) {
-    console.log('[MapData] Using BSP mesh geometry with generated stable player colliders');
-    return { colliders: [], props: [], meshes: sourceMeshes };
+    console.log('[MapData] Using BSP mesh geometry with manual ground colliders');
+    // 保留手动定义的地面碰撞体（因为 Trimesh raycasting 在 cannon-es 中有问题）
+    const groundColliders = placeholderColliders
+      .filter(c => c.name?.includes('-ground') || c.name?.includes('-floor') || c.name?.includes('-wall') || c.name?.includes('-platform'))
+      .map(c => ({ ...c, name: `${c.name}-source-walkable`, physicsOnly: true }));
+    return { colliders: groundColliders, props: [], meshes: sourceMeshes };
   }
   return { colliders: placeholderColliders, props: placeholderProps, meshes: [] };
 };
@@ -1425,7 +1429,7 @@ function buildDust2Arena(): ArenaData {
   const rawSourceMeshes = DUST2_WORLD_MESH_RESOURCE
     ? [meshSpecFromDust2WorldMeshResource(DUST2_WORLD_MESH_RESOURCE)]
     : [];
-  const sourceMeshes = rawSourceMeshes.map(createVisualOnlyMesh);
+  const sourceMeshes = rawSourceMeshes.map(createNonWalkableCollisionMesh);
   const sourceGeometry = resolveDust2SourceGeometry(sourceMeshes, colliderBoxes, props);
   const fallbackPlayerSpawn = new THREE.Vector3(0, PLAYER_EYE_HEIGHT, H(-6144));
   const fallbackEnemySpawns = [

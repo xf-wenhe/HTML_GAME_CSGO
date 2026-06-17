@@ -3,7 +3,7 @@ import * as CANNON from 'cannon-es';
 import { NamedBody, Physics } from './Physics.js';
 import { InputManager } from './InputManager.js';
 import { Scene } from './Scene.js';
-import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, accelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle, MovementParams } from './Movement.js';
+import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, FALL_DAMAGE_SAFE_SPEED, FALL_DAMAGE_PER_HU, FALL_DAMAGE_SPEED_PER_HU, accelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle, MovementParams } from './Movement.js';
 import { DamageProfile, HitRegion, calculateDamage } from './Combat.js';
 import { hammerToGame, PLAYER_EYE_HEIGHT, PLAYER_HEIGHT } from './constants/MapUnits.js';
 
@@ -81,17 +81,19 @@ export class PlayerController {
     const wasGrounded = this.grounded;
     const landingVelocity = Math.abs(this.body.velocity.y);
     this.moving = wishDirection.lengthSq() > 0;
-    this.applyMovement(wishDirection, dt);
 
+    // 先检测跳跃，避免 applyMovement 把 grounded 又搞成 true
     if (this.input.isKeyPressed('Space')) {
       this.input.setKeyPressed('Space', false);
-      if (this.grounded) {
+      if (this.grounded && this.groundStickSuppressTime <= 0) {
         this.crouchJumpActive = this.crouched;
         this.body.velocity.y = this.jumpForce + (this.crouched ? PLAYER_CROUCH_JUMP_BONUS : 0);
         this.grounded = false;
-        this.groundStickSuppressTime = 0.12;
+        this.groundStickSuppressTime = 0.25; // 增加抑制时间防止连跳
       }
     }
+
+    this.applyMovement(wishDirection, dt);
 
     if (this.grounded) {
       this.airborneTime = 0;
@@ -100,6 +102,15 @@ export class PlayerController {
     }
     if (!wasGrounded && this.grounded) {
       this.lastLandingSpeed = landingVelocity;
+      // CS1.6 摔落伤害
+      if (landingVelocity > FALL_DAMAGE_SAFE_SPEED) {
+        const excessSpeed = landingVelocity - FALL_DAMAGE_SAFE_SPEED;
+        const excessHU = excessSpeed / FALL_DAMAGE_SPEED_PER_HU;
+        const damage = Math.floor(excessHU * FALL_DAMAGE_PER_HU);
+        if (damage > 0) {
+          this.takeDamage(damage, 'leg');
+        }
+      }
     }
   }
 
@@ -183,7 +194,7 @@ export class PlayerController {
       }
       velocity.x = horizontalVelocity.x;
       velocity.z = horizontalVelocity.z;
-      clampHorizontalSpeed(velocity, this.movementParams.runSpeed);
+      clampHorizontalSpeed(velocity, targetSpeed);
     }
 
     this.body.velocity.x = velocity.x;
@@ -228,45 +239,36 @@ export class PlayerController {
 
   private snapDownToGround(wishDirection: THREE.Vector3): void {
     if (this.body.velocity.y > 0.05) return; // Don't snap while jumping up
-    // Only snap down for SMALL drops - cannon-es Trimesh doesn't work with raycasting,
-    // so we might hit the global ground plane far below the actual floor we're standing on.
-    // Let gravity handle large falls.
-    const maxSnapDownDistance = 0.3;
-    // Only snap down if already grounded or falling reasonably fast
-    // But skip this check if we're very close to ground (spawn case)
-    if (!this.grounded && this.body.velocity.y > -1.0) {
-      // Do a quick check - if ground is very close, still allow snapping
-      const bottomY = this.body.position.y - this.currentHalfHeight;
-      const probe = new CANNON.Ray(
-        new CANNON.Vec3(this.body.position.x, bottomY - 0.01, this.body.position.z),
-        new CANNON.Vec3(this.body.position.x, bottomY - maxSnapDownDistance, this.body.position.z)
-      );
-      const result = new CANNON.RaycastResult();
-      if (!probe.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) {
-        return; // No ground close enough
-      }
-    }
-
-    const probes = [{ x: this.body.position.x, z: this.body.position.z }];
-    if (wishDirection.lengthSq() > 0) {
-      const direction = wishDirection.clone().normalize();
-      probes.push(
-        { x: this.body.position.x + direction.x * 0.28, z: this.body.position.z + direction.z * 0.28 },
-        { x: this.body.position.x + direction.x * 0.48, z: this.body.position.z + direction.z * 0.48 }
-      );
-    }
+    // 放宽 snap 距离，防止在斜坡上卡住跳出地图
+    const maxSnapDownDistance = 0.8;
 
     const currentBottom = this.body.position.y - this.currentHalfHeight;
     let bestHitY: number | null = null;
+
+    // 检查多个位置：脚下、前方、左前方、右前方（更稳定的斜坡检测）
+    const probes = [{ x: this.body.position.x, z: this.body.position.z }];
+    if (wishDirection.lengthSq() > 0) {
+      const direction = wishDirection.clone().normalize();
+      const perp1 = new THREE.Vector3(-direction.z, 0, direction.x); // 垂直向量1
+      const perp2 = new THREE.Vector3(direction.z, 0, -direction.x); // 垂直向量2
+
+      probes.push(
+        { x: this.body.position.x + direction.x * 0.28, z: this.body.position.z + direction.z * 0.28 },
+        { x: this.body.position.x + direction.x * 0.48, z: this.body.position.z + direction.z * 0.48 },
+        { x: this.body.position.x + perp1.x * 0.14, z: this.body.position.z + perp1.z * 0.14 },
+        { x: this.body.position.x + perp2.x * 0.14, z: this.body.position.z + perp2.z * 0.14 }
+      );
+    }
+
     for (const probe of probes) {
-      // Start ray slightly below feet to avoid hitting player's own collider
+      // 射线检测更远一些，防止斜坡上漏掉地面
       const from = new CANNON.Vec3(probe.x, currentBottom - 0.001, probe.z);
       const to = new CANNON.Vec3(probe.x, currentBottom - maxSnapDownDistance, probe.z);
       const ray = new CANNON.Ray(from, to);
       const result = new CANNON.RaycastResult();
       if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) continue;
-      if (Math.abs(result.hitNormalWorld.y) < 0.45) continue;
-      // Only snap if hit is within small step down range
+      // 降低坡度要求，避免斜坡上无法检测
+      if (Math.abs(result.hitNormalWorld.y) < 0.3) continue;
       const drop = currentBottom - result.hitPointWorld.y;
       if (drop < 0 || drop > maxSnapDownDistance) continue;
       if (bestHitY === null || result.hitPointWorld.y > bestHitY) bestHitY = result.hitPointWorld.y;
@@ -274,8 +276,8 @@ export class PlayerController {
 
     if (bestHitY === null) return;
     const targetBodyY = bestHitY + this.currentHalfHeight;
-    // Snap if within reasonable step-down range
-    if (targetBodyY < this.body.position.y + 0.05) {
+    // 放宽 snap 条件
+    if (targetBodyY < this.body.position.y + 0.2) {
       this.body.position.y = targetBodyY;
       if (this.body.velocity.y < 0) this.body.velocity.y = 0;
       this.grounded = true;
