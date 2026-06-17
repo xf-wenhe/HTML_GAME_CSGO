@@ -38,8 +38,8 @@ export const CSGO_MOVEMENT: MovementParams = {
 };
 
 // CS1.6 标准物理参数（与 Physics.ts 保持同步）
-export const CSGO_GRAVITY = 8.0; // CS1.6 sv_gravity 800，按 0.01 游戏单位缩放
-export const PLAYER_JUMP_FORCE = 2.683; // 约 45 HU 跳跃高度，下降速度符合 sv_gravity 800
+export const CSGO_GRAVITY = 7.06; // CS1.6 sv_gravity 800 优化值
+export const PLAYER_JUMP_FORCE = 2.521; // 达到 45 HU 跳跃高度
 export const PLAYER_CROUCH_JUMP_BONUS = hammerToGame(8); // 0.08
 
 export interface StepUpCheck {

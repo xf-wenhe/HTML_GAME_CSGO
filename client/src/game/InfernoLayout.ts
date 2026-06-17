@@ -51,7 +51,8 @@ export const INFERNO_COLLIDERS: InfernoCollider[] = [
   // T Spawn 出生点游戏坐标: x=-15.44~-17.44, z=-2.64~-7.20
   // → Hammer: x=-1544~-1744, z=264~720 (因为会被取反)
   // T Spawn 地面: y = -16 HU = -0.16 游戏单位
-  plat(-1664, 512, 1024, 1024, 16, -16, 'inferno-t-spawn-ground'),
+  // 顶面 = hammerToGame(8 + (-32)) = -0.16, 底部 = -0.24
+  plat(-1664, 512, 1024, 1024, 16, -32, 'inferno-t-spawn-ground'),
 
   // CT Spawn 出生点游戏坐标: x=23.04~24.00, z=-19.04~-24.64
   // → Hammer: x=2304~2400, z=1904~2464 (因为会被取反)

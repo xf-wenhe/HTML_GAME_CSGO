@@ -8,14 +8,59 @@ export class EnemyManager {
   private scene: THREE.Scene;
   private physics: Physics;
   private lineOfSightColliders: BoxSpec[] = [];
+  private enemyPool: Enemy[] = [];
+  private poolSize = 10;
+  private preloadingPromise: Promise<void> | null = null;
+  private isPreloaded = false;
+  private pendingRemovals: Map<string, number> = new Map();
 
   constructor(scene: THREE.Scene, physics: Physics) {
     this.scene = scene;
     this.physics = physics;
   }
 
+  preloadEnemies(count: number = 5): Promise<void> {
+    if (this.isPreloaded) return Promise.resolve();
+    if (this.preloadingPromise) return this.preloadingPromise;
+
+    this.preloadingPromise = this.preloadEnemiesInternal(count).then(() => {
+      this.isPreloaded = true;
+    });
+    return this.preloadingPromise;
+  }
+
+  private async preloadEnemiesInternal(count: number): Promise<void> {
+    const tempPosition = new THREE.Vector3(0, -1000, 0);
+    const configs: EnemyConfig[] = [];
+
+    for (let i = 0; i < Math.min(count, this.poolSize); i++) {
+      configs.push({
+        type: 'shooter',
+        position: tempPosition.clone(),
+        health: 100,
+        speed: 2.15,
+        botProfile: { weaponId: 'usp_s' }
+      });
+    }
+
+    for (const config of configs) {
+      const enemy = new Enemy(config, this.scene, this.physics, true);
+      this.enemyPool.push(enemy);
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+
   spawnEnemy(config: EnemyConfig): Enemy {
-    const enemy = new Enemy(config, this.scene, this.physics);
+    let enemy: Enemy | null = null;
+
+    if (this.enemyPool.length > 0) {
+      enemy = this.enemyPool.pop()!;
+      enemy.reset(config.position, config.health, config.speed, config.botProfile);
+      enemy.mesh.visible = true;
+    } else {
+      enemy = new Enemy(config, this.scene, this.physics);
+    }
+
     this.enemies.set(enemy.id, enemy);
     return enemy;
   }
@@ -37,10 +82,12 @@ export class EnemyManager {
     this.enemies.forEach((enemy, id) => {
       damage += enemy.update(dt, playerPosition, now, lineOfSightColliders, canMove);
 
-      if (enemy.isDead()) {
-        setTimeout(() => {
+      if (enemy.isDead() && !this.pendingRemovals.has(id)) {
+        const timeoutId = window.setTimeout(() => {
           this.removeEnemy(id);
+          this.pendingRemovals.delete(id);
         }, 3000);
+        this.pendingRemovals.set(id, timeoutId);
       }
     });
     return damage;
@@ -55,7 +102,21 @@ export class EnemyManager {
   }
 
   clear(): void {
-    this.enemies.forEach((_, id) => this.removeEnemy(id));
+    this.pendingRemovals.forEach((timeoutId) => clearTimeout(timeoutId));
+    this.pendingRemovals.clear();
+    this.enemies.forEach((enemy, id) => {
+      if (enemy.isDead()) {
+        enemy.dispose(this.scene, this.physics);
+      } else {
+        enemy.resetForPool();
+        if (this.enemyPool.length < this.poolSize) {
+          this.enemyPool.push(enemy);
+        } else {
+          enemy.dispose(this.scene, this.physics);
+        }
+      }
+    });
+    this.enemies.clear();
   }
 
   getAliveCount(): number {

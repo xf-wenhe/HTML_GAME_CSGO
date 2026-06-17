@@ -115,7 +115,7 @@ export const resolveInfernoSourceGeometry = (
     console.log('[MapData] Using BSP mesh geometry with manual ground colliders');
     // 保留手动定义的地面碰撞体（因为 Trimesh raycasting 在 cannon-es 中有问题）
     const groundColliders = placeholderColliders
-      .filter(c => c.name?.includes('-ground') || c.name?.includes('-floor'))
+      .filter(c => c.name?.includes('-ground') || c.name?.includes('-floor') || c.name?.includes('-wall') || c.name?.includes('-platform'))
       .map(c => ({ ...c, name: `${c.name}-source-walkable`, physicsOnly: true }));
     return { colliders: groundColliders, props: [], meshes: sourceMeshes };
   }
@@ -374,7 +374,7 @@ function createSourceWalkableColliders(meshes: MeshSpec[], prefix: string): BoxS
       normal.crossVectors(edgeA, edgeB);
       if (normal.lengthSq() <= 0.000001) continue;
       normal.normalize();
-      if (Math.abs(normal.y) < 0.55) continue;
+      if (normal.y < 0.55) continue;
 
       const minX = Math.min(a.x, b.x, c.x);
       const maxX = Math.max(a.x, b.x, c.x);

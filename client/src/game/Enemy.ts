@@ -107,7 +107,6 @@ export class Enemy {
     this.mesh.position.copy(config.position);
     markRaycastIgnore(this.mesh);
     scene.add(this.mesh);
-    void this.loadModel();
 
     // 将碰撞盒尺寸改为 1.6米高 (0.8是半高)
     const shape = new CANNON.Box(new CANNON.Vec3(0.25, 0.8, 0.25));
@@ -466,6 +465,34 @@ export class Enemy {
   dispose(scene: THREE.Scene, physics: Physics): void {
     scene.remove(this.mesh);
     physics.removeBody(this.body);
+  }
+
+  reset(position: THREE.Vector3, health: number, speed: number, botProfile?: EnemyConfig['botProfile']): void {
+    this.mesh.position.copy(position);
+    this.mesh.visible = true;
+    this.health = health;
+    this.maxHealth = health;
+    this.speed = speed;
+    this.state = 'idle';
+    this.botProfile = botProfile ?? null;
+    this.patrolPath = botProfile?.route?.map(p => p.clone()) ?? [];
+    this.botRouteIndex = 0;
+    this.currentPatrolIndex = 0;
+    this.lastAttackTime = 0;
+    this.hitStunRemaining = 0;
+    this.hitReact = 0;
+    this.body.position.set(position.x, position.y + 0.8, position.z);
+    this.body.velocity.set(0, 0, 0);
+    this.body.angularVelocity.set(0, 0, 0);
+    this.body.wakeUp();
+  }
+
+  resetForPool(): void {
+    this.mesh.visible = false;
+    this.state = 'idle';
+    this.health = 0;
+    this.body.position.set(0, -100, 0);
+    this.body.velocity.set(0, 0, 0);
   }
 
   getHealthRatio(): number {

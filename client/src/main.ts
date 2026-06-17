@@ -231,6 +231,9 @@ interface SavedMultiplayerSession {
   playerName: string;
 }
 
+let connectionTimeoutId: number | null = null;
+const CONNECTION_TIMEOUT_MS = 10000;
+
 syncArenaPhysics();
 
 function syncArenaPhysics(): void {
@@ -351,19 +354,49 @@ function startMultiplayer(mode: MatchMode): void {
 }
 
 function startGame(mode: 'solo' | 'multiplayer'): void {
+  // 清理上一局遗留状态，防止物理体和敌人堆积
+  if (player) {
+    player.dispose();
+    player = null;
+  }
+  enemyManager.clear();
+  remotePlayers.clear();
+  grenades.reset();
+  droppedWeapons.clear();
+  impactDecalManager.clear();
+  shellCasingManager.clear();
+  tracerSystem.clear();
+  if (connectionTimeoutId) {
+    clearTimeout(connectionTimeoutId);
+    connectionTimeoutId = null;
+  }
+  network.disconnect();
+  clearMultiplayerSession();
+  soloBotMatch = null;
+  botRoundRespawnPending = false;
+  recordedKills.clear();
+  nearbyDrop = null;
+  lastHitRegion = null;
+  currentSnapshot = null;
+  localPlayerId = undefined;
+  prediction.reset();
+  lastNetworkInputAt = 0;
+  pendingRoomId = null;
+  pendingSpectator = false;
+  isSpectating = false;
+  usingGrenade = false;
+  activeSlot = 'pistol';
+  equippedPrimary = '';
+
   mainMenu.hide();
   hud.show();
   hud.setTouchControlsVisible(input.isTouchControlsActive());
   gameRunning = true;
   setInputMode('playing');
   input.clearGameplayKeys();
-  prediction.reset();
-  lastNetworkInputAt = 0;
-  lastFrameTime = performance.now();
   wasGrounded = true;
   debugPointerLockBypass = false;
   currentMode = mode;
-  isSpectating = false;
   selectedMapId = mainMenu.getMapId();
   const currentSettings = settings.getSettings();
   input.setMouseSettings({ baseSensitivity: 0.0035 * currentSettings.mouseSensitivity });
@@ -398,21 +431,7 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
 
   console.log(`[Main] Final spawn: map=${mapId}, team=${teamPref}, desiredTeam=${desiredTeam || 'undefined'}, x=${playerSpawn.x.toFixed(2)}, y=${playerSpawn.y.toFixed(2)}, z=${playerSpawn.z.toFixed(2)}`);
 
-  usingGrenade = false;
-  activeSlot = 'pistol';
-  equippedPrimary = '';
   equippedPistol = selectedMapId === 'dust2' && mode === 'solo' ? 'pistol' : 'pistol';
-  soloBotMatch = mode === 'solo' && selectedMapId === 'dust2' ? new Cs16BotMatch() : null;
-  botRoundRespawnPending = false;
-  recordedKills.clear();
-  droppedWeapons.clear();
-  nearbyDrop = null;
-  lastHitRegion = null;
-
-  // 【新增】打扫战场：清空上一局遗留的弹孔、弹壳和子弹轨迹
-  impactDecalManager.clear();
-  shellCasingManager.clear();
-  tracerSystem.clear();
 
   player = new PlayerController(scene, physics, input, playerSpawn);
   player.setRotation(0, getDefaultSpawnYaw(mode === 'solo' ? 'attackers' : undefined));
@@ -428,12 +447,30 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
   hud.updateRoomPlayers(mode === 'solo' ? 1 : 0, mode === 'solo' ? 1 : 10);
   hud.showNotification(mode === 'solo' ? '单人任务已开始' : '正在等待玩家...');
 
+  if (mode === 'solo' && selectedMapId === 'dust2') {
+    enemyManager.preloadEnemies(5);
+  }
+
   if (soloBotMatch) {
     restartSoloBotRound();
     hud.showNotification('Dust2 CS1.6 Bot Match 已开始');
   } else if (mode === 'solo') {
     survival.start(performance.now(), mainMenu.getDifficulty(), enemySpawns);
   } else {
+    if (connectionTimeoutId) {
+      clearTimeout(connectionTimeoutId);
+    }
+    connectionTimeoutId = window.setTimeout(() => {
+      if (currentMode === 'multiplayer' && !network.isConnected()) {
+        console.warn('[Main] Network connection timeout, falling back to local game');
+        hud.showNotification('连接超时，已切换到本地模式');
+        hud.updateNetworkStatus('本地模式');
+        if (!player) {
+          survival.start(performance.now(), mainMenu.getDifficulty(), enemySpawns);
+        }
+      }
+    }, CONNECTION_TIMEOUT_MS);
+
     if (network.isConnected()) joinMultiplayerAfterConnection();
     else network.connect();
   }
@@ -464,8 +501,6 @@ function restartSoloBotRound(): void {
   previousSlot = 'knife';
   equippedPrimary = '';
   equippedPistol = 'pistol';
-  player.setEyePositionForDebug(scene.getCurrentArena().playerSpawn.clone());
-  player.setRotation(0, getDefaultSpawnYaw('attackers'));
   player.resetVelocity();
   player.healFull();
   weaponManager.switchWeapon(equippedPistol);
@@ -514,6 +549,10 @@ function updateSoloBotMatch(dt: number): void {
 network.on('connected', () => {
   debugLog('Connected to game server!');
   hud.updateNetworkStatus(`已连接 ${network.getServerUrl()}`);
+  if (connectionTimeoutId) {
+    clearTimeout(connectionTimeoutId);
+    connectionTimeoutId = null;
+  }
   if (currentMode !== 'multiplayer') {
     network.send({ type: 'joinLobby' });
     return;
@@ -838,6 +877,10 @@ function endGame(): void {
   setInputMode('menu');
   enemyManager.clear();
   remotePlayers.clear();
+  if (connectionTimeoutId) {
+    clearTimeout(connectionTimeoutId);
+    connectionTimeoutId = null;
+  }
   network.send({ type: 'leaveRoom' });
   network.disconnect();
   clearMultiplayerSession();
