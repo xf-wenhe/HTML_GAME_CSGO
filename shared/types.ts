@@ -8,14 +8,18 @@ export type MatchMode = 'tdm' | 'defusal';
 export type Team = 'attackers' | 'defenders';
 export type MatchPhase = 'warmup' | 'buy' | 'live' | 'roundEnd' | 'matchEnd';
 export type WeaponId =
+  // CS:GO weapons
   | 'pistol' | 'usp_s' | 'p250' | 'five_seven' | 'deagle' | 'dual_berettas' | 'r8' | 'cz75' | 'tec9' | 'p2000'
   | 'mp9' | 'mac10' | 'pp_bizon' | 'mp7' | 'ump45' | 'p90' | 'mp5sd'
   | 'm4a1s' | 'm4a4' | 'ak47' | 'famas' | 'galil' | 'sg553' | 'aug'
   | 'awp' | 'ssg08' | 'scar20' | 'g3sg1'
   | 'nova' | 'mag7' | 'xm1014' | 'm249' | 'negev' | 'sawedoff'
   | 'knife' | 'zeus'
+  // Legacy IDs
   | 'sidearm' | 'heavy_pistol' | 'vandal' | 'sentinel' | 'operator' | 'specter' | 'bulldog'
-  | 'rifle' | 'sniper' | 'shotgun' | 'smg' | 'defender_rifle';
+  | 'rifle' | 'sniper' | 'shotgun' | 'smg' | 'defender_rifle'
+  // CS 1.6 weapons
+  | 'glock' | 'usp' | 'p228' | 'mp5' | 'tmp' | 'm3' | 'm4a1' | 'sg552' | 'sg550' | 'scout';
 export type MapId = 'dust2' | 'warehouse' | 'italy' | 'mirage' | 'inferno' | 'nuke' | 'train' | 'overpass' | 'bloodstrike';
 export type BuyCategory = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee';
 export type GrenadeId = 'he' | 'flashbang' | 'smoke' | 'incendiary' | 'decoy';

@@ -1971,13 +1971,767 @@ export function createFallbackEnemy(): THREE.Object3D {
   return Math.random() < 0.5 ? createCTEnemy() : createTEnemy();
 }
 
+// CS 1.6 Weapon Geometry Factories
+function createCS16Glock(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x4a4a4a);
+  const len = 0.55;
+
+  const slide = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.09, len * 0.85), M.metal);
+  slide.position.set(0, 0.11, -len * 0.30);
+  g.add(slide);
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, len * 0.60), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.25);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.028, len * 0.50, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.06, -len * 0.75);
+  g.add(barrel);
+
+  const triggerGuard = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.01, 6, 12), M.dark);
+  triggerGuard.rotation.x = Math.PI / 2;
+  triggerGuard.scale.z = 0.5;
+  triggerGuard.position.set(0.01, -0.08, -len * 0.10);
+  g.add(triggerGuard);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.26, 0.15), M.grip);
+  grip.rotation.x = -0.30;
+  grip.position.set(0.02, -0.20, -len * 0.05);
+  g.add(grip);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.01, 8, 16), M.idRing(0x4a4a4a));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.05, -len * 0.08);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16USP(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a3a3a);
+  const len = 0.58;
+
+  const slide = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.085, len * 0.82), M.metal);
+  slide.position.set(0, 0.105, -len * 0.28);
+  g.add(slide);
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.115, len * 0.58), M.metal);
+  receiver.position.set(0, 0.015, -len * 0.24);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, len * 0.48, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.055, -len * 0.72);
+  g.add(barrel);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.25, 0.14), M.grip);
+  grip.rotation.x = -0.29;
+  grip.position.set(0.02, -0.19, -len * 0.04);
+  g.add(grip);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.01, 8, 16), M.idRing(0x3a3a3a));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.05, -len * 0.07);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16P228(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x454545);
+  const len = 0.56;
+
+  const slide = new THREE.Mesh(new THREE.BoxGeometry(0.175, 0.088, len * 0.84), M.metal);
+  slide.position.set(0, 0.108, -len * 0.29);
+  g.add(slide);
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.118, len * 0.59), M.metal);
+  receiver.position.set(0, 0.018, -len * 0.245);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.023, 0.027, len * 0.49, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.058, -len * 0.74);
+  g.add(barrel);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.255, 0.145), M.grip);
+  grip.rotation.x = -0.295;
+  grip.position.set(0.02, -0.195, -len * 0.045);
+  g.add(grip);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.01, 8, 16), M.idRing(0x454545));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.05, -len * 0.075);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16MP5(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x2d2d2d);
+  const len = 0.75;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.13, len * 0.60), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.18);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.028, len * 0.48, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -len * 0.68);
+  g.add(barrel);
+
+  const foregrip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.12), M.grip);
+  foregrip.rotation.x = 0.15;
+  foregrip.position.set(0, -0.10, -len * 0.45);
+  g.add(foregrip);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.10, 0.28), M.grip);
+  stock.position.set(0, 0.0, len * 0.20);
+  g.add(stock);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.22, 0.12), M.dark);
+  mag.rotation.x = 0.08;
+  mag.position.set(0, -0.14, -len * 0.16);
+  g.add(mag);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.01, 8, 16), M.idRing(0x2d2d2d));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.03, -len * 0.05);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16TMP(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x353535);
+  const len = 0.72;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, len * 0.58), M.metal);
+  receiver.position.set(0, 0.015, -len * 0.17);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.025, len * 0.45, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.035, -len * 0.65);
+  g.add(barrel);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.09, 0.25), M.grip);
+  stock.position.set(0, 0.0, len * 0.18);
+  g.add(stock);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.20, 0.11), M.dark);
+  mag.rotation.x = 0.07;
+  mag.position.set(0, -0.13, -len * 0.15);
+  g.add(mag);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.01, 8, 16), M.idRing(0x353535));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.03, -len * 0.045);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16M3(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x4a3525);
+  const len = 0.85;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.15, len * 0.55), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.15);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.045, len * 0.75, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -len * 0.85);
+  g.add(barrel);
+
+  const pump = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.10, 0.30), M.wood);
+  pump.position.set(0, -0.02, -len * 0.65);
+  g.add(pump);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.38), M.wood);
+  stock.position.set(0, 0.0, len * 0.20);
+  g.add(stock);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.012, 8, 20), M.idRing(0x4a3525));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, 0.04, -len * 0.18);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16XM1014(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3d3028);
+  const len = 0.88;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.16, len * 0.56), M.metal);
+  receiver.position.set(0, 0.025, -len * 0.16);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.047, len * 0.78, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.045, -len * 0.88);
+  g.add(barrel);
+
+  const foregrip = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.09, 0.28), M.grip);
+  foregrip.position.set(0, -0.02, -len * 0.68);
+  g.add(foregrip);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.13, 0.36), M.grip);
+  stock.position.set(0, 0.0, len * 0.19);
+  g.add(stock);
+
+  const tubeMag = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.35), M.dark);
+  tubeMag.position.set(0, -0.06, -len * 0.28);
+  g.add(tubeMag);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.012, 8, 20), M.idRing(0x3d3028));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, 0.045, -len * 0.19);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16M4A1(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a404a);
+  const len = 0.95;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.15, len * 0.62), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.20);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.028, len * 0.50, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -len * 0.88);
+  g.add(barrel);
+
+  const carryHandle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.20), M.metal);
+  carryHandle.position.set(0, 0.16, -len * 0.32);
+  g.add(carryHandle);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.28, 0.12), M.dark);
+  mag.rotation.x = 0.08;
+  mag.position.set(0, -0.14, -len * 0.18);
+  g.add(mag);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.12), M.grip);
+  grip.rotation.x = -0.30;
+  grip.position.set(0.02, -0.16, len * 0.02);
+  g.add(grip);
+
+  const stockArm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.24), M.metal);
+  stockArm.position.set(0, 0.01, len * 0.22);
+  g.add(stockArm);
+
+  const stockPad = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.05), M.grip);
+  stockPad.position.set(0, 0.01, len * 0.34);
+  g.add(stockPad);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 20), M.idRing(0x3a404a));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.05, len * 0.04);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16SG552(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a3a3a);
+  const len = 0.98;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.15, len * 0.64), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.21);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.030, len * 0.52, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -len * 0.90);
+  g.add(barrel);
+
+  const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.32, 12), M.scope);
+  scope.rotation.z = Math.PI / 2;
+  scope.position.set(0, 0.17, -len * 0.22);
+  g.add(scope);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.28, 0.13), M.dark);
+  mag.rotation.x = 0.085;
+  mag.position.set(0, -0.145, -len * 0.185);
+  g.add(mag);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.245, 0.125), M.grip);
+  grip.rotation.x = -0.305;
+  grip.position.set(0.02, -0.165, len * 0.025);
+  g.add(grip);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.13, 0.36), M.grip);
+  stock.position.set(0, 0.0, len * 0.21);
+  g.add(stock);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 20), M.idRing(0x3a3a3a));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.05, -len * 0.055);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16AUG(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a4a40);
+  const len = 0.92;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.14, len * 0.78), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.10);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.030, len * 0.42, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -len * 0.68);
+  g.add(barrel);
+
+  const scope = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.22), M.scope);
+  scope.position.set(0, 0.14, -len * 0.28);
+  g.add(scope);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.24, 0.12), M.dark);
+  mag.rotation.x = 0.06;
+  mag.position.set(0, -0.14, len * 0.20);
+  g.add(mag);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.12), M.grip);
+  grip.rotation.x = -0.28;
+  grip.position.set(0.02, -0.15, len * 0.06);
+  g.add(grip);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.01, 8, 16), M.idRing(0x3a4a40));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.04, len * 0.04);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16Galil(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a3528);
+  const len = 0.95;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.14, len * 0.60), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.18);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, len * 0.55, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -len * 0.78);
+  g.add(barrel);
+
+  const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.10, 0.38), M.grip);
+  handguard.position.set(0, -0.01, -len * 0.64);
+  g.add(handguard);
+
+  const magGrp = new THREE.Group();
+  for (let i = 0; i < 5; i++) {
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.12), M.dark);
+    seg.position.set(0, -0.10 + i * 0.035, 0.01 - i * 0.015);
+    seg.rotation.x = i * 0.06;
+    magGrp.add(seg);
+  }
+  magGrp.position.set(0, 0, -len * 0.22);
+  g.add(magGrp);
+
+  const stockArm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.22), M.metal);
+  stockArm.position.set(0, 0.0, len * 0.18);
+  g.add(stockArm);
+
+  const stockPad = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.13, 0.04), M.grip);
+  stockPad.position.set(0, 0.0, len * 0.28);
+  g.add(stockPad);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.01, 8, 20), M.idRing(0x3a3528));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.04, len * 0.04);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16FAMAS(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a3a48);
+  const len = 0.88;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, len * 0.80), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.10);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.028, len * 0.40, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -len * 0.70);
+  g.add(barrel);
+
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.35), M.metal);
+  handle.position.set(0, 0.14, -len * 0.22);
+  g.add(handle);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.24, 0.11), M.dark);
+  mag.rotation.x = 0.06;
+  mag.position.set(0, -0.14, len * 0.18);
+  g.add(mag);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.22, 0.11), M.grip);
+  grip.rotation.x = -0.28;
+  grip.position.set(0.02, -0.14, len * 0.06);
+  g.add(grip);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.01, 8, 16), M.idRing(0x3a3a48));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.04, len * 0.04);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16Scout(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a4040);
+  const len = 1.05;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.13, len * 0.50), M.metal);
+  receiver.position.set(0, 0.01, -len * 0.16);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.024, len * 0.85, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.03, -len * 0.90);
+  g.add(barrel);
+
+  const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.32, 12), M.scope);
+  scope.rotation.z = Math.PI / 2;
+  scope.position.set(0, 0.16, -len * 0.20);
+  g.add(scope);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.15, 0.08), M.dark);
+  mag.position.set(0, -0.06, -len * 0.14);
+  g.add(mag);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.20, 0.10), M.grip);
+  grip.rotation.x = -0.28;
+  grip.position.set(0.02, -0.14, len * 0.02);
+  g.add(grip);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.34), M.grip);
+  stock.position.set(0, 0.0, len * 0.16);
+  g.add(stock);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.01, 8, 16), M.idRing(0x3a4040));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, 0.0, -len * 0.04);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16AWP(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x2a2a30);
+  const len = 1.12;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.15, len * 0.55), M.metal);
+  receiver.position.set(0, 0.01, -len * 0.18);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.030, len * 0.90, 20), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.03, -len * 0.98);
+  g.add(barrel);
+
+  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.026, 0.08, 16), M.metal);
+  muzzle.rotation.x = Math.PI / 2;
+  muzzle.position.set(0, 0.03, -len * 1.28);
+  g.add(muzzle);
+
+  const scopeBody = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.55, 16), M.scope);
+  scopeBody.rotation.z = Math.PI / 2;
+  scopeBody.position.set(0, 0.19, -len * 0.22);
+  g.add(scopeBody);
+
+  const scopeLens = new THREE.Mesh(new THREE.CylinderGeometry(0.060, 0.050, 0.05, 16), M.accent);
+  scopeLens.rotation.z = Math.PI / 2;
+  scopeLens.position.set(0.28, 0.19, -len * 0.22);
+  g.add(scopeLens);
+
+  for (const dx of [-0.12, 0.0, 0.12]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.01, 8, 16), M.accent);
+    ring.position.set(dx, 0.16, -len * 0.22);
+    g.add(ring);
+  }
+
+  for (const dx of [0.05, -0.05]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.016, 0.35, 8), M.metal);
+    leg.position.set(dx, -0.16, -len * 0.68);
+    leg.rotation.z = dx > 0 ? 0.45 : -0.45;
+    g.add(leg);
+  }
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.10), M.dark);
+  mag.position.set(0, -0.08, -len * 0.18);
+  g.add(mag);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.14, 0.42), M.grip);
+  stock.position.set(0, -0.01, len * 0.18);
+  g.add(stock);
+
+  const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.07, 0.32), M.dark);
+  cheek.position.set(0, 0.09, len * 0.18);
+  g.add(cheek);
+
+  const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.14, 8), M.accent);
+  bolt.position.set(0.11, 0.06, -len * 0.08);
+  bolt.rotation.z = Math.PI / 2;
+  g.add(bolt);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.012, 8, 20), M.idRing(0x2a2a30));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, 0.02, -len * 0.06);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16SG550(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a3a40);
+  const len = 1.02;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.14, len * 0.60), M.metal);
+  receiver.position.set(0, 0.015, -len * 0.18);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.029, len * 0.55, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.035, -len * 0.85);
+  g.add(barrel);
+
+  const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.35, 12), M.scope);
+  scope.rotation.z = Math.PI / 2;
+  scope.position.set(0, 0.18, -len * 0.22);
+  g.add(scope);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.30, 0.13), M.dark);
+  mag.rotation.x = 0.06;
+  mag.position.set(0, -0.18, -len * 0.18);
+  g.add(mag);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.26, 0.13), M.grip);
+  grip.rotation.x = -0.30;
+  grip.position.set(0.02, -0.17, len * 0.02);
+  g.add(grip);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.13, 0.36), M.grip);
+  stock.position.set(0, 0.0, len * 0.16);
+  g.add(stock);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 20), M.idRing(0x3a3a40));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.05, len * 0.02);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16G3SG1(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x3a3a30);
+  const len = 1.08;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.14, len * 0.68), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.20);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.030, len * 0.55, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -len * 0.82);
+  g.add(barrel);
+
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.04, 8), M.accent);
+  drum.rotation.z = Math.PI / 2;
+  drum.position.set(0, 0.15, -len * 0.35);
+  g.add(drum);
+
+  const scope = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.28), M.scope);
+  scope.position.set(0, 0.16, -len * 0.40);
+  g.add(scope);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.26, 0.12), M.dark);
+  mag.rotation.x = 0.06;
+  mag.position.set(0, -0.16, -len * 0.18);
+  g.add(mag);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.12), M.grip);
+  grip.rotation.x = -0.30;
+  grip.position.set(0.02, -0.16, len * 0.02);
+  g.add(grip);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.13, 0.38), M.grip);
+  stock.position.set(0, 0.0, len * 0.18);
+  g.add(stock);
+
+  const butt = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.05), M.dark);
+  butt.position.set(0, 0.0, len * 0.36);
+  g.add(butt);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 20), M.idRing(0x3a3a30));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.05, len * 0.02);
+  g.add(idRing);
+
+  return g;
+}
+
+function createCS16M249(): THREE.Object3D {
+  const g = new THREE.Group();
+  const M = weaponMats(0x353530);
+  const len = 1.05;
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.16, len * 0.62), M.metal);
+  receiver.position.set(0, 0.02, -len * 0.19);
+  g.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, len * 0.55, 16), M.metal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.045, -len * 0.80);
+  g.add(barrel);
+
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.12, 0.18), M.metal);
+  handle.position.set(0, 0.12, -len * 0.28);
+  g.add(handle);
+
+  const bipod = new THREE.Group();
+  for (const dx of [0.06, -0.06]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.015, 0.38, 8), M.metal);
+    leg.position.set(dx, -0.14, -len * 0.55);
+    leg.rotation.z = dx > 0 ? 0.45 : -0.45;
+    bipod.add(leg);
+  }
+  g.add(bipod);
+
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.10), new THREE.MeshStandardMaterial({ color: 0x2a2d20, roughness: 0.5 }));
+  box.position.set(0, 0.10, -0.22);
+  g.add(box);
+
+  const brl = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.40, 16), new THREE.MeshStandardMaterial({ color: 0x3d4035 }));
+  brl.rotation.x = Math.PI / 2;
+  brl.position.set(0, 0.04, -0.70);
+  g.add(brl);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.40), M.grip);
+  stock.position.set(0, 0.0, len * 0.20);
+  g.add(stock);
+
+  const idRing = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.012, 8, 20), M.idRing(0x353530));
+  idRing.rotation.x = Math.PI / 2;
+  idRing.position.set(0, -0.05, len * 0.05);
+  g.add(idRing);
+
+  return g;
+}
+
+function createSpecificCS16Weapon(weaponId: string): THREE.Object3D {
+  const builders: Record<string, () => THREE.Object3D> = {
+    glock: createCS16Glock,
+    usp: createCS16USP,
+    p228: createCS16P228,
+    mp5: createCS16MP5,
+    tmp: createCS16TMP,
+    m3: createCS16M3,
+    xm1014: createCS16XM1014,
+    ak47: createAK47,
+    m4a1: createCS16M4A1,
+    sg552: createCS16SG552,
+    aug: createCS16AUG,
+    galil: createCS16Galil,
+    famas: createCS16FAMAS,
+    scout: createCS16Scout,
+    awp: createCS16AWP,
+    sg550: createCS16SG550,
+    g3sg1: createCS16G3SG1,
+    m249: createCS16M249,
+    knife: () => createFallbackWeapon(0xa8b0ba, 0.6, 'knife'),
+    deagle: createDesertEagle,
+    p90: createP90,
+    mac10: createMAC10,
+    ump45: () => createFallbackWeapon(0x3a3a35, 0.70, 'smg'),
+    five_seven: () => createFallbackWeapon(0x3a424c, 0.58, 'pistol'),
+  };
+
+  const builder = builders[weaponId];
+  if (builder) {
+    try {
+      const obj = builder();
+      obj.position.set(0, 0, 0);
+      return obj;
+    } catch (e) {
+      console.warn(`[assets] Failed to build specific CS 1.6 weapon ${weaponId}, falling back to rifle`, e);
+    }
+  }
+  return createFallbackWeapon(0x3d4651, 0.95, 'rifle');
+}
+
 export const ASSETS: Record<string, AssetDefinition> = {
-  // ── 手枪 ────────────────────────────────────────────────────────────
+  // ── CS 1.6 手枪 ────────────────────────────────────────────────────────────
+  glock: { id: 'glock', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('glock') },
+  usp: { id: 'usp', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('usp') },
+  p228: { id: 'p228', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('p228') },
+  deagle: { id: 'deagle', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('deagle') },
+  five_seven: { id: 'five_seven', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('five_seven') },
+
+  // ── CS 1.6 SMG ─────────────────────────────────────────────────────────────
+  mp5: { id: 'mp5', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('mp5') },
+  tmp: { id: 'tmp', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('tmp') },
+  p90: { id: 'p90', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('p90') },
+  mac10: { id: 'mac10', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('mac10') },
+  ump45: { id: 'ump45', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('ump45') },
+
+  // ── CS 1.6 霰弹枪 ────────────────────────────────────────────────────────────
+  m3: { id: 'm3', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('m3') },
+  xm1014: { id: 'xm1014', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('xm1014') },
+
+  // ── CS 1.6 步枪 ─────────────────────────────────────────────────────────────
+  ak47: { id: 'ak47', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('ak47') },
+  m4a1: { id: 'm4a1', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('m4a1') },
+  sg552: { id: 'sg552', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('sg552') },
+  aug: { id: 'aug', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('aug') },
+  galil: { id: 'galil', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('galil') },
+  famas: { id: 'famas', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('famas') },
+
+  // ── CS 1.6 狙击枪 ────────────────────────────────────────────────────────────
+  scout: { id: 'scout', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.15, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.26], preferFallback: true, fallback: () => createSpecificCS16Weapon('scout') },
+  awp: { id: 'awp', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('awp') },
+  sg550: { id: 'sg550', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('sg550') },
+  g3sg1: { id: 'g3sg1', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('g3sg1') },
+
+  // ── CS 1.6 机枪 ─────────────────────────────────────────────────────────────
+  m249: { id: 'm249', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.16, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('m249') },
+
+  // ── CS 1.6 近战 ─────────────────────────────────────────────────────────────
+  knife: { id: 'knife', kind: 'weapon', path: '/assets/models/weapons/knife.glb', scale: 0.62, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.08, 0.12], preferFallback: true, fallback: () => createSpecificCS16Weapon('knife') },
+
+  // ── 兼容旧ID (保持兼容) ────────────────────────────────────────────────────────────
   pistol: { id: 'pistol', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('pistol') },
   usp_s: { id: 'usp_s', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('usp_s') },
   p250: { id: 'p250', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('p250') },
-  five_seven: { id: 'five_seven', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('five_seven') },
-  deagle: { id: 'deagle', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('deagle') },
   dual_berettas: { id: 'dual_berettas', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.20, -0.07, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('dual_berettas') },
   r8: { id: 'r8', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('r8') },
   cz75: { id: 'cz75', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('cz75') },
@@ -1986,44 +2740,32 @@ export const ASSETS: Record<string, AssetDefinition> = {
 
   // ── SMG ─────────────────────────────────────────────────────────────
   mp9: { id: 'mp9', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('mp9') },
-  mac10: { id: 'mac10', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('mac10') },
   pp_bizon: { id: 'pp_bizon', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('pp_bizon') },
   mp7: { id: 'mp7', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('mp7') },
-  ump45: { id: 'ump45', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('ump45') },
-  p90: { id: 'p90', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('p90') },
   mp5sd: { id: 'mp5sd', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('mp5sd') },
 
   // ── 步枪 ─────────────────────────────────────────────────────────────
   rifle: { id: 'rifle', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: false, fallback: () => createSpecificWeapon('rifle') },
-  ak47: { id: 'ak47', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: false, fallback: () => createSpecificWeapon('ak47') },
   m4a1s: { id: 'm4a1s', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('m4a1s') },
   m4a4: { id: 'm4a4', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('m4a4') },
   defender_rifle: { id: 'defender_rifle', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('defender_rifle') },
-  famas: { id: 'famas', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.16, -0.10, 0.22], preferFallback: false, fallback: () => createSpecificWeapon('famas') },
-  galil: { id: 'galil', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: false, fallback: () => createSpecificWeapon('galil') },
   sg553: { id: 'sg553', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: false, fallback: () => createSpecificWeapon('sg553') },
-  aug: { id: 'aug', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: false, fallback: () => createSpecificWeapon('aug') },
 
   // ── 狙击 ─────────────────────────────────────────────────────────────
   sniper: { id: 'sniper', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: false, fallback: () => createSpecificWeapon('sniper') },
-  awp: { id: 'awp', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: false, fallback: () => createSpecificWeapon('awp') },
   ssg08: { id: 'ssg08', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.15, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.26], preferFallback: false, fallback: () => createSpecificWeapon('ssg08') },
   scar20: { id: 'scar20', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: false, fallback: () => createSpecificWeapon('scar20') },
-  g3sg1: { id: 'g3sg1', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: false, fallback: () => createSpecificWeapon('g3sg1') },
 
   // ── 霰弹 ────────────────────────────────────────────────────────────
   shotgun: { id: 'shotgun', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: false, fallback: () => createSpecificWeapon('shotgun') },
   nova: { id: 'nova', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: false, fallback: () => createSpecificWeapon('nova') },
   mag7: { id: 'mag7', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: false, fallback: () => createSpecificWeapon('mag7') },
-  xm1014: { id: 'xm1014', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: false, fallback: () => createSpecificWeapon('xm1014') },
   sawedoff: { id: 'sawedoff', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.16, -0.09, 0.22], preferFallback: false, fallback: () => createSpecificWeapon('sawedoff') },
 
   // ── 机枪 ─────────────────────────────────────────────────────────────
-  m249: { id: 'm249', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.16, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.28], preferFallback: false, fallback: () => createSpecificWeapon('m249') },
   negev: { id: 'negev', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.15, rotation: [0, Math.PI / 2, 0], position: [-0.24, -0.12, 0.30], preferFallback: false, fallback: () => createSpecificWeapon('negev') },
 
   // ── 近战/装备 ────────────────────────────────────────────────────────
-  knife: { id: 'knife', kind: 'weapon', path: '/assets/models/weapons/knife.glb', scale: 0.62, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.08, 0.12], preferFallback: false, fallback: () => createSpecificWeapon('knife') },
   zeus: { id: 'zeus', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.50, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: true, fallback: () => createSpecificWeapon('zeus') },
   grenade: { id: 'grenade', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.48, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: true, fallback: () => createSpecificWeapon('grenade') },
 

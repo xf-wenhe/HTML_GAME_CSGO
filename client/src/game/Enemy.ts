@@ -453,6 +453,9 @@ export class Enemy {
   private die(): void {
     this.state = 'dead';
     this.body.velocity.set(0, 0, 0);
+    this.body.angularVelocity.set(0, 0, 0);
+    this.body.mass = 0;
+    this.body.updateMassProperties();
     this.mesh.rotation.x = Math.PI / 2;
     this.mesh.position.y = 0.5;
   }
