@@ -38,6 +38,9 @@ export class WeaponManager {
   private meleeSwing = 0;
   private feedbackEvents: WeaponFeedbackEvent[] = [];
   private shotCounter = 0;
+  private cameraKickX = 0;
+  private cameraKickY = 0;
+  private crouching = false;
 
   constructor() {
     Object.entries(WEAPON_DEFINITIONS).forEach(([id, weapon]) => {
@@ -119,6 +122,18 @@ export class WeaponManager {
     return this.scoped;
   }
 
+  setCrouching(crouching: boolean): void {
+    this.crouching = crouching;
+  }
+
+  getCameraKickX(): number {
+    return this.cameraKickX;
+  }
+
+  getCameraKickY(): number {
+    return this.cameraKickY;
+  }
+
   shoot(camera: THREE.Camera, now: number = performance.now(), options: { heavyMelee?: boolean; isMoving?: boolean } = {}): ShootResult | null {
     const weapon = this.getCurrentWeapon();
     if (this.isSwitching()) return null;
@@ -132,12 +147,17 @@ export class WeaponManager {
 
     const heavyMelee = Boolean(options.heavyMelee && weapon.isMelee);
     this.recoil = weapon.isMelee ? Math.min(this.recoil + (heavyMelee ? 0.15 : 0.09), 0.24) : Math.min(this.recoil + 0.08, 0.26);
+    const recoilOffset = weapon.getRecoilOffset();
+    const camKickBase = weapon.isMelee ? 0.015 : 0.006;
+    const camKickRand = weapon.isMelee ? 0.012 : 0.005;
+    const crouchReduction = this.crouching ? 0.65 : 1.0;
+    this.cameraKickX += (recoilOffset.x * 0.02 + (Math.random() - 0.5) * camKickRand) * crouchReduction;
+    this.cameraKickY += (recoilOffset.y * 0.02 + camKickBase) * crouchReduction;
     this.meleeSwing = weapon.isMelee ? 1 : this.meleeSwing;
     this.muzzleFlash.material.opacity = weapon.isMelee ? 0 : 0.95;
 
     // 【修复核心1】真实的 CSGO 弹道偏转算法
     const spread = weapon.getEffectiveSpread(Boolean(options.isMoving), this.aiming);
-    const recoilOffset = weapon.getRecoilOffset();
 
     // 在局部的 2D 平面（也就是玩家屏幕中心点）上计算随机圆圈散布
     const angle = Math.random() * Math.PI * 2;
@@ -190,7 +210,10 @@ export class WeaponManager {
     this.weapons.forEach(weapon => weapon.update(now));
     const weapon = this.getCurrentWeapon();
     const viewmodel = this.getViewmodelPresentation();
-    this.recoil = Math.max(0, this.recoil - dt * (viewmodel?.recoil.recover ?? 0.9));
+    const recoilDecay = viewmodel?.recoil.recover ?? 0.9;
+    this.recoil = Math.max(0, this.recoil - dt * recoilDecay);
+    this.cameraKickX = Math.max(0, this.cameraKickX - dt * recoilDecay * 1.8);
+    this.cameraKickY = Math.max(0, this.cameraKickY - dt * recoilDecay * 1.6);
     this.meleeSwing = Math.max(0, this.meleeSwing - dt * 5.8);
     this.switchProgress = Math.max(0, this.switchProgress - dt);
     const swayConfig = viewmodel?.sway;

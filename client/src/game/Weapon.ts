@@ -86,7 +86,7 @@ export class Weapon {
     ];
     // CSGO中移动开枪惩罚非常高，如果未配置自动增加为站立散布的2.5倍
     this.moveInaccuracy = config.moveInaccuracy ?? (this.isMelee ? 0 : this.spread * 2.5);
-    this.standRecovery = config.standRecovery ?? 0.36;
+    this.standRecovery = config.standRecovery ?? (this.recoilPattern.length > 15 ? 0.48 : 0.42);
     this.currentAmmo = this.magazineSize;
   }
 

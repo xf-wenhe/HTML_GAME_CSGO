@@ -126,4 +126,77 @@ describe('WeaponManager', () => {
     expect(weapon.getRecoilOffset().y).toBe(0);
     expect(weapon.getSpreadMultiplier()).toBe(1);
   });
+
+  it('reduces recoil when crouching', () => {
+    const managerStand = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+
+    managerStand.switchWeapon('ak47');
+    managerStand.update(500, 0.5);
+    managerStand.setCrouching(false);
+    managerStand.shoot(camera, 1000);
+    const kickStanding = managerStand.getCameraKickY();
+
+    const managerCrouch = new WeaponManager();
+    managerCrouch.switchWeapon('ak47');
+    managerCrouch.update(500, 0.5);
+    managerCrouch.setCrouching(true);
+    managerCrouch.shoot(camera, 1000);
+    const kickCrouched = managerCrouch.getCameraKickY();
+
+    expect(kickCrouched).toBeLessThan(kickStanding * 0.7);
+    expect(kickCrouched).toBeGreaterThan(0);
+    expect(kickStanding).toBeGreaterThan(0);
+  });
+
+  it('applies camera kick on shoot', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+
+    manager.switchWeapon('rifle');
+    manager.update(500, 0.5);
+    expect(manager.isSwitching()).toBe(false);
+
+    const result = manager.shoot(camera, 1000);
+    expect(result).not.toBeNull();
+    expect(manager.getCameraKickY()).toBeGreaterThan(0);
+    expect(manager.getCameraKickX()).toBeGreaterThanOrEqual(0);
+  });
+
+  it('uses AK47 pattern for vandal alias', () => {
+    const weapon = new Weapon({
+      id: 'vandal',
+      name: 'Vandal',
+      damage: 40,
+      fireRate: 600,
+      magazineSize: 25,
+      reloadTime: 2.5,
+      spread: 0.02
+    });
+
+    expect(weapon.recoilPattern.length).toBeGreaterThan(10);
+    for (let i = 0; i < 5; i++) {
+      weapon.shoot(1000 + i);
+      weapon.update(1001 + i);
+    }
+    expect(weapon.getSpreadMultiplier()).toBeGreaterThan(1);
+  });
+
+  it('uses AWP pattern for operator alias', () => {
+    const weapon = new Weapon({
+      id: 'operator',
+      name: 'Operator',
+      damage: 115,
+      fireRate: 600,
+      magazineSize: 5,
+      reloadTime: 3.5,
+      spread: 0.01
+    });
+
+    expect(weapon.recoilPattern.length).toBeGreaterThan(0);
+    weapon.shoot(1000);
+    weapon.update(1001);
+    weapon.shoot(1001);
+    expect(weapon.getSpreadMultiplier()).toBeGreaterThan(1);
+  });
 });

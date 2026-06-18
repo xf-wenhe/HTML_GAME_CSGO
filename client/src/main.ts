@@ -1037,6 +1037,12 @@ function gameLoop(now: number) {
       player.syncCameraToBody();
     }
     weaponManager.update(now, dt, player?.isMoving() ?? false);
+    if (player) {
+      weaponManager.setCrouching(player.isCrouched());
+      if (hasGameplayFocus()) {
+        player.addRecoilKick(weaponManager.getCameraKickY(), weaponManager.getCameraKickX());
+      }
+    }
     weaponManager.consumeFeedbackEvents().forEach(event => {
       audioFeedback.playWeapon(event.type, event.weaponId);
     });

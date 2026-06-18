@@ -493,6 +493,12 @@ export class PlayerController {
     this.yaw = yaw;
   }
 
+  addRecoilKick(pitchOffset: number, yawOffset: number): void {
+    this.pitch += pitchOffset;
+    this.yaw += yawOffset;
+    this.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.pitch));
+  }
+
   setPosition(position: THREE.Vector3): void {
     const bodyY = this.resolveBodyYFromEyeY(position.y);
     this.body.position.set(position.x, bodyY, position.z);
