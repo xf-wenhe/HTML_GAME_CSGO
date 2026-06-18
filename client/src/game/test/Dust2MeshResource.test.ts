@@ -139,6 +139,8 @@ describe('Dust2 mesh resource conversion', () => {
         'dust2-source-boundary-south',
         'dust2-source-boundary-west',
       ]));
+      expect(ARENA_MAPS.dust2.colliders.some(collider => collider.name === 'dust2-source-stable-t-spawn')).toBe(false);
+      expect(ARENA_MAPS.dust2.colliders.some(collider => collider.walkable && collider.sourceBacked)).toBe(true);
       expect(ARENA_MAPS.dust2.props).toEqual([]);
       expect(ARENA_MAPS.dust2.source).toMatchObject({
         sourceBacked: true,
@@ -200,6 +202,28 @@ describe('Dust2 mesh resource conversion', () => {
       [1, 0, 0],
       [0, 0, -1],
     ]);
+    expect(mesh.collisionIndices).toEqual([0, 1, 2]);
+  });
+
+  it('accepts source-derived collision proxy floors for Dust2 movement', () => {
+    const mesh = meshSpecFromDust2WorldMeshResource(resource({
+      collisionProxy: {
+        name: 'dust2-goldsrc-world-mesh-proxy',
+        bounds: { mins: [-2, 0, -3], maxs: [2, 1, 3] },
+        floors: [
+          {
+            name: 'dust2-proxy-floor-0',
+            position: [0, -0.06, -0.48],
+            size: [1.92, 0.12, 0.96],
+            walkable: true,
+            collisionKind: 'floor',
+          },
+        ],
+        ramps: [],
+        walls: [],
+      },
+    }));
+
     expect(mesh.collisionIndices).toEqual([0, 1, 2]);
   });
 

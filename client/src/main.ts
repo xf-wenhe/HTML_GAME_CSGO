@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { Scene } from './game/Scene.js';
-import { Physics } from './game/Physics.js';
+import { Physics, type PhysicsBodyUserData } from './game/Physics.js';
 import { InputManager } from './game/InputManager.js';
 import { PlayerController } from './game/PlayerController.js';
 import { ShootResult, WeaponManager } from './game/WeaponManager.js';
@@ -246,16 +246,34 @@ const CONNECTION_TIMEOUT_MS = 10000;
 
 syncArenaPhysics();
 
+function buildPhysicsUserData(spec: { walkable?: boolean; collisionKind?: string; sourceBacked?: boolean }, name?: string, arenaName?: string): PhysicsBodyUserData {
+  const fallbackWalkable = name ? Boolean(name.includes('floor') || name.includes('ground')) : false;
+  const fallbackKind = name?.includes('boundary') ? 'boundary' : undefined;
+  return {
+    walkable: spec.walkable ?? fallbackWalkable,
+    collisionKind: (spec.collisionKind ?? fallbackKind) as PhysicsBodyUserData['collisionKind'],
+    sourceBacked: spec.sourceBacked,
+    sourceMap: spec.sourceBacked && arenaName ? arenaName.toLowerCase() : undefined,
+  };
+}
+
 function syncArenaPhysics(): void {
   arenaColliderBodies.forEach(body => physics.removeBody(body));
-  const globalGroundY = scene.getCurrentArena().source?.sourceBacked ? -1.2 : 0;
-  physics.setGlobalGroundEnabled(true, globalGroundY);
+  const arena = scene.getCurrentArena();
+  const sourceBackedDust2 = arena.name === 'Dust2' && arena.source?.sourceBacked;
+  if (sourceBackedDust2) {
+    physics.setGlobalGroundEnabled(false);
+  } else {
+    const globalGroundY = arena.name === 'Inferno' ? -1.0 : 0;
+    physics.setGlobalGroundEnabled(true, globalGroundY);
+  }
   const boxBodies = scene.getArenaColliders().map(collider => {
     const body = physics.addStaticBox(
       new CANNON.Vec3(collider.position.x, collider.position.y, collider.position.z),
       new CANNON.Vec3(collider.size.x / 2, collider.size.y / 2, collider.size.z / 2),
       collider.rotation,
-      collider.name
+      collider.name,
+      buildPhysicsUserData(collider, collider.name, arena.name)
     );
     return body;
   });
@@ -264,7 +282,7 @@ function syncArenaPhysics(): void {
     const collisionIndices = mesh.collisionIndices ?? mesh.indices;
     if (collisionPositions.length < 3 || collisionIndices.length < 3) return null;
     const vertices = collisionPositions.flatMap(position => [position.x, position.y, position.z]);
-    return physics.addStaticTrimesh(vertices, collisionIndices, mesh.name);
+    return physics.addStaticTrimesh(vertices, collisionIndices, mesh.name, buildPhysicsUserData(mesh, mesh.name, arena.name));
   }).filter((body): body is CANNON.Body => body !== null);
   arenaColliderBodies = [...boxBodies, ...meshBodies];
   enemyManager.setLineOfSightColliders(scene.getArenaColliders());

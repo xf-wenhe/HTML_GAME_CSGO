@@ -1,11 +1,18 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { NamedBody, Physics } from './Physics.js';
+import { NamedBody, Physics, PhysicsBodyUserData } from './Physics.js';
 import { InputManager } from './InputManager.js';
 import { Scene } from './Scene.js';
 import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, FALL_DAMAGE_SAFE_SPEED, FALL_DAMAGE_PER_HU, FALL_DAMAGE_SPEED_PER_HU, accelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle, MovementParams } from './Movement.js';
 import { DamageProfile, HitRegion, calculateDamage } from './Combat.js';
 import { hammerToGame, PLAYER_EYE_HEIGHT, PLAYER_HEIGHT } from './constants/MapUnits.js';
+
+interface GroundProbeResult {
+  hitY: number;
+  normalY: number;
+  distance: number;
+  body: NamedBody;
+}
 
 export class PlayerController {
   private body: CANNON.Body;
@@ -42,7 +49,12 @@ export class PlayerController {
   private eyeHeight = this.standingEyeOffset;
   private currentHalfHeight = this.standingHalfHeight;
   private readonly maxStepHeight = 0.18;
-  private readonly maxStepDownHeight = 2.0; // Increased to reach ground plane at spawn
+  private readonly maxStepDownHeight = 2.0;
+  private readonly groundedProbeDistance = 0.14;
+  private readonly groundProbeRadius = 0.16;
+  private readonly snapDownDistance = 0.28;
+  private readonly groundedStickEpsilon = 0.015;
+  private lastSafeEyePosition: THREE.Vector3;
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
     this.scene = scene;
@@ -61,6 +73,7 @@ export class PlayerController {
     });
     this.physics.addBody(this.body);
     this.settleOnGroundBelow(2.0);
+    this.lastSafeEyePosition = this.getPosition();
 
     this.syncCameraToBody();
   }
@@ -99,6 +112,8 @@ export class PlayerController {
     }
 
     this.applyMovement(wishDirection, dt);
+    this.preventSourceVoidEscape();
+    this.updateLastSafeGroundPosition();
 
     // Check if just landed
     if (!this.wasGrounded && this.grounded) {
@@ -139,14 +154,12 @@ export class PlayerController {
   stickToGroundIfSupported(maxDistance = 2.0): void {
     if (this.groundStickSuppressTime > 0) return;
     if (!this.grounded) return;
-    const bottomY = this.body.position.y - this.currentHalfHeight;
-    const staticTop = this.physics.findStaticBoxTopBelow(this.body.position.x, this.body.position.z, bottomY, maxDistance);
-    if (staticTop === null) return;
-    const targetY = staticTop + this.currentHalfHeight;
-    if (Math.abs(this.body.position.y - targetY) <= 0.001) return;
-    this.body.position.y = targetY;
-    this.body.velocity.y = 0;
-    this.body.aabbNeedsUpdate = true;
+    const ground = this.probeGround(maxDistance);
+    if (!ground) {
+      this.grounded = false;
+      return;
+    }
+    this.alignBodyToGround(ground);
   }
 
   private updateLookRotation(): void {
@@ -164,7 +177,11 @@ export class PlayerController {
   }
 
   private applyMovement(wishDirection: THREE.Vector3, dt: number): void {
-    this.grounded = this.canJump();
+    const ground = this.groundStickSuppressTime <= 0 ? this.probeGround(this.groundedProbeDistance) : null;
+    this.grounded = ground !== null;
+    if (ground && this.body.velocity.y <= 0) {
+      this.alignBodyToGround(ground);
+    }
     const velocity = new THREE.Vector3(this.body.velocity.x, this.body.velocity.y, this.body.velocity.z);
     const horizontalVelocity = new THREE.Vector3(velocity.x, 0, velocity.z);
 
@@ -249,49 +266,15 @@ export class PlayerController {
 
   private snapDownToGround(wishDirection: THREE.Vector3): void {
     if (this.body.velocity.y > 0.05) return; // Don't snap while jumping up
-    // 放宽 snap 距离，防止在斜坡上卡住跳出地图
-    const maxSnapDownDistance = 0.8;
+    if (this.groundStickSuppressTime > 0) return;
 
-    const currentBottom = this.body.position.y - this.currentHalfHeight;
-    let bestHitY: number | null = null;
+    const moving = wishDirection.lengthSq() > 0;
+    const ground = this.probeGround(moving ? this.snapDownDistance : this.groundedProbeDistance);
+    if (!ground) return;
+    if (ground.distance > this.snapDownDistance) return;
 
-    // 检查多个位置：脚下、前方、左前方、右前方（更稳定的斜坡检测）
-    const probes = [{ x: this.body.position.x, z: this.body.position.z }];
-    if (wishDirection.lengthSq() > 0) {
-      const direction = wishDirection.clone().normalize();
-      const perp1 = new THREE.Vector3(-direction.z, 0, direction.x); // 垂直向量1
-      const perp2 = new THREE.Vector3(direction.z, 0, -direction.x); // 垂直向量2
-
-      probes.push(
-        { x: this.body.position.x + direction.x * 0.28, z: this.body.position.z + direction.z * 0.28 },
-        { x: this.body.position.x + direction.x * 0.48, z: this.body.position.z + direction.z * 0.48 },
-        { x: this.body.position.x + perp1.x * 0.14, z: this.body.position.z + perp1.z * 0.14 },
-        { x: this.body.position.x + perp2.x * 0.14, z: this.body.position.z + perp2.z * 0.14 }
-      );
-    }
-
-    for (const probe of probes) {
-      // 射线检测更远一些，防止斜坡上漏掉地面
-      const from = new CANNON.Vec3(probe.x, currentBottom - 0.001, probe.z);
-      const to = new CANNON.Vec3(probe.x, currentBottom - maxSnapDownDistance, probe.z);
-      const ray = new CANNON.Ray(from, to);
-      const result = new CANNON.RaycastResult();
-      if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) continue;
-      // 降低坡度要求，避免斜坡上无法检测
-      if (Math.abs(result.hitNormalWorld.y) < 0.3) continue;
-      const drop = currentBottom - result.hitPointWorld.y;
-      if (drop < 0 || drop > maxSnapDownDistance) continue;
-      if (bestHitY === null || result.hitPointWorld.y > bestHitY) bestHitY = result.hitPointWorld.y;
-    }
-
-    if (bestHitY === null) return;
-    const targetBodyY = bestHitY + this.currentHalfHeight;
-    // 放宽 snap 条件
-    if (targetBodyY < this.body.position.y + 0.2) {
-      this.body.position.y = targetBodyY;
-      if (this.body.velocity.y < 0) this.body.velocity.y = 0;
-      this.grounded = true;
-    }
+    this.alignBodyToGround(ground);
+    this.grounded = true;
   }
 
   // 【新增】通用空间净空检测逻辑
@@ -327,6 +310,7 @@ export class PlayerController {
     if (this.currentHalfHeight === targetHalfHeight) return;
 
     const oldHalfHeight = this.currentHalfHeight;
+    const oldBottomY = this.body.position.y - oldHalfHeight;
     this.currentHalfHeight = targetHalfHeight;
 
     // 1. 替换物理引擎里的形状
@@ -339,21 +323,18 @@ export class PlayerController {
 
     // 2. CSGO大跳精髓：改变形状时处理重心补偿
     const heightDiff = oldHalfHeight - this.currentHalfHeight;
-    if (isCrouching) {
+    if (this.grounded) {
+      // 地面姿态切换永远保持脚底贴地，避免蹲起后脚底悬空或插入地面。
+      this.body.position.y = oldBottomY + this.currentHalfHeight;
+    } else if (isCrouching) {
       if (!this.grounded) {
         // 【空中下蹲】顶部保持不动，底部强行上提，产生让脚跨过箱子的净空！
         this.body.position.y += heightDiff;
-      } else {
-        // 【地面下蹲】底部保持紧贴地面，头部下降
-        this.body.position.y -= heightDiff;
       }
     } else {
       if (!this.grounded) {
         // 空中起立（把腿伸直）
         this.body.position.y -= heightDiff;
-      } else {
-        // 地面起立
-        this.body.position.y += heightDiff;
       }
     }
     this.body.wakeUp();
@@ -366,47 +347,104 @@ export class PlayerController {
   }
 
   private canJump(): boolean {
+    return this.groundStickSuppressTime <= 0 && this.probeGround(this.groundedProbeDistance) !== null;
+  }
+
+  private probeGround(maxDistance: number): GroundProbeResult | null {
     const bottomY = this.body.position.y - this.currentHalfHeight;
-    const rayStart = new CANNON.Vec3(this.body.position.x, bottomY + 0.03, this.body.position.z);
-    const rayEnd = new CANNON.Vec3(this.body.position.x, bottomY - 0.12, this.body.position.z);
-    const ray = new CANNON.Ray(rayStart, rayEnd);
-    const result = new CANNON.RaycastResult();
-    if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) {
-      return false;
+    const offsets = [
+      { x: 0, z: 0 },
+      { x: this.groundProbeRadius, z: 0 },
+      { x: -this.groundProbeRadius, z: 0 },
+      { x: 0, z: this.groundProbeRadius },
+      { x: 0, z: -this.groundProbeRadius },
+      { x: this.groundProbeRadius, z: this.groundProbeRadius },
+      { x: -this.groundProbeRadius, z: this.groundProbeRadius },
+      { x: this.groundProbeRadius, z: -this.groundProbeRadius },
+      { x: -this.groundProbeRadius, z: -this.groundProbeRadius },
+    ];
+    let best: GroundProbeResult | null = null;
+
+    for (const offset of offsets) {
+      const rayStart = new CANNON.Vec3(this.body.position.x + offset.x, bottomY + 0.04, this.body.position.z + offset.z);
+      const rayEnd = new CANNON.Vec3(this.body.position.x + offset.x, bottomY - maxDistance, this.body.position.z + offset.z);
+      const ray = new CANNON.Ray(rayStart, rayEnd);
+      const result = new CANNON.RaycastResult();
+      if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) continue;
+
+      const body = result.body as NamedBody;
+      if (!this.isWalkableGround(body.userData)) continue;
+      if (result.hitNormalWorld.y < 0.45) continue;
+
+      const distance = bottomY - result.hitPointWorld.y;
+      if (distance < -0.04 || distance > maxDistance) continue;
+      if (rayStart.distanceTo(result.hitPointWorld) < 0.02) continue;
+      const hit: GroundProbeResult = {
+        hitY: result.hitPointWorld.y,
+        normalY: result.hitNormalWorld.y,
+        distance,
+        body,
+      };
+      if (!best || hit.hitY > best.hitY) best = hit;
     }
-    const hitDistance = rayStart.distanceTo(result.hitPointWorld);
-    const footDistance = Math.abs(bottomY - result.hitPointWorld.y);
-    return hitDistance > 0.01 && footDistance <= 0.12 && Math.abs(result.hitNormalWorld.y) > 0.45;
+
+    return best;
+  }
+
+  private isWalkableGround(userData?: PhysicsBodyUserData): boolean {
+    return userData?.walkable === true;
+  }
+
+  private alignBodyToGround(ground: GroundProbeResult): void {
+    const targetY = ground.hitY + this.currentHalfHeight;
+    if (Math.abs(this.body.position.y - targetY) > this.groundedStickEpsilon) {
+      this.body.position.y = targetY;
+      this.body.aabbNeedsUpdate = true;
+    }
+    if (this.body.velocity.y < 0) this.body.velocity.y = 0;
   }
 
   private settleOnGroundBelow(maxDistance: number): void {
-    const bottomY = this.body.position.y - this.currentHalfHeight;
-    const staticTop = this.physics.findStaticBoxTopBelow(this.body.position.x, this.body.position.z, bottomY, maxDistance);
-    if (staticTop !== null) {
-      this.body.position.y = staticTop + this.currentHalfHeight;
-      this.body.velocity.y = 0;
-      this.grounded = true;
-      this.body.aabbNeedsUpdate = true;
-      return;
-    }
-
-    const ray = new CANNON.Ray(
-      new CANNON.Vec3(this.body.position.x, bottomY + 0.02, this.body.position.z),
-      new CANNON.Vec3(this.body.position.x, bottomY - maxDistance, this.body.position.z)
-    );
-    const result = new CANNON.RaycastResult();
-    if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) return;
-    if (Math.abs(result.hitNormalWorld.y) < 0.45) return;
-    const drop = bottomY - result.hitPointWorld.y;
-    if (drop < -0.02 || drop > maxDistance) return;
-    this.body.position.y = result.hitPointWorld.y + this.currentHalfHeight;
-    this.body.velocity.y = 0;
+    const ground = this.probeGround(maxDistance);
+    if (!ground) return;
+    this.alignBodyToGround(ground);
     this.grounded = true;
     this.body.aabbNeedsUpdate = true;
   }
 
   private resolveBodyYFromEyeY(eyeY: number): number {
     return eyeY - this.eyeHeight;
+  }
+
+  private updateLastSafeGroundPosition(): void {
+    if (!this.grounded) return;
+    const ground = this.probeGround(this.groundedProbeDistance);
+    if (!ground || ground.distance > this.groundedStickEpsilon * 2) return;
+    if (ground.body.userData?.sourceBacked && ground.body.userData.walkable !== true) return;
+    this.lastSafeEyePosition = this.getPosition();
+  }
+
+  private preventSourceVoidEscape(): void {
+    const arena = this.scene.getCurrentArena?.();
+    if (!arena || arena.name !== 'Dust2' || !arena.source?.sourceBacked) return;
+
+    const eyePosition = this.getPosition();
+    const halfWidth = arena.bounds.width / 2 + 2;
+    const halfDepth = arena.bounds.depth / 2 + 2;
+    const minZ = arena.bounds.centerZ - halfDepth;
+    const maxZ = arena.bounds.centerZ + halfDepth;
+    const escaped =
+      Math.abs(eyePosition.x) > halfWidth ||
+      eyePosition.z < minZ ||
+      eyePosition.z > maxZ ||
+      eyePosition.y < -8;
+
+    if (!escaped) return;
+
+    const safe = this.lastSafeEyePosition ?? arena.playerSpawn;
+    this.setPosition(safe.clone());
+    this.body.velocity.set(0, 0, 0);
+    this.body.angularVelocity.set(0, 0, 0);
   }
 
   getPosition(): THREE.Vector3 {
@@ -443,6 +481,11 @@ export class PlayerController {
 
   getCollisionHeight(): number {
     return this.currentHalfHeight * 2;
+  }
+
+  getFootGroundDistanceForDebug(): number | null {
+    const ground = this.probeGround(this.groundedProbeDistance);
+    return ground?.distance ?? null;
   }
 
   takeDamage(amount: number, region: HitRegion = 'chest', armorPenetration = 0.35): void {
@@ -513,6 +556,7 @@ export class PlayerController {
     // Fix: Force immediate grounded check instead of setting to false
     // This prevents physics oscillation when spawning
     this.grounded = this.canJump();
+    this.updateLastSafeGroundPosition();
   }
 
   setEyePositionForDebug(position: THREE.Vector3): void {
@@ -522,6 +566,7 @@ export class PlayerController {
     this.body.wakeUp();
     this.syncCameraToBody();
     this.grounded = this.canJump();
+    this.updateLastSafeGroundPosition();
   }
 
   resetVelocity(): void {

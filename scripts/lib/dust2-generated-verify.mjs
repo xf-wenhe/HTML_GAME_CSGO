@@ -115,6 +115,10 @@ export function verifyDust2GeneratedMeshResource(resource) {
     throw new Error('Dust2 generated collision mesh indices do not match the source collision mesh triangle count.');
   }
 
+  if (!resource.collisionProxy || !Array.isArray(resource.collisionProxy.floors) || resource.collisionProxy.floors.length <= 0) {
+    throw new Error('Dust2 generated mesh is missing source-derived walkable collision proxy floors.');
+  }
+
   return {
     schema: resource.schema,
     sourcePath: resource.source.path,

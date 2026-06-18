@@ -74,6 +74,25 @@ export interface Dust2WorldMeshResource {
     positions: Array<[number, number, number]>;
     indices: number[];
   };
+  collisionProxy?: {
+    name?: string;
+    bounds?: {
+      mins: [number, number, number];
+      maxs: [number, number, number];
+    };
+    floors?: Dust2CollisionProxyBox[];
+    ramps?: Dust2CollisionProxyBox[];
+    walls?: Dust2CollisionProxyBox[];
+  };
+}
+
+export interface Dust2CollisionProxyBox {
+  name?: string;
+  position: [number, number, number];
+  size: [number, number, number];
+  walkable?: boolean;
+  collisionKind?: 'floor' | 'ramp' | 'wall' | 'boundary';
+  normal?: [number, number, number];
 }
 
 export function meshSpecFromDust2WorldMeshResource(resource: Dust2WorldMeshResource): MeshSpec {
@@ -234,4 +253,20 @@ export function validateDust2WorldMeshResource(resource: Dust2WorldMeshResource)
       throw new Error(`Dust2 world mesh collision index ${index} references missing vertex ${vertexIndex}.`);
     }
   });
+
+  const proxy = resource.collisionProxy;
+  if (proxy) {
+    const proxyBoxes = [...(proxy.floors ?? []), ...(proxy.ramps ?? []), ...(proxy.walls ?? [])];
+    if ((proxy.floors?.length ?? 0) <= 0) {
+      throw new Error('Dust2 world mesh collision proxy must include at least one walkable floor.');
+    }
+    proxyBoxes.forEach((box, index) => {
+      if (!Array.isArray(box.position) || box.position.length !== 3 || box.position.some(value => !Number.isFinite(value))) {
+        throw new Error(`Dust2 collision proxy box ${index} must include a finite position tuple.`);
+      }
+      if (!Array.isArray(box.size) || box.size.length !== 3 || box.size.some(value => !Number.isFinite(value) || value <= 0)) {
+        throw new Error(`Dust2 collision proxy box ${index} must include a positive size tuple.`);
+      }
+    });
+  }
 }

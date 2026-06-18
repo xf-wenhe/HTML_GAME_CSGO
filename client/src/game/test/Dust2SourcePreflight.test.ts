@@ -27,6 +27,7 @@ import {
 import {
   createDust2MeshResource,
   createDust2MeshResourceModule,
+  createCollisionProxy,
   writeDust2MeshResourceModuleFromBsp,
   writeDust2MeshResourceModuleFromMap,
 } from '../../../../scripts/lib/dust2-mesh-export.mjs';
@@ -441,6 +442,59 @@ describe('CS1.6 Dust2 source preflight', () => {
     });
   });
 
+  it('builds source-derived collision proxy floors from walkable triangles', () => {
+    const proxy = createCollisionProxy({
+      positions: [
+        { x: 0, y: 0, z: 0 },
+        { x: 1, y: 0, z: 0 },
+        { x: 1, y: 0, z: -1 },
+      ],
+      indices: [0, 1, 2],
+    });
+
+    expect(proxy.bounds).toEqual({ mins: [0, 0, -1], maxs: [1, 0, 0] });
+    expect(proxy.floors.length).toBeGreaterThan(0);
+    expect(proxy.floors[0]).toMatchObject({
+      walkable: true,
+      collisionKind: 'floor',
+    });
+  });
+
+  it('does not fill collision proxy cells outside a triangle footprint', () => {
+    const proxy = createCollisionProxy({
+      positions: [
+        { x: 0, y: 0, z: 0 },
+        { x: 2, y: 0, z: 0 },
+        { x: 0, y: 0, z: -2 },
+      ],
+      indices: [0, 1, 2],
+    });
+
+    expect(proxy.floors.length).toBeGreaterThan(0);
+    proxy.floors.forEach(floor => {
+      const [x, , z] = floor.position;
+      expect(x + Math.abs(z)).toBeLessThanOrEqual(2);
+    });
+  });
+
+  it('keeps sloped walkable faces out of horizontal floor boxes', () => {
+    const proxy = createCollisionProxy({
+      positions: [
+        { x: 0, y: 0, z: 0 },
+        { x: 2, y: 0, z: 0 },
+        { x: 0, y: 1, z: -2 },
+      ],
+      indices: [0, 1, 2],
+    });
+
+    expect(proxy.floors).toEqual([]);
+    expect(proxy.ramps).toHaveLength(1);
+    expect(proxy.ramps[0]).toMatchObject({
+      walkable: false,
+      collisionKind: 'ramp',
+    });
+  });
+
   it('exports a Dust2 mesh JSON resource from parsed BSP geometry', () => {
     const parsed = parseGoldSrcBspBuffer(createSyntheticBspBuffer(), { sourcePath: '/legal/cstrike/maps/de_dust2.bsp' });
     const resource = createDust2MeshResource(parsed);
@@ -606,6 +660,7 @@ describe('CS1.6 Dust2 source preflight', () => {
     expect(moduleSource).toContain(`"path": "${source}"`);
     expect(moduleSource).toContain('"exportedMeshTriangleCount": 4');
     expect(moduleSource).toContain('"exportedModelIndexes": [');
+    expect(moduleSource).toContain('"collisionProxy":');
     expect(verifyDust2GeneratedMeshResource(parseDust2GeneratedMeshModule(moduleSource))).toMatchObject({
       sourcePath: source,
       vertexCount: 8,
@@ -636,6 +691,7 @@ describe('CS1.6 Dust2 source preflight', () => {
     expect(output).toContain('"vertexCount": 48');
     expect(output).toContain('"exportedModelCount": 1');
     expect(moduleSource).toContain(`"path": "${source}"`);
+    expect(moduleSource).toContain('"collisionProxy":');
     expect(verifyDust2GeneratedMeshResource(parseDust2GeneratedMeshModule(moduleSource))).toMatchObject({
       sourcePath: source,
       vertexCount: 48,

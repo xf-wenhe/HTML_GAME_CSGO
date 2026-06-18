@@ -21,7 +21,7 @@ import {
 import {
   DUST2_SPAWNS
 } from './constants/Dust2HammerData.js';
-import { type Dust2WorldMeshResource, meshSpecFromDust2WorldMeshResource } from './Dust2MeshResource.js';
+import { type Dust2CollisionProxyBox, type Dust2WorldMeshResource, meshSpecFromDust2WorldMeshResource } from './Dust2MeshResource.js';
 import { type InfernoWorldMeshResource, meshSpecFromInfernoWorldMeshResource } from './InfernoMeshResource.js';
 import dust2WorldMeshResourceJson from './source/dust2-world-mesh.json';
 import { INFERNO_WORLD_MESH_RESOURCE as infernoWorldMeshResource } from './generated/inferno-world-mesh.js';
@@ -40,6 +40,9 @@ export interface BoxSpec {
   rotation?: { x: number; y: number; z: number };
   textureKey?: 'sand' | 'concrete' | 'wood' | 'metal' | 'plaster';
   physicsOnly?: boolean;
+  walkable?: boolean;
+  collisionKind?: 'floor' | 'ramp' | 'wall' | 'boundary' | 'prop';
+  sourceBacked?: boolean;
 }
 
 export interface MeshSpec {
@@ -52,6 +55,9 @@ export interface MeshSpec {
   metalness?: number;
   roughness?: number;
   opacity?: number;
+  walkable?: boolean;
+  collisionKind?: 'render' | 'wall' | 'auxiliary';
+  sourceBacked?: boolean;
 }
 
 export interface EnemySpawnPoint {
@@ -342,10 +348,10 @@ function createDust2SourceSafetyColliders(resource: Dust2WorldMeshResource | nul
   const depth = bounds.maxs.z - bounds.mins.z + margin * 2;
 
   return [
-    { ...box(centerX, y, bounds.mins.z - margin, width, height, thickness, 0x000000, 'dust2-source-boundary-north', 0, 1, 0), physicsOnly: true },
-    { ...box(centerX, y, bounds.maxs.z + margin, width, height, thickness, 0x000000, 'dust2-source-boundary-south', 0, 1, 0), physicsOnly: true },
-    { ...box(bounds.mins.x - margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-west', 0, 1, 0), physicsOnly: true },
-    { ...box(bounds.maxs.x + margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-east', 0, 1, 0), physicsOnly: true },
+    { ...box(centerX, y, bounds.mins.z - margin, width, height, thickness, 0x000000, 'dust2-source-boundary-north', 0, 1, 0), physicsOnly: true, walkable: false, collisionKind: 'boundary' as const, sourceBacked: true },
+    { ...box(centerX, y, bounds.maxs.z + margin, width, height, thickness, 0x000000, 'dust2-source-boundary-south', 0, 1, 0), physicsOnly: true, walkable: false, collisionKind: 'boundary' as const, sourceBacked: true },
+    { ...box(bounds.mins.x - margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-west', 0, 1, 0), physicsOnly: true, walkable: false, collisionKind: 'boundary' as const, sourceBacked: true },
+    { ...box(bounds.maxs.x + margin, y, centerZ, thickness, height, depth, 0x000000, 'dust2-source-boundary-east', 0, 1, 0), physicsOnly: true, walkable: false, collisionKind: 'boundary' as const, sourceBacked: true },
   ];
 }
 
@@ -446,7 +452,12 @@ function createSourceWalkableColliders(meshes: MeshSpec[], prefix: string): BoxS
         1,
         0
       ));
-      colliders[colliders.length - 1].physicsOnly = true;
+      Object.assign(colliders[colliders.length - 1], {
+        physicsOnly: true,
+        walkable: true,
+        collisionKind: 'floor' as const,
+        sourceBacked: true,
+      });
     };
 
     for (let i = 1; i < xs.length; i += 1) {
@@ -463,6 +474,33 @@ function createSourceWalkableColliders(meshes: MeshSpec[], prefix: string): BoxS
   });
 
   return colliders;
+}
+
+function createBoxFromDust2CollisionProxy(proxyBox: Dust2CollisionProxyBox, fallbackKind: BoxSpec['collisionKind']): BoxSpec {
+  return {
+    position: new THREE.Vector3(proxyBox.position[0], proxyBox.position[1], proxyBox.position[2]),
+    size: new THREE.Vector3(proxyBox.size[0], proxyBox.size[1], proxyBox.size[2]),
+    color: 0x000000,
+    metalness: 0,
+    roughness: 1,
+    name: proxyBox.name,
+    physicsOnly: true,
+    walkable: proxyBox.walkable ?? (fallbackKind === 'floor' || fallbackKind === 'ramp'),
+    collisionKind: proxyBox.collisionKind ?? fallbackKind,
+    sourceBacked: true,
+  };
+}
+
+function createDust2CollisionProxyColliders(resource: Dust2WorldMeshResource | null, sourceMeshes: MeshSpec[]): BoxSpec[] {
+  const proxy = resource?.collisionProxy;
+  if (proxy?.floors?.length) {
+    return [
+      ...proxy.floors.map(box => createBoxFromDust2CollisionProxy(box, 'floor')),
+      ...(proxy.walls ?? []).map(box => createBoxFromDust2CollisionProxy(box, 'wall')),
+    ];
+  }
+
+  return createSourceWalkableColliders(sourceMeshes, 'dust2');
 }
 
 function createNonWalkableCollisionMesh(mesh: MeshSpec): MeshSpec {
@@ -493,6 +531,9 @@ function createNonWalkableCollisionMesh(mesh: MeshSpec): MeshSpec {
     ...mesh,
     collisionPositions: positions,
     collisionIndices: filteredIndices,
+    walkable: false,
+    collisionKind: 'wall',
+    sourceBacked: true,
   };
 }
 
@@ -1483,7 +1524,7 @@ function buildDust2Arena(): ArenaData {
     bombSites: sourceBombSites,
     colliders: sourceGeometry.meshes.length > 0
       ? [
-          ...createDust2SourceStabilityFloors(),
+          ...createDust2CollisionProxyColliders(DUST2_WORLD_MESH_RESOURCE, rawSourceMeshes),
           ...createDust2SourceSafetyColliders(DUST2_WORLD_MESH_RESOURCE),
         ]
       : sourceGeometry.colliders,

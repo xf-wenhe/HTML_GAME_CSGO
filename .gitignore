@@ -37,3 +37,6 @@ cleanup-git-history.sh
 
 # Playwright 浏览器二进制
 playwright/.cache/
+
+# Playwright MCP 页面快照
+.playwright-mcp/

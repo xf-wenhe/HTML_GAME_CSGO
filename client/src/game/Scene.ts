@@ -153,9 +153,14 @@ export class Scene {
     // 动态设置全局地面高度，确保射线检测能正常工作
     // Inferno: 最低地面在 T Spawn 区域 y=-0.16，全局地面设置在 y=-1.0 确保覆盖
     // Dust2: T 出生点地面约 y=1.92，CT 出生点地面约 y=-0.24
-    const groundY = arena.name === 'Inferno' ? -1.0 : arena.name === 'Dust2' ? -1.0 : 0;
-    this.physics.setGlobalGroundEnabled(true, groundY);
-    console.log(`[Scene] Global ground set to y=${groundY} for map: ${arena.name}`);
+    if (arena.name === 'Dust2' && arena.source?.sourceBacked) {
+      this.physics.setGlobalGroundEnabled(false);
+      console.log(`[Scene] Global ground disabled for source-backed map: ${arena.name}`);
+    } else {
+      const groundY = arena.name === 'Inferno' ? -1.0 : 0;
+      this.physics.setGlobalGroundEnabled(true, groundY);
+      console.log(`[Scene] Global ground set to y=${groundY} for map: ${arena.name}`);
+    }
 
     [...arena.colliders, ...arena.props].forEach(spec => {
       if (!spec.physicsOnly) this.addBox(spec);
@@ -472,15 +477,7 @@ export class Scene {
       mesh.add(edges);
     }
 
-    // 添加 trimesh 碰撞体（如果有碰撞数据）
-    if (spec.collisionPositions && spec.collisionIndices && spec.collisionIndices.length > 0) {
-      const collisionVertices: number[] = [];
-      spec.collisionPositions.forEach((position) => {
-        collisionVertices.push(position.x, position.y, position.z);
-      });
-      const body = this.physics.addStaticTrimesh(collisionVertices, spec.collisionIndices, spec.name ?? 'trimesh-collision');
-      console.log(`[Scene] Added trimesh collision for ${spec.name}:`, collisionVertices.length / 3, 'vertices,', spec.collisionIndices.length / 3, 'triangles');
-    } else {
+    if (!spec.collisionPositions || !spec.collisionIndices || spec.collisionIndices.length <= 0) {
       console.warn(`[Scene] No collision data for mesh: ${spec.name}`);
     }
 

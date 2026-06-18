@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { InputManager } from '../InputManager.js';
 import { Physics } from '../Physics.js';
 import { PlayerController } from '../PlayerController.js';
@@ -9,10 +10,55 @@ function createController() {
   const physics = new Physics();
   physics.setGlobalGroundEnabled(true, 0);
   const camera = new THREE.PerspectiveCamera();
-  const scene = { getCamera: () => camera };
+  const scene = {
+    getCamera: () => camera,
+    getCurrentArena: () => ({ name: 'Test', source: { sourceBacked: false }, bounds: { width: 20, depth: 20, centerZ: 0 } }),
+    getFeedbackEffects: () => ({ landHard: () => undefined }),
+  };
   const input = new InputManager(undefined, 'linux');
   const player = new PlayerController(scene as any, physics, input, new THREE.Vector3(0, 0.64, 0));
   return { physics, input, player };
+}
+
+function createPlatformController() {
+  const physics = new Physics();
+  physics.setGlobalGroundEnabled(false);
+  const camera = new THREE.PerspectiveCamera();
+  const scene = {
+    getCamera: () => camera,
+    getCurrentArena: () => ({ name: 'Test', source: { sourceBacked: false }, bounds: { width: 20, depth: 20, centerZ: 0 } }),
+    getFeedbackEffects: () => ({ landHard: () => undefined }),
+  };
+  physics.addStaticBox(
+    new CANNON.Vec3(0, -0.06, 0),
+    new CANNON.Vec3(1.2, 0.06, 0.55),
+    undefined,
+    'test-walkable-platform',
+    { walkable: true, collisionKind: 'floor' }
+  );
+  const input = new InputManager(undefined, 'linux');
+  const player = new PlayerController(scene as any, physics, input, new THREE.Vector3(0, 0.64, 0));
+  return { physics, input, player };
+}
+
+function createUntaggedPlatformController() {
+  const physics = new Physics();
+  physics.setGlobalGroundEnabled(false);
+  const camera = new THREE.PerspectiveCamera();
+  const scene = {
+    getCamera: () => camera,
+    getCurrentArena: () => ({ name: 'Test', source: { sourceBacked: false }, bounds: { width: 20, depth: 20, centerZ: 0 } }),
+    getFeedbackEffects: () => ({ landHard: () => undefined }),
+  };
+  physics.addStaticBox(
+    new CANNON.Vec3(0, -0.06, 0),
+    new CANNON.Vec3(1.2, 0.06, 1.2),
+    undefined,
+    'test-untagged-platform'
+  );
+  const input = new InputManager(undefined, 'linux');
+  const player = new PlayerController(scene as any, physics, input, new THREE.Vector3(0, 0.64, 0));
+  return { physics, player };
 }
 
 function tick(player: PlayerController, physics: Physics, dt = 1 / 100): THREE.Vector3 {
@@ -73,5 +119,50 @@ describe('PlayerController CS1.6 feel', () => {
     expect(landedFrame).toBeGreaterThan(30);
     expect(landedFrame).toBeLessThan(85);
     expect(y.at(-1)).toBeCloseTo(0.64, 2);
+  });
+
+  it('lands with feet still stuck to the ground after jump and crouch cycles', () => {
+    const { physics, input, player } = createController();
+
+    for (let cycle = 0; cycle < 3; cycle++) {
+      input.setKeyPressed('Space', true);
+      for (let i = 0; i < 140; i++) tick(player, physics);
+      input.setKeyPressed('ControlLeft', true);
+      for (let i = 0; i < 15; i++) tick(player, physics);
+      input.setKeyPressed('ControlLeft', false);
+      for (let i = 0; i < 25; i++) tick(player, physics);
+    }
+    for (let i = 0; i < 40; i++) tick(player, physics);
+
+    expect(player.isGrounded()).toBe(true);
+    expect(player.getFootGroundDistanceForDebug()).not.toBeNull();
+    expect(Math.abs(player.getFootGroundDistanceForDebug() ?? 1)).toBeLessThan(0.03);
+    expect(player.getPosition().y).toBeCloseTo(0.64, 2);
+  });
+
+  it('does not snap to ground or hover after walking off a high ledge', () => {
+    const { physics, input, player } = createPlatformController();
+    input.setKeyPressed('KeyW', true);
+
+    let leftGround = false;
+    let lowestY = player.getPosition().y;
+    for (let i = 0; i < 130; i++) {
+      const position = tick(player, physics);
+      lowestY = Math.min(lowestY, position.y);
+      if (!player.isGrounded()) leftGround = true;
+    }
+
+    expect(leftGround).toBe(true);
+    expect(lowestY).toBeLessThan(0.2);
+    expect(player.getFootGroundDistanceForDebug()).toBeNull();
+  });
+
+  it('does not treat untagged physics bodies as valid ground', () => {
+    const { physics, player } = createUntaggedPlatformController();
+
+    for (let i = 0; i < 20; i++) tick(player, physics);
+
+    expect(player.isGrounded()).toBe(false);
+    expect(player.getFootGroundDistanceForDebug()).toBeNull();
   });
 });
