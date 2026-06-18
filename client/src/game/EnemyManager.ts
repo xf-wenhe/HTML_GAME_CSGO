@@ -39,7 +39,7 @@ export class EnemyManager {
         position: tempPosition.clone(),
         health: 100,
         speed: 2.15,
-        botProfile: { weaponId: 'usp_s' }
+        botProfile: { weaponId: 'usp' }
       });
     }
 

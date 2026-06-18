@@ -120,7 +120,7 @@ export class Cs16BotMatch {
       id: `cs16_bot_${this.round}_${index}`,
       position: (spawns[index % spawns.length] ?? fallback).clone(),
       route: routeFactory(index),
-      weaponId: index % 3 === 0 ? 'm4a4' : index % 3 === 1 ? 'mp5sd' : 'usp_s',
+      weaponId: index % 3 === 0 ? 'ak47' : index % 3 === 1 ? 'mp5' : 'usp',
     }));
   }
 

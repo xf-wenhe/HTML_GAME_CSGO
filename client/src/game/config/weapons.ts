@@ -1,6 +1,42 @@
 import { WeaponBalance } from '../../../../shared/types.js';
 
 export const MULTIPLAYER_WEAPONS: Record<string, WeaponBalance> = {
+  usp: {
+    id: 'usp',
+    name: 'USP .45',
+    price: 500,
+    teams: ['defenders'],
+    buyCategory: 'pistol',
+    killReward: 300,
+    damage: 30,
+    fireRate: 5.5,
+    magazineSize: 12,
+    maxReserveAmmo: 100,
+    reloadTime: 2.0,
+    spread: 0.06,
+    movementSpeedMultiplier: 1,
+    armorPenetration: 0.5,
+    headshotMultiplier: 3.5,
+    range: 52
+  },
+  ak47: {
+    id: 'ak47',
+    name: 'AK-47',
+    price: 2500,
+    teams: ['attackers'],
+    buyCategory: 'rifle',
+    killReward: 300,
+    damage: 36,
+    fireRate: 7.5,
+    magazineSize: 30,
+    maxReserveAmmo: 90,
+    reloadTime: 2.35,
+    spread: 0.075,
+    movementSpeedMultiplier: 0.88,
+    armorPenetration: 0.78,
+    headshotMultiplier: 4,
+    range: 90
+  },
   sidearm: {
     id: 'sidearm',
     name: 'S-9 Sidearm',
@@ -40,7 +76,7 @@ export const MULTIPLAYER_WEAPONS: Record<string, WeaponBalance> = {
   vandal: {
     id: 'vandal',
     name: 'Vandal AR',
-    price: 2700,
+    price: 2500,
     teams: ['attackers'],
     buyCategory: 'rifle',
     killReward: 300,

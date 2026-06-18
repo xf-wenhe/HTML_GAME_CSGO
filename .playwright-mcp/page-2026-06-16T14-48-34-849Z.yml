@@ -1,0 +1,139 @@
+- generic [ref=e2]:
+  - option "低"
+  - option "中"
+  - option "高" [selected]
+  - option "经典十字" [selected]
+  - option "圆点"
+  - option "T 型"
+  - option "静态"
+  - option "绿色" [selected]
+  - option "青色"
+  - option "白色"
+  - option "黄色"
+  - dialog "锻点行动 - 主菜单" [ref=e3]:
+    - img
+    - button "设置" [ref=e4] [cursor=pointer]
+    - generic:
+      - generic:
+        - generic: 反恐精英
+      - generic:
+        - generic: 恐怖分子
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - heading "锻点行动" [level=1] [ref=e7]
+        - generic [ref=e10]: ◆
+        - paragraph [ref=e12]: TACTICAL OPERATIONS
+      - group "玩家身份" [ref=e13]:
+        - generic [ref=e14]: ID
+        - textbox "ID" [ref=e15]: Player-469
+      - group "阵营选择" [ref=e16]:
+        - generic [ref=e17]: 阵营
+        - button "自动" [ref=e18] [cursor=pointer]
+        - button "警察" [ref=e19] [cursor=pointer]
+        - button "匪徒" [ref=e20] [cursor=pointer]
+      - navigation "游戏模式" [ref=e21]:
+        - button "⚔ 单人任务闯关 PVE · 生存模式" [ref=e22] [cursor=pointer]:
+          - generic [ref=e23]: ⚔
+          - generic [ref=e24]: 单人任务闯关
+          - generic [ref=e25]: PVE · 生存模式
+        - button "☠ 团队死斗 PVP · 即刻复活" [ref=e26] [cursor=pointer]:
+          - generic [ref=e27]: ☠
+          - generic [ref=e28]: 团队死斗
+          - generic [ref=e29]: PVP · 即刻复活
+        - button "💣 5v5 爆破 PVP · 经典模式" [ref=e30] [cursor=pointer]:
+          - generic [ref=e31]: 💣
+          - generic [ref=e32]: 5v5 爆破
+          - generic [ref=e33]: PVP · 经典模式
+      - group "NPC 难度" [ref=e34]:
+        - generic [ref=e35]: 难度
+        - button "简单" [ref=e36] [cursor=pointer]
+        - button "普通" [ref=e37] [cursor=pointer]
+        - button "困难" [ref=e38] [cursor=pointer]
+        - button "专家" [ref=e39] [cursor=pointer]
+      - group "地图选择" [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]: 地图选择
+          - generic [ref=e43]: 9 张地图
+        - generic [ref=e44]:
+          - button "Dust2 CS1.6 源文件导入 炸点 A·B · 5v5" [ref=e45] [cursor=pointer]:
+            - generic [ref=e47]:
+              - generic [ref=e48]: Dust2
+              - generic [ref=e49]: CS1.6 源文件导入
+              - generic [ref=e50]: 炸点 A·B · 5v5
+          - button "Inferno CS1.6 源文件导入 炸点 A·B · 5v5" [active] [ref=e51] [cursor=pointer]:
+            - generic [ref=e53]:
+              - generic [ref=e54]: Inferno
+              - generic [ref=e55]: CS1.6 源文件导入
+              - generic [ref=e56]: 炸点 A·B · 5v5
+          - button "Mirage 中东市集 · 中路对决 炸点 A·B · 5v5" [ref=e57] [cursor=pointer]:
+            - generic [ref=e59]:
+              - generic [ref=e60]: Mirage
+              - generic [ref=e61]: 中东市集 · 中路对决
+              - generic [ref=e62]: 炸点 A·B · 5v5
+          - button "Nuke 核电设施 · 双层结构 炸点 A·B · 5v5" [ref=e63] [cursor=pointer]:
+            - generic [ref=e65]:
+              - generic [ref=e66]: Nuke
+              - generic [ref=e67]: 核电设施 · 双层结构
+              - generic [ref=e68]: 炸点 A·B · 5v5
+          - button "Train 铁路货场 · 火车掩体 炸点 A·B · 5v5" [ref=e69] [cursor=pointer]:
+            - generic [ref=e71]:
+              - generic [ref=e72]: Train
+              - generic [ref=e73]: 铁路货场 · 火车掩体
+              - generic [ref=e74]: 炸点 A·B · 5v5
+          - button "Overpass 公园隧道 · 立交桥 炸点 A·B · 5v5" [ref=e75] [cursor=pointer]:
+            - generic [ref=e77]:
+              - generic [ref=e78]: Overpass
+              - generic [ref=e79]: 公园隧道 · 立交桥
+              - generic [ref=e80]: 炸点 A·B · 5v5
+          - button "Warehouse 工业仓库 · 近身混战 炸点 A·B · 5v5" [ref=e81] [cursor=pointer]:
+            - generic [ref=e83]:
+              - generic [ref=e84]: Warehouse
+              - generic [ref=e85]: 工业仓库 · 近身混战
+              - generic [ref=e86]: 炸点 A·B · 5v5
+          - button "Italy 意大利小镇 · 多层建筑 炸点 A·B · 5v5" [ref=e87] [cursor=pointer]:
+            - generic [ref=e89]:
+              - generic [ref=e90]: Italy
+              - generic [ref=e91]: 意大利小镇 · 多层建筑
+              - generic [ref=e92]: 炸点 A·B · 5v5
+          - button "Blood Strike 死斗专属 经典死斗 · 十字走廊混战 团队死斗" [ref=e93] [cursor=pointer]:
+            - generic [ref=e95]:
+              - generic [ref=e96]:
+                - text: Blood Strike
+                - generic [ref=e97]: 死斗专属
+              - generic [ref=e98]: 经典死斗 · 十字走廊混战
+              - generic [ref=e99]: 团队死斗
+      - group "线上房间" [ref=e100]:
+        - generic [ref=e101]:
+          - generic [ref=e102]: 线上房间
+          - button "刷新" [ref=e103] [cursor=pointer]
+        - generic [ref=e104]: 暂无房间，点击团队死斗或爆破创建。
+      - note "操作说明" [ref=e105]:
+        - paragraph [ref=e106]:
+          - generic [ref=e107]: W
+          - generic [ref=e108]: A
+          - generic [ref=e109]: S
+          - generic [ref=e110]: D
+          - text: 移动
+          - generic [ref=e111]: Shift
+          - text: 静步
+          - generic [ref=e112]: Ctrl
+          - text: 蹲下
+        - paragraph [ref=e113]:
+          - generic [ref=e114]: 左键
+          - text: 射击 / 投掷
+          - generic [ref=e115]: R
+          - text: 换弹
+          - generic [ref=e116]: B
+          - text: 购买
+          - generic [ref=e117]: E
+          - text: 互动
+        - paragraph [ref=e118]:
+          - generic [ref=e119]: "1"
+          - generic [ref=e120]: "2"
+          - generic [ref=e121]: "3"
+          - generic [ref=e122]: "4"
+          - text: 武器切换
+          - generic [ref=e123]: Tab
+          - text: 战绩面板
+          - generic [ref=e124]: ESC
+          - text: 暂停

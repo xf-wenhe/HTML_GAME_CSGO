@@ -9,7 +9,7 @@ describe('WeaponManager', () => {
 
     expect(manager.getCurrentWeaponId()).toBe('pistol');
     expect(manager.switchWeapon('shotgun')).toBe(true);
-    expect(manager.getCurrentWeapon().name).toBe('Nova');
+    expect(manager.getCurrentWeapon().name).toBe('M3 Super 90');
     expect(manager.switchWeapon('missing')).toBe(false);
     expect(manager.getCurrentWeaponId()).toBe('shotgun');
   });

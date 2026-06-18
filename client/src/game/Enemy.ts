@@ -4,6 +4,7 @@ import * as CANNON from 'cannon-es';
 import { ASSETS, loadAsset } from './assets.js';
 import { HitRegion, closestPointDistanceToRay } from './Combat.js';
 import type { BoxSpec } from './MapData.js';
+import { getWeaponPresentation, resolveWeaponPresentationId, type WeaponPose } from './WeaponPresentation.js';
 
 function markRaycastIgnore(root: THREE.Object3D): void {
   root.userData.raycastIgnore = true;
@@ -139,6 +140,7 @@ export class Enemy {
     const fallback = ASSETS.enemy_assault.fallback();
     fallback.userData.assetSource = 'fallback';
     group.add(fallback);
+    this.addWeaponMount(group, this.botProfile?.weaponId ?? 'ak47');
 
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(0.21, 0.025, 8, 32),
@@ -485,6 +487,7 @@ export class Enemy {
     this.speed = speed;
     this.state = 'idle';
     this.botProfile = botProfile ?? null;
+    this.syncMountedWeapon(this.botProfile?.weaponId ?? 'ak47');
     this.patrolPath = botProfile?.route?.map(p => p.clone()) ?? [];
     this.botRouteIndex = 0;
     this.currentPatrolIndex = 0;
@@ -554,6 +557,39 @@ export class Enemy {
     model.position.x -= center.x;
     model.position.z -= center.z;
     model.position.y -= box.min.y;
+  }
+
+  private addWeaponMount(group: THREE.Group, weaponId: string): void {
+    const mount = new THREE.Group();
+    mount.name = 'weapon-mount';
+    group.add(mount);
+    this.populateWeaponMount(mount, weaponId);
+  }
+
+  private syncMountedWeapon(weaponId: string): void {
+    const mount = this.mesh?.getObjectByName('weapon-mount') as THREE.Group | undefined;
+    if (mount) this.populateWeaponMount(mount, weaponId);
+  }
+
+  private populateWeaponMount(mount: THREE.Group, weaponId: string): void {
+    if (mount.userData.weaponId === weaponId) return;
+    mount.clear();
+    mount.userData.weaponId = weaponId;
+
+    const presentation = getWeaponPresentation(weaponId);
+    const assetId = resolveWeaponPresentationId(weaponId) ?? weaponId;
+    const definition = ASSETS[assetId];
+    if (!presentation || !definition) return;
+
+    const weapon = definition.fallback();
+    this.applyPose(weapon, presentation.thirdPerson);
+    mount.add(weapon);
+  }
+
+  private applyPose(object: THREE.Object3D, pose: WeaponPose): void {
+    object.position.set(...pose.position);
+    object.rotation.set(...pose.rotation);
+    object.scale.multiplyScalar(pose.scale);
   }
 
   private async loadModel(): Promise<void> {

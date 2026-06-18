@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MatchSnapshot, PlayerSnapshot, Team } from './types.js';
 import { Interpolation } from '../network/Interpolation.js';
+import { ASSETS } from './assets.js';
+import { getWeaponPresentation, resolveWeaponPresentationId, type WeaponPose } from './WeaponPresentation.js';
 
 const loader = new GLTFLoader();
 let assaultTemplate: THREE.Object3D | null = null;
@@ -97,6 +99,7 @@ export class RemotePlayers {
       mesh.position.set(pos.x, pos.y - 0.36, pos.z);
       mesh.rotation.y = player.rotation.y;
       mesh.visible = player.isAlive;
+      this.syncMountedWeapon(mesh, player.weaponId);
       const healthBar = mesh.getObjectByName('health-fill') as THREE.Mesh | undefined;
       if (healthBar) {
         const ratio = Math.max(0.05, player.health / 100);
@@ -143,6 +146,7 @@ export class RemotePlayers {
       this.addGeometryFallback(group, color);
     }
 
+    this.addWeaponMount(group, player.weaponId);
     this.addHealthBar(group, color);
     return group;
   }
@@ -160,8 +164,6 @@ export class RemotePlayers {
     const clothMat = new THREE.MeshStandardMaterial({ color: clothColor,   roughness: 0.90, metalness: 0.0  });
     const visorMat = new THREE.MeshStandardMaterial({ color: visorColor,   roughness: 0.10, metalness: 0.1,
       emissive: new THREE.Color(visorColor).multiplyScalar(0.25), emissiveIntensity: 0.5 });
-    const metalMat = new THREE.MeshStandardMaterial({ color: 0x0f1113,     roughness: 0.25, metalness: 0.88 });
-    const gripMat  = new THREE.MeshStandardMaterial({ color: 0x1e1c1a,     roughness: 0.75, metalness: 0.0  });
 
     // Scale so player height ≈ 0.72 units; createFallbackEnemy total height ≈ 2.28 → s ≈ 0.316
     const s = 0.316;
@@ -231,22 +233,38 @@ export class RemotePlayers {
     goggle.position.set(0, 2.07 * s, -0.17 * s);
     group.add(goggle);
 
-    // Weapon (simplified)
-    const wReceiver = new THREE.Mesh(new THREE.BoxGeometry(0.030, 0.027, 0.21), metalMat);
-    wReceiver.position.set(0.14, 1.40 * s, -0.13);
-    wReceiver.rotation.set(0.14, -0.20, -0.05);
-    group.add(wReceiver);
-    const wBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.16, 8), metalMat);
-    wBarrel.rotation.x = Math.PI / 2;
-    wBarrel.position.set(0.13, 1.44 * s, -0.245);
-    group.add(wBarrel);
-    const wMag = new THREE.Mesh(new THREE.BoxGeometry(0.021, 0.055, 0.027), gripMat);
-    wMag.position.set(0.145, 1.35 * s, -0.13);
-    group.add(wMag);
-
     group.traverse(child => {
       if (child instanceof THREE.Mesh) child.castShadow = true;
     });
+  }
+
+  private addWeaponMount(group: THREE.Group, weaponId: string): void {
+    const mount = new THREE.Group();
+    mount.name = 'weapon-mount';
+    group.add(mount);
+    this.syncMountedWeapon(group, weaponId);
+  }
+
+  private syncMountedWeapon(group: THREE.Group, weaponId: string): void {
+    const mount = group.getObjectByName('weapon-mount') as THREE.Group | undefined;
+    if (!mount || mount.userData.weaponId === weaponId) return;
+    mount.clear();
+    mount.userData.weaponId = weaponId;
+
+    const presentation = getWeaponPresentation(weaponId);
+    const assetId = resolveWeaponPresentationId(weaponId) ?? weaponId;
+    const definition = ASSETS[assetId];
+    if (!presentation || !definition) return;
+
+    const weapon = definition.fallback();
+    this.applyPose(weapon, presentation.thirdPerson);
+    mount.add(weapon);
+  }
+
+  private applyPose(object: THREE.Object3D, pose: WeaponPose): void {
+    object.position.set(...pose.position);
+    object.rotation.set(...pose.rotation);
+    object.scale.multiplyScalar(pose.scale);
   }
 
   private addHealthBar(group: THREE.Group, color: number): void {

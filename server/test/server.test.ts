@@ -60,7 +60,7 @@ describe('Server', () => {
     const snapshot = rooms.getSnapshot(room.id)!;
     expect(snapshot.players.map(player => player.team).sort()).toEqual(['attackers', 'defenders']);
     expect(snapshot.players.find(player => player.team === 'attackers')?.weaponId).toBe('pistol');
-    expect(snapshot.players.find(player => player.team === 'defenders')?.weaponId).toBe('usp_s');
+    expect(snapshot.players.find(player => player.team === 'defenders')?.weaponId).toBe('usp');
   });
 
   it('honors preferred teams when that side has room', () => {

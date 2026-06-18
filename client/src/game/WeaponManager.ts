@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ASSETS, loadAsset } from './assets.js';
 import { Weapon } from './Weapon.js';
 import { WEAPON_DEFINITIONS } from './Weapons.js';
+import { getWeaponPresentation, resolveWeaponPresentationId, type ViewmodelPresentation } from './WeaponPresentation.js';
 
 export interface ShootResult {
   origin: THREE.Vector3;
@@ -74,11 +75,22 @@ export class WeaponManager {
   }
 
   switchWeapon(weaponId: string): boolean {
-    if (!this.weapons.has(weaponId) || weaponId === this.currentWeaponId) return this.weapons.has(weaponId);
-    this.currentWeaponId = weaponId;
+    // Handle category aliases
+    const aliasMap: Record<string, string> = {
+      'smg': 'mp5',
+      'shotgun': 'm3',
+      'sniper': 'awp',
+      'rifle': 'ak47',
+      'pistol': 'usp'
+    };
+    const resolvedId = aliasMap[weaponId] || weaponId;
+
+    if (!this.weapons.has(resolvedId) || resolvedId === this.currentWeaponId) return this.weapons.has(resolvedId);
+    this.currentWeaponId = resolvedId;
     const weapon = this.getCurrentWeapon();
-    this.switchDuration = weapon.switchTime;
-    this.switchProgress = weapon.switchTime;
+    const viewmodel = this.getViewmodelPresentation();
+    this.switchDuration = viewmodel?.draw.duration ?? weapon.switchTime;
+    this.switchProgress = this.switchDuration;
     this.recoil = 0;
     this.aiming = false;
     this.scoped = false;
@@ -106,7 +118,7 @@ export class WeaponManager {
 
   setAiming(aiming: boolean): void {
     this.scoped = aiming && this.isSniperWeapon(this.currentWeaponId);
-    this.aiming = this.scoped;
+    this.aiming = aiming;
   }
 
   isAiming(): boolean {
@@ -186,17 +198,23 @@ export class WeaponManager {
 
   update(now: number = performance.now(), dt = 0.016, isMoving = false): void {
     this.weapons.forEach(weapon => weapon.update(now));
-    this.recoil = Math.max(0, this.recoil - dt * 0.9);
+    const weapon = this.getCurrentWeapon();
+    const viewmodel = this.getViewmodelPresentation();
+    this.recoil = Math.max(0, this.recoil - dt * (viewmodel?.recoil.recover ?? 0.9));
     this.meleeSwing = Math.max(0, this.meleeSwing - dt * 5.8);
     this.switchProgress = Math.max(0, this.switchProgress - dt);
-    this.swayClock += dt * (isMoving ? 9 : 3.5);
+    const swayConfig = viewmodel?.sway;
+    this.swayClock += dt * (isMoving ? (swayConfig?.speedMove ?? 9) : (swayConfig?.speedIdle ?? 3.5));
 
-    const swayX = Math.sin(this.swayClock) * (isMoving ? 0.018 : 0.006);
-    const swayY = Math.cos(this.swayClock * 1.7) * (isMoving ? 0.014 : 0.004);
+    const swayAmount = isMoving ? (swayConfig?.move ?? [0.018, 0.014]) : (swayConfig?.idle ?? [0.006, 0.004]);
+    const swayX = Math.sin(this.swayClock) * swayAmount[0];
+    const swayY = Math.cos(this.swayClock * 1.7) * swayAmount[1];
     const switchRatio = this.switchDuration > 0 ? this.switchProgress / this.switchDuration : 0;
-    const drawDip = Math.sin(switchRatio * Math.PI) * 0.34;
-    const drawSlide = switchRatio * 0.18;
-    const weapon = this.getCurrentWeapon();
+    const drawDip = Math.sin(switchRatio * Math.PI) * (viewmodel?.draw.dip ?? 0.34);
+    const drawSlide = switchRatio * (viewmodel?.draw.slide ?? 0.18);
+    const basePosition = viewmodel?.position ?? [0.46, -0.43, -0.82];
+    const baseRotation = viewmodel?.rotation ?? [-0.08, -0.14, 0.02];
+    const recoilConfig = viewmodel?.recoil;
     const adsX = this.aiming ? -0.25 : 0;
     const adsY = this.aiming ? 0.12 : 0;
     const adsZ = this.aiming ? -0.14 : 0;
@@ -204,26 +222,30 @@ export class WeaponManager {
     const knifeY = weapon.isMelee ? -0.08 : 0;
     const swing = Math.sin(this.meleeSwing * Math.PI);
     this.weaponRoot.position.set(
-      0.46 + adsX + knifeX + swayX + drawSlide,
-      -0.43 + adsY + knifeY + swayY - this.recoil * 0.1 - drawDip + swing * 0.08,
-      -0.82 + adsZ + this.recoil * (weapon.isMelee ? 0.2 : 0.82) + drawSlide
+      basePosition[0] + adsX + knifeX + swayX + drawSlide,
+      basePosition[1] + adsY + knifeY + swayY - this.recoil * (recoilConfig?.lift ?? 0.1) - drawDip + swing * 0.08,
+      basePosition[2] + adsZ + this.recoil * (weapon.isMelee ? 0.2 : (recoilConfig?.kick ?? 0.82)) + drawSlide
     );
     this.weaponRoot.rotation.set(
-      -0.08 - this.recoil * 0.28 - drawDip * 0.45 + swing * 0.72,
-      -0.14 + swayX * 0.55 + drawSlide - swing * 0.55,
-      0.02 + swayX * 0.38 + drawDip * 0.2 + swing * 0.46
+      baseRotation[0] - this.recoil * (recoilConfig?.lift ?? 0.28) - drawDip * 0.45 + swing * 0.72,
+      baseRotation[1] + swayX * 0.55 + drawSlide - this.recoil * (recoilConfig?.yaw ?? 0) - swing * 0.55,
+      baseRotation[2] + swayX * 0.38 + drawDip * 0.2 + this.recoil * (recoilConfig?.roll ?? 0) + swing * 0.46
     );
+    const muzzle = viewmodel?.muzzle ?? [0, 0.03, -0.92];
+    this.muzzleFlash.position.set(...muzzle);
 
     this.muzzleFlash.material.opacity = Math.max(0, this.muzzleFlash.material.opacity - dt * 9);
   }
 
   getMuzzleWorldPosition(): THREE.Vector3 {
-    const muzzleLocal = new THREE.Vector3(0, 0.03, -0.92);
+    const muzzle = this.getViewmodelPresentation()?.muzzle ?? [0, 0.03, -0.92];
+    const muzzleLocal = new THREE.Vector3(...muzzle);
     return muzzleLocal.applyMatrix4(this.weaponRoot.matrixWorld);
   }
 
   getEjectPosition(): THREE.Vector3 {
-    const ejectLocal = new THREE.Vector3(0.15, -0.02, -0.5);
+    const eject = this.getViewmodelPresentation()?.eject ?? [0.15, -0.02, -0.5];
+    const ejectLocal = new THREE.Vector3(...eject);
     return ejectLocal.applyMatrix4(this.weaponRoot.matrixWorld);
   }
 
@@ -251,11 +273,13 @@ export class WeaponManager {
         this.currentModel = null;
       }
 
-      const definition = ASSETS[this.currentWeaponId] ?? ASSETS[this.resolveWeaponAssetId(this.currentWeaponId)];
+      const definition = ASSETS[this.resolveWeaponAssetId(this.currentWeaponId)];
       const model = definition ? await loadAsset(definition) : undefined;
       if (!model) return;
 
       this.currentAssetSource = model.userData.assetSource === 'glb' ? 'glb' : 'fallback';
+      const viewmodel = this.getViewmodelPresentation();
+      if (viewmodel) model.scale.multiplyScalar(viewmodel.scale);
       this.currentModel = model;
       this.weaponRoot.add(model);
       this.weaponRoot.add(this.muzzleFlash);
@@ -280,6 +304,9 @@ export class WeaponManager {
   }
 
   private resolveWeaponAssetId(weaponId: string): string {
+    const cs16SliceId = resolveWeaponPresentationId(weaponId);
+    if (cs16SliceId) return cs16SliceId;
+
     // CS 1.6 weapons first
     if (['glock', 'usp', 'p228', 'deagle', 'five_seven'].includes(weaponId)) return weaponId;
     if (['mp5', 'tmp', 'p90', 'mac10', 'ump45'].includes(weaponId)) return weaponId;
@@ -304,7 +331,13 @@ export class WeaponManager {
   }
 
   private isSniperWeapon(weaponId: string): boolean {
-    const assetId = this.resolveWeaponAssetId(weaponId);
-    return assetId === 'sniper' || weaponId === 'sniper';
+    const sniperWeapons = new Set([
+      'scout', 'ssg08', 'awp', 'sniper', 'g3sg1', 'sg550', 'scar20', 'operator'
+    ]);
+    return sniperWeapons.has(weaponId);
+  }
+
+  private getViewmodelPresentation(): ViewmodelPresentation | null {
+    return getWeaponPresentation(this.currentWeaponId)?.viewmodel ?? null;
   }
 }

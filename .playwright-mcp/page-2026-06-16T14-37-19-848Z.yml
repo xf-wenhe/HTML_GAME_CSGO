@@ -1,0 +1,190 @@
+- generic [ref=e2]:
+  - option "低"
+  - option "中"
+  - option "高" [selected]
+  - option "经典十字" [selected]
+  - option "圆点"
+  - option "T 型"
+  - option "静态"
+  - option "绿色" [selected]
+  - option "青色"
+  - option "白色"
+  - option "黄色"
+  - status:
+    - generic:
+      - generic:
+        - generic "CT 队分数":
+          - generic: CT
+          - generic: —
+        - generic:
+          - generic "剩余时间": "-1:-3"
+          - generic: R0
+        - generic "T 队分数":
+          - generic: "0"
+          - generic: T
+      - generic:
+        - generic: 准备 3 秒
+        - generic: 0 敌
+        - generic: 单机
+    - generic:
+      - generic:
+        - generic "击杀提示"
+        - generic "武器槽位":
+          - generic:
+            - generic: "1"
+            - img
+            - generic: —
+          - generic:
+            - generic: "2"
+            - img
+            - generic: Glock-18
+          - generic:
+            - generic: "3"
+            - img
+            - generic: 战术刀
+          - generic:
+            - generic: "4"
+            - img
+            - generic: 高爆雷 x1
+    - generic:
+      - generic "生命值与护甲":
+        - generic:
+          - generic "生命值": "100"
+          - generic:
+            - img
+        - generic:
+          - generic "护甲": "100"
+          - generic:
+            - img
+    - generic:
+      - generic "弹药与武器":
+        - generic "分数或金钱": "00000"
+        - generic "当前武器": Glock-18
+        - generic "弹药":
+          - generic "当前弹匣": "20"
+          - generic: "|"
+          - generic: 高爆雷 x1
+    - generic:
+      - generic:
+        - alert: 单人任务已开始
+  - dialog "锻点行动 - 主菜单":
+    - img
+    - button "设置"
+    - generic:
+      - generic:
+        - generic: 反恐精英
+      - generic:
+        - generic: 恐怖分子
+    - generic:
+      - generic:
+        - heading "锻点行动" [level=1]
+        - generic:
+          - generic: ◆
+        - paragraph: TACTICAL OPERATIONS
+      - group "玩家身份":
+        - generic: ID
+        - textbox "ID": Player-642
+      - group "阵营选择":
+        - generic: 阵营
+        - button "自动"
+        - button "警察"
+        - button "匪徒"
+      - navigation "游戏模式":
+        - button "⚔ 单人任务闯关 PVE · 生存模式" [active]:
+          - generic: ⚔
+          - generic: 单人任务闯关
+          - generic: PVE · 生存模式
+        - button "☠ 团队死斗 PVP · 即刻复活":
+          - generic: ☠
+          - generic: 团队死斗
+          - generic: PVP · 即刻复活
+        - button "💣 5v5 爆破 PVP · 经典模式":
+          - generic: 💣
+          - generic: 5v5 爆破
+          - generic: PVP · 经典模式
+      - group "NPC 难度":
+        - generic: 难度
+        - button "简单"
+        - button "普通"
+        - button "困难"
+        - button "专家"
+      - group "地图选择":
+        - generic:
+          - generic: 地图选择
+          - generic: 8 张地图
+        - generic:
+          - button "Dust2 CS1.6 源文件导入 炸点 A·B · 5v5":
+            - generic:
+              - generic: Dust2
+              - generic: CS1.6 源文件导入
+              - generic: 炸点 A·B · 5v5
+          - button "Inferno CS1.6 源文件导入 炸点 A·B · 5v5":
+            - generic:
+              - generic: Inferno
+              - generic: CS1.6 源文件导入
+              - generic: 炸点 A·B · 5v5
+          - button "Mirage 中东市集 · 中路对决 炸点 A·B · 5v5":
+            - generic:
+              - generic: Mirage
+              - generic: 中东市集 · 中路对决
+              - generic: 炸点 A·B · 5v5
+          - button "Nuke 核电设施 · 双层结构 炸点 A·B · 5v5":
+            - generic:
+              - generic: Nuke
+              - generic: 核电设施 · 双层结构
+              - generic: 炸点 A·B · 5v5
+          - button "Train 铁路货场 · 火车掩体 炸点 A·B · 5v5":
+            - generic:
+              - generic: Train
+              - generic: 铁路货场 · 火车掩体
+              - generic: 炸点 A·B · 5v5
+          - button "Overpass 公园隧道 · 立交桥 炸点 A·B · 5v5":
+            - generic:
+              - generic: Overpass
+              - generic: 公园隧道 · 立交桥
+              - generic: 炸点 A·B · 5v5
+          - button "Warehouse 工业仓库 · 近身混战 炸点 A·B · 5v5":
+            - generic:
+              - generic: Warehouse
+              - generic: 工业仓库 · 近身混战
+              - generic: 炸点 A·B · 5v5
+          - button "Italy 意大利小镇 · 多层建筑 炸点 A·B · 5v5":
+            - generic:
+              - generic: Italy
+              - generic: 意大利小镇 · 多层建筑
+              - generic: 炸点 A·B · 5v5
+      - group "线上房间":
+        - generic:
+          - generic: 线上房间
+          - button "刷新"
+        - generic: 暂无房间，点击团队死斗或爆破创建。
+      - note "操作说明":
+        - paragraph:
+          - generic: W
+          - generic: A
+          - generic: S
+          - generic: D
+          - text: 移动
+          - generic: Shift
+          - text: 静步
+          - generic: Ctrl
+          - text: 蹲下
+        - paragraph:
+          - generic: 左键
+          - text: 射击 / 投掷
+          - generic: R
+          - text: 换弹
+          - generic: B
+          - text: 购买
+          - generic: E
+          - text: 互动
+        - paragraph:
+          - generic: "1"
+          - generic: "2"
+          - generic: "3"
+          - generic: "4"
+          - text: 武器切换
+          - generic: Tab
+          - text: 战绩面板
+          - generic: ESC
+          - text: 暂停

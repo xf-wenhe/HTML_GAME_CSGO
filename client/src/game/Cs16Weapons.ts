@@ -12,6 +12,8 @@ export interface Cs16WeaponRule {
   team: 'both' | 't' | 'ct';
 }
 
+export const CS16_VERTICAL_SLICE_WEAPON_IDS = ['usp', 'ak47'] as const;
+
 // CS 1.6 Starting Money
 export const CS16_STARTING_MONEY = 800;
 export const CS16_MAX_MONEY = 16000;
@@ -244,6 +246,10 @@ export const CS16_ALLOWED_WEAPON_IDS = new Set(Object.keys(CS16_WEAPON_RULES));
 // Helper Functions
 export function getCs16WeaponRule(weaponId: string): Cs16WeaponRule | null {
   return CS16_WEAPON_RULES[weaponId] ?? null;
+}
+
+export function getCs16WeaponDefinition(weaponId: string) {
+  return CS16_WEAPON_DEFINITIONS[weaponId] ?? null;
 }
 
 export function isCs16Weapon(weaponId: string): boolean {

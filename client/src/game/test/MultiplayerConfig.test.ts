@@ -8,6 +8,8 @@ const MAP_IDS: MapId[] = ['bloodstrike', 'dust2', 'warehouse', 'italy', 'mirage'
 describe('multiplayer config', () => {
   it('defines CSGO-style core weapons with buy prices and damage roles', () => {
     expect(Object.keys(MULTIPLAYER_WEAPONS)).toEqual([
+      'usp',
+      'ak47',
       'sidearm',
       'heavy_pistol',
       'vandal',

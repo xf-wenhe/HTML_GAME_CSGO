@@ -64,7 +64,7 @@ describe('Cs16BotMatch', () => {
     const plans = match.createBotPlans([new THREE.Vector3(1, 1, 1)], index => [new THREE.Vector3(index, 1, index)]);
 
     expect(plans).toHaveLength(3);
-    expect(plans[0].weaponId).toBe('m4a4');
+    expect(plans[0].weaponId).toBe('ak47');
     expect(plans[1].route[0].x).toBe(1);
     expect(isCs16Weapon('ak47')).toBe(true);
     expect(isCs16Weapon('m4a1s')).toBe(false);

@@ -2648,7 +2648,7 @@ function createCS16M249(): THREE.Object3D {
   return g;
 }
 
-function createSpecificCS16Weapon(weaponId: string): THREE.Object3D {
+export function createCS16WeaponModel(weaponId: string): THREE.Object3D {
   const builders: Record<string, () => THREE.Object3D> = {
     glock: createCS16Glock,
     usp: createCS16USP,
@@ -2692,47 +2692,47 @@ function createSpecificCS16Weapon(weaponId: string): THREE.Object3D {
 
 export const ASSETS: Record<string, AssetDefinition> = {
   // ── CS 1.6 手枪 ────────────────────────────────────────────────────────────
-  glock: { id: 'glock', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('glock') },
-  usp: { id: 'usp', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('usp') },
-  p228: { id: 'p228', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('p228') },
-  deagle: { id: 'deagle', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('deagle') },
-  five_seven: { id: 'five_seven', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createSpecificCS16Weapon('five_seven') },
+  glock: { id: 'glock', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createCS16WeaponModel('glock') },
+  usp: { id: 'usp', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createCS16WeaponModel('usp') },
+  p228: { id: 'p228', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createCS16WeaponModel('p228') },
+  deagle: { id: 'deagle', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: true, fallback: () => createCS16WeaponModel('deagle') },
+  five_seven: { id: 'five_seven', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createCS16WeaponModel('five_seven') },
 
   // ── CS 1.6 SMG ─────────────────────────────────────────────────────────────
-  mp5: { id: 'mp5', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('mp5') },
-  tmp: { id: 'tmp', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('tmp') },
-  p90: { id: 'p90', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('p90') },
-  mac10: { id: 'mac10', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('mac10') },
-  ump45: { id: 'ump45', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('ump45') },
+  mp5: { id: 'mp5', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createCS16WeaponModel('mp5') },
+  tmp: { id: 'tmp', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createCS16WeaponModel('tmp') },
+  p90: { id: 'p90', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createCS16WeaponModel('p90') },
+  mac10: { id: 'mac10', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createCS16WeaponModel('mac10') },
+  ump45: { id: 'ump45', kind: 'weapon', path: '/assets/models/weapons/smg.glb', scale: 0.24, rotation: [0, Math.PI / 2, 0], position: [-0.12, -0.10, 0.20], preferFallback: true, fallback: () => createCS16WeaponModel('ump45') },
 
   // ── CS 1.6 霰弹枪 ────────────────────────────────────────────────────────────
-  m3: { id: 'm3', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('m3') },
-  xm1014: { id: 'xm1014', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('xm1014') },
+  m3: { id: 'm3', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: true, fallback: () => createCS16WeaponModel('m3') },
+  xm1014: { id: 'xm1014', kind: 'weapon', path: '/assets/models/weapons/shotgun.glb', scale: 0.17, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.11, 0.24], preferFallback: true, fallback: () => createCS16WeaponModel('xm1014') },
 
   // ── CS 1.6 步枪 ─────────────────────────────────────────────────────────────
-  ak47: { id: 'ak47', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('ak47') },
-  m4a1: { id: 'm4a1', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('m4a1') },
-  sg552: { id: 'sg552', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('sg552') },
-  aug: { id: 'aug', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: true, fallback: () => createSpecificCS16Weapon('aug') },
-  galil: { id: 'galil', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('galil') },
-  famas: { id: 'famas', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createSpecificCS16Weapon('famas') },
+  ak47: { id: 'ak47', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createCS16WeaponModel('ak47') },
+  m4a1: { id: 'm4a1', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: true, fallback: () => createCS16WeaponModel('m4a1') },
+  sg552: { id: 'sg552', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createCS16WeaponModel('sg552') },
+  aug: { id: 'aug', kind: 'weapon', path: '/assets/models/weapons/defender_rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.12, 0.20], preferFallback: true, fallback: () => createCS16WeaponModel('aug') },
+  galil: { id: 'galil', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createCS16WeaponModel('galil') },
+  famas: { id: 'famas', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.18, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.08, 0.24], preferFallback: true, fallback: () => createCS16WeaponModel('famas') },
 
   // ── CS 1.6 狙击枪 ────────────────────────────────────────────────────────────
-  scout: { id: 'scout', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.15, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.26], preferFallback: true, fallback: () => createSpecificCS16Weapon('scout') },
-  awp: { id: 'awp', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('awp') },
-  sg550: { id: 'sg550', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('sg550') },
-  g3sg1: { id: 'g3sg1', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('g3sg1') },
+  scout: { id: 'scout', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.15, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.26], preferFallback: true, fallback: () => createCS16WeaponModel('scout') },
+  awp: { id: 'awp', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createCS16WeaponModel('awp') },
+  sg550: { id: 'sg550', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createCS16WeaponModel('sg550') },
+  g3sg1: { id: 'g3sg1', kind: 'weapon', path: '/assets/models/weapons/sniper.glb', scale: 0.145, rotation: [0, Math.PI / 2, 0], position: [-0.25, -0.12, 0.28], preferFallback: true, fallback: () => createCS16WeaponModel('g3sg1') },
 
   // ── CS 1.6 机枪 ─────────────────────────────────────────────────────────────
-  m249: { id: 'm249', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.16, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('m249') },
+  m249: { id: 'm249', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.16, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.28], preferFallback: true, fallback: () => createCS16WeaponModel('m249') },
 
   // ── CS 1.6 近战/装备 ─────────────────────────────────────────────────────
-  knife: { id: 'knife', kind: 'weapon', path: '/assets/models/weapons/knife.glb', scale: 0.62, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.08, 0.12], preferFallback: true, fallback: () => createSpecificCS16Weapon('knife') },
-  hegrenade: { id: 'hegrenade', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.48, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: true, fallback: () => createSpecificCS16Weapon('hegrenade') },
+  knife: { id: 'knife', kind: 'weapon', path: '/assets/models/weapons/knife.glb', scale: 0.62, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.08, 0.12], preferFallback: true, fallback: () => createCS16WeaponModel('knife') },
+  hegrenade: { id: 'hegrenade', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.48, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: true, fallback: () => createCS16WeaponModel('hegrenade') },
 
   // ── 兼容旧ID (保持兼容) ────────────────────────────────────────────────────────────
   pistol: { id: 'pistol', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('pistol') },
-  usp_s: { id: 'usp_s', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('usp_s') },
+  usp_s: { id: 'usp_s', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: true, fallback: () => createCS16WeaponModel('usp') },
   p250: { id: 'p250', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('p250') },
   dual_berettas: { id: 'dual_berettas', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.20, -0.07, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('dual_berettas') },
   r8: { id: 'r8', kind: 'weapon', path: '/assets/models/weapons/heavy_pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.08, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('r8') },

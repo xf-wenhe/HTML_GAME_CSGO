@@ -537,7 +537,7 @@ function restartSoloBotRound(): void {
         viewRange: 34,
         attackRange: 31,
         damage: plan.weaponId === 'm4a4' ? 14 : plan.weaponId === 'mp5sd' ? 10 : 9,
-        fireIntervalMs: plan.weaponId === 'usp_s' ? 620 : 420,
+        fireIntervalMs: plan.weaponId === 'usp' ? 620 : 420,
         accuracy: plan.weaponId === 'm4a4' ? 0.42 : 0.34,
       },
     });
@@ -1950,7 +1950,7 @@ function multiplayerWeaponToLocal(weaponId: WeaponId): string {
 
 function syncLocalLoadoutFromSnapshot(snapshot: PlayerSnapshot): void {
   const owned = snapshot.ownedWeapons ?? [snapshot.weaponId, 'knife'];
-  const teamDefaultPistol = snapshot.team === 'defenders' ? 'usp_s' : 'pistol';
+  const teamDefaultPistol = snapshot.team === 'defenders' ? 'usp' : 'pistol';
   const pistol = owned.find(isPistolWeapon) ?? (isPistolWeapon(snapshot.weaponId) ? snapshot.weaponId : teamDefaultPistol);
   const primary = owned.find(weaponId => !isPistolWeapon(weaponId) && weaponId !== 'knife') ?? '';
   equippedPistol = multiplayerWeaponToLocal(pistol);
@@ -1968,7 +1968,7 @@ function syncLocalLoadoutFromSnapshot(snapshot: PlayerSnapshot): void {
 }
 
 function isPistolWeapon(weaponId: string): weaponId is WeaponId {
-  return ['pistol', 'usp_s', 'p2000', 'p250', 'five_seven', 'deagle', 'dual_berettas', 'r8', 'cz75', 'tec9', 'sidearm', 'heavy_pistol'].includes(weaponId);
+  return ['pistol', 'usp', 'usp_s', 'p2000', 'p250', 'five_seven', 'deagle', 'dual_berettas', 'r8', 'cz75', 'tec9', 'sidearm', 'heavy_pistol'].includes(weaponId);
 }
 
 function updateRadarPanel(): void {

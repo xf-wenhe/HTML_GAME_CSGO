@@ -1,0 +1,71 @@
+- generic [ref=e2]:
+  - option "低"
+  - option "中"
+  - option "高" [selected]
+  - option "经典十字" [selected]
+  - option "圆点"
+  - option "T 型"
+  - option "静态"
+  - option "绿色" [selected]
+  - option "青色"
+  - option "白色"
+  - option "黄色"
+  - status:
+    - generic:
+      - generic:
+        - generic "CT 队分数":
+          - generic: CT
+          - generic: —
+        - generic:
+          - generic "剩余时间": 00:03
+          - generic: R0
+        - generic "T 队分数":
+          - generic: "0"
+          - generic: T
+      - generic:
+        - generic: 准备 3 秒
+        - generic: 0 敌
+        - generic: 单机
+    - generic:
+      - generic:
+        - generic "击杀提示"
+        - generic "武器槽位":
+          - generic:
+            - generic: "1"
+            - img
+            - generic: —
+          - generic:
+            - generic: "2"
+            - img
+            - generic: Glock-18
+          - generic:
+            - generic: "3"
+            - img
+            - generic: 战术刀
+          - generic:
+            - generic: "4"
+            - img
+            - generic: 高爆雷 x1
+    - generic:
+      - generic "生命值与护甲":
+        - generic:
+          - generic "生命值": "100"
+          - generic:
+            - img
+        - generic:
+          - generic "护甲": "100"
+          - generic:
+            - img
+    - generic:
+      - generic "弹药与武器":
+        - generic "分数或金钱": "00000"
+        - generic "当前武器": Glock-18
+        - generic "弹药":
+          - generic "当前弹匣": "20"
+          - generic: "|"
+          - generic: 高爆雷 x1
+    - dialog "鼠标锁定提示" [ref=e125]:
+      - heading "需要锁定鼠标" [level=2] [ref=e126]
+      - paragraph [ref=e127]: 为了避免 Windows 上鼠标移出浏览器，进入战斗前必须锁定鼠标。
+      - button "点击锁定鼠标" [ref=e129] [cursor=pointer]
+      - paragraph [ref=e128]: 如果浏览器拦截，请在 Chrome / Edge 独立窗口允许 Pointer Lock。

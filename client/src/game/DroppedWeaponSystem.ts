@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ASSETS, loadAsset, createFallbackWeapon } from './assets.js';
+import { getWeaponPresentation, resolveWeaponPresentationId, type WeaponPose } from './WeaponPresentation.js';
 
 export interface DroppedWeapon {
   id: string;
@@ -34,29 +35,41 @@ export class DroppedWeaponSystem {
     if (weaponId === 'knife') return;
     const group = new THREE.Group();
     group.name = `drop-${weaponId}`;
+    const presentation = getWeaponPresentation(weaponId);
+    const assetId = resolveWeaponPresentationId(weaponId) ?? weaponId;
     group.position.copy(position);
-    // 武器放置在地面上方 0.06 个单位，模拟平躺效果
-    group.position.y = Math.max(0.06, position.y - 1.4);
-    group.rotation.set(1.5, Math.random() * Math.PI, 0.18);
+    group.position.y = Math.max(presentation?.dropped.groundOffset ?? 0.06, position.y - 1.4);
+    group.rotation.y = Math.random() * Math.PI;
     this.scene.add(group);
 
     // 【修复】同步创建 fallback 武器模型，确保掉落武器立即可见
-    const variant = WEAPON_VARIANT_MAP[weaponId];
-    if (variant) {
+    const variant = WEAPON_VARIANT_MAP[assetId];
+    if (presentation) {
+      const fallback = ASSETS[assetId]?.fallback();
+      if (fallback) {
+        this.applyPose(fallback, presentation.dropped);
+        group.add(fallback);
+      }
+    } else if (variant) {
       const fallback = createFallbackWeapon(variant.color, variant.length, variant.variant);
       fallback.scale.multiplyScalar(0.72);
       group.add(fallback);
     }
 
-    // 添加发光轮廓环，让玩家在远处也能看到掉落武器
-    const glowRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.12, 0.015, 8, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.45 })
+    const groundMarker = new THREE.Mesh(
+      new THREE.RingGeometry(0.18, 0.205, 18),
+      new THREE.MeshBasicMaterial({
+        color: 0xd8c171,
+        transparent: true,
+        opacity: presentation?.dropped.markerOpacity ?? 0.16,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      })
     );
-    glowRing.rotation.x = Math.PI / 2;
-    glowRing.position.y = 0.08;
-    glowRing.name = 'glow-ring';
-    group.add(glowRing);
+    groundMarker.rotation.x = -Math.PI / 2;
+    groundMarker.position.y = 0.004;
+    groundMarker.name = 'ground-marker';
+    group.add(groundMarker);
 
     const drop: DroppedWeapon = {
       id: `drop_${Math.random().toString(36).slice(2)}`,
@@ -66,21 +79,18 @@ export class DroppedWeaponSystem {
     this.drops.push(drop);
 
     // 异步加载 GLB 模型，成功后替换 fallback
-    const definition = ASSETS[weaponId];
+    const definition = ASSETS[assetId];
     void (definition ? loadAsset(definition) : Promise.resolve(undefined)).then(model => {
       if (!model || !this.drops.includes(drop)) return;
-      // 移除旧的 fallback 模型（保留发光环）
-      const fallbackChildren = group.children.filter(c => c.name !== 'glow-ring');
+      const fallbackChildren = group.children.filter(c => c.name !== 'ground-marker');
       fallbackChildren.forEach(c => group.remove(c));
-      model.scale.multiplyScalar(0.72);
+      if (presentation) this.applyPose(model, presentation.dropped);
+      else model.scale.multiplyScalar(0.72);
       group.add(model);
     });
   }
 
   update(playerPosition: THREE.Vector3): DroppedWeapon | null {
-    this.drops.forEach(drop => {
-      drop.mesh.rotation.y += 0.015;
-    });
     return this.findNearby(playerPosition, 2.1);
   }
 
@@ -110,5 +120,11 @@ export class DroppedWeaponSystem {
       }
     }
     return bestDrop;
+  }
+
+  private applyPose(object: THREE.Object3D, pose: WeaponPose): void {
+    object.position.set(...pose.position);
+    object.rotation.set(...pose.rotation);
+    object.scale.multiplyScalar(pose.scale);
   }
 }

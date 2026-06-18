@@ -112,7 +112,7 @@ const normalize = (a: Vector3): Vector3 => {
 };
 const reserveFor = (weaponId: WeaponId): number => WEAPON_BALANCE[weaponId].maxReserveAmmo;
 const defaultOwnedWeapons = (weaponId: WeaponId): WeaponId[] => Array.from(new Set<WeaponId>([weaponId, 'knife']));
-const defaultWeaponForTeam = (team: Team): WeaponId => team === 'defenders' ? 'usp_s' : 'pistol';
+const defaultWeaponForTeam = (team: Team): WeaponId => team === 'defenders' ? 'usp' : 'pistol';
 const sanitizeFeedPart = (value: string): string => value.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 
 export class RoomManager {

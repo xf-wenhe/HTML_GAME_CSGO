@@ -10,10 +10,13 @@ describe('HUD notifications and weapon slots', () => {
     hud.toggleBuyMenu(true);
 
     const buyMenu = hud.getElement().querySelector('.buy-menu') as HTMLElement;
-    expect(buyMenu.textContent).toContain('手枪');
-    expect(buyMenu.textContent).toContain('步枪');
-    expect(buyMenu.textContent).toContain('重型 / 霰弹枪 / 机枪');
-    expect(buyMenu.textContent).toContain('投掷物 / 护甲');
+    expect(buyMenu.textContent).toContain('Pistols');
+    expect(buyMenu.textContent).toContain('Rifles');
+    expect(buyMenu.textContent).toContain('Equipment');
+    expect(buyMenu.textContent).toContain('USP .45');
+    expect(buyMenu.textContent).toContain('AK-47');
+    expect(buyMenu.textContent).toContain('$500');
+    expect(buyMenu.textContent).toContain('$2500');
     expect(buyMenu.textContent).toContain('防弹衣');
     expect(buyMenu.textContent).toContain('高爆雷');
     expect(buyMenu.textContent).toContain('$650');
