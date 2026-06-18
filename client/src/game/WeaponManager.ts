@@ -75,18 +75,8 @@ export class WeaponManager {
   }
 
   switchWeapon(weaponId: string): boolean {
-    // Handle category aliases
-    const aliasMap: Record<string, string> = {
-      'smg': 'mp5',
-      'shotgun': 'm3',
-      'sniper': 'awp',
-      'rifle': 'ak47',
-      'pistol': 'usp'
-    };
-    const resolvedId = aliasMap[weaponId] || weaponId;
-
-    if (!this.weapons.has(resolvedId) || resolvedId === this.currentWeaponId) return this.weapons.has(resolvedId);
-    this.currentWeaponId = resolvedId;
+    if (!this.weapons.has(weaponId) || weaponId === this.currentWeaponId) return this.weapons.has(weaponId);
+    this.currentWeaponId = weaponId;
     const weapon = this.getCurrentWeapon();
     const viewmodel = this.getViewmodelPresentation();
     this.switchDuration = viewmodel?.draw.duration ?? weapon.switchTime;
@@ -118,7 +108,7 @@ export class WeaponManager {
 
   setAiming(aiming: boolean): void {
     this.scoped = aiming && this.isSniperWeapon(this.currentWeaponId);
-    this.aiming = aiming;
+    this.aiming = this.scoped;
   }
 
   isAiming(): boolean {

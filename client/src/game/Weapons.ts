@@ -112,6 +112,12 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     projectileSpeed: 64, switchTime: 0.28, range: 52, reserveAmmo: 120,
     armorPenetration: 0.62, adsSpreadMultiplier: 0.52
   }),
+  smg: new Weapon({
+    id: 'smg', name: 'MP5 Navy', displayName: 'MP5 Navy',
+    damage: 26, fireRate: 13, magazineSize: 30, reloadTime: 2.2, spread: 0.06,
+    projectileSpeed: 64, switchTime: 0.28, range: 52, reserveAmmo: 120,
+    armorPenetration: 0.62, adsSpreadMultiplier: 0.52
+  }),
 
   // ── CS 1.6 霰弹枪 ──────────────────────────────────────────────────────────────
   m3: new Weapon({

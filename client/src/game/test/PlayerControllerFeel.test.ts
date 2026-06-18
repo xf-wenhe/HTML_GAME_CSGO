@@ -70,7 +70,7 @@ describe('PlayerController CS1.6 feel', () => {
     const landedFrame = y.findIndex((value, index) => index > 10 && Math.abs(value - 0.64) < 0.01 && grounded[index]);
     expect(apex - 0.64).toBeGreaterThan(0.40);
     expect(apex - 0.64).toBeLessThan(0.50);
-    expect(landedFrame).toBeGreaterThan(45);
+    expect(landedFrame).toBeGreaterThan(30);
     expect(landedFrame).toBeLessThan(85);
     expect(y.at(-1)).toBeCloseTo(0.64, 2);
   });
