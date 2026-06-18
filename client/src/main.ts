@@ -33,6 +33,7 @@ import { Settings } from './ui/Settings.js';
 import { KillFeed } from './ui/KillFeed.js';
 import { Scoreboard } from './ui/Scoreboard.js';
 import { RadioMenu } from './ui/RadioMenu.js';
+import { CrosshairEditor, type CrosshairSettings } from './ui/CrosshairEditor.js';
 import { MULTIPLAYER_MAPS } from './game/config/maps.js';
 import { Cs16BotMatch } from './game/Cs16BotMatch.js';
 import { CS16_ALLOWED_WEAPON_IDS, canCs16WeaponScope } from './game/Cs16Weapons.js';
@@ -152,6 +153,7 @@ const radioMenu = new RadioMenu();
 const audioManager = new AudioManager();
 const audioFeedback = new AudioFeedback(audioManager);
 const settings = new Settings();
+const crosshairEditor = new CrosshairEditor();
 const prediction = new Prediction();
 const shellCasingManager = new ShellCasingManager(scene.getScene());
 const screenShake = new ScreenShake();
@@ -302,6 +304,46 @@ mainMenu.on('defusal', () => {
 
 mainMenu.on('settings', () => {
   settings.show();
+});
+
+// Add crosshair editor to DOM after settings
+settings.onOpenCrosshairEditor(() => {
+  if (!document.getElementById('crosshair-editor-root')) {
+    const root = document.createElement('div');
+    root.id = 'crosshair-editor-root';
+    document.getElementById('app')?.appendChild(root);
+    root.appendChild(crosshairEditor.getElement());
+  }
+  const s = settings.getSettings();
+  crosshairEditor.syncFromSettings(s);
+  crosshairEditor.show();
+});
+
+crosshairEditor.onApplyHandler((s: CrosshairSettings) => {
+  settings.updateCrosshairSettings({
+    crosshairStyle: s.style,
+    crosshairColor: s.color,
+    crosshairSize: s.size,
+    crosshairThickness: s.thickness,
+    crosshairGap: s.gap,
+    crosshairCenterDot: s.centerDot,
+    crosshairOutline: s.outline,
+    crosshairOpacity: s.opacity,
+  });
+});
+
+crosshairEditor.onCloseHandler(() => {
+  const s = settings.getSettings();
+  hud.applyCrosshair({
+    style: s.crosshairStyle,
+    color: s.crosshairColor,
+    size: s.crosshairSize,
+    thickness: s.crosshairThickness,
+    gap: s.crosshairGap,
+    centerDot: s.crosshairCenterDot,
+    outline: s.crosshairOutline,
+    opacity: s.crosshairOpacity,
+  });
 });
 
 mainMenu.on('refreshRooms', () => {
@@ -2157,6 +2199,17 @@ function mapGrenadeId(clientId: string): 'he' | 'flashbang' | 'smoke' | 'incendi
   return mapping[clientId] ?? 'he';
 }
 
-function applyCrosshairStyle(style: string, color: string): void {
-  hud.setCrosshairStyle(style, color);
+function applyCrosshairStyle(_style: string, _color: string): void {
+  const s = settings.getSettings();
+  const editor = crosshairEditor.getSettings();
+  hud.applyCrosshair({
+    style: s.crosshairStyle,
+    color: editor.color,
+    size: s.crosshairSize,
+    thickness: s.crosshairThickness,
+    gap: s.crosshairGap,
+    centerDot: s.crosshairCenterDot,
+    outline: s.crosshairOutline,
+    opacity: s.crosshairOpacity,
+  });
 }

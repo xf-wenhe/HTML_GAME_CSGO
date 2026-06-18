@@ -5,7 +5,13 @@ export interface GameSettings {
   effectsVolume: number;
   quality: 'low' | 'medium' | 'high';
   crosshairStyle: 'classic' | 'dot' | 't-cross' | 'static';
-  crosshairColor: 'green' | 'cyan' | 'white' | 'yellow';
+  crosshairColor: string;
+  crosshairSize: number;
+  crosshairThickness: number;
+  crosshairGap: number;
+  crosshairCenterDot: boolean;
+  crosshairOutline: boolean;
+  crosshairOpacity: number;
   language: string;
 }
 
@@ -17,6 +23,12 @@ const DEFAULT_SETTINGS: GameSettings = {
   quality: 'high',
   crosshairStyle: 'classic',
   crosshairColor: 'green',
+  crosshairSize: 8,
+  crosshairThickness: 2,
+  crosshairGap: 5,
+  crosshairCenterDot: false,
+  crosshairOutline: true,
+  crosshairOpacity: 0.92,
   language: 'zh',
 };
 
@@ -27,6 +39,7 @@ export class Settings {
   private values: GameSettings;
   private onChangeHandlers: Array<(s: GameSettings) => void> = [];
   private onCloseHandler: (() => void) | null = null;
+  private onOpenCrosshairEditorHandler: (() => void) | null = null;
 
   constructor() {
     this.values = this.load();
@@ -52,12 +65,22 @@ export class Settings {
     return { ...this.values };
   }
 
+  updateCrosshairSettings(patch: Partial<Pick<GameSettings, 'crosshairStyle' | 'crosshairColor' | 'crosshairSize' | 'crosshairThickness' | 'crosshairGap' | 'crosshairCenterDot' | 'crosshairOutline' | 'crosshairOpacity'>>): void {
+    Object.assign(this.values, patch);
+    this.save();
+    this.onChangeHandlers.forEach(h => h(this.values));
+  }
+
   onChange(handler: (s: GameSettings) => void): void {
     this.onChangeHandlers.push(handler);
   }
 
   onClose(handler: () => void): void {
     this.onCloseHandler = handler;
+  }
+
+  onOpenCrosshairEditor(handler: () => void): void {
+    this.onOpenCrosshairEditorHandler = handler;
   }
 
   show(): void {
@@ -102,7 +125,46 @@ export class Settings {
     if (crossStyle) crossStyle.value = this.values.crosshairStyle;
 
     const crossColor = this.element.querySelector('#crosshair-color') as HTMLSelectElement;
-    if (crossColor) crossColor.value = this.values.crosshairColor;
+    if (crossColor) {
+      const namedColors = ['green', 'cyan', 'white', 'yellow'];
+      if (namedColors.includes(this.values.crosshairColor)) {
+        crossColor.value = this.values.crosshairColor;
+      }
+    }
+
+    const size = this.element.querySelector('#crosshair-size') as HTMLInputElement;
+    const sizeVal = this.element.querySelector('#crosshair-size-value') as HTMLElement;
+    if (size) size.value = String(this.values.crosshairSize);
+    if (sizeVal) sizeVal.textContent = String(this.values.crosshairSize);
+
+    const thick = this.element.querySelector('#crosshair-thickness') as HTMLInputElement;
+    const thickVal = this.element.querySelector('#crosshair-thickness-value') as HTMLElement;
+    if (thick) thick.value = String(this.values.crosshairThickness);
+    if (thickVal) thickVal.textContent = String(this.values.crosshairThickness);
+
+    const gap = this.element.querySelector('#crosshair-gap') as HTMLInputElement;
+    const gapVal = this.element.querySelector('#crosshair-gap-value') as HTMLElement;
+    if (gap) gap.value = String(this.values.crosshairGap);
+    if (gapVal) gapVal.textContent = String(this.values.crosshairGap);
+
+    const centerDot = this.element.querySelector('#crosshair-center-dot') as HTMLButtonElement | null;
+    if (centerDot) {
+      centerDot.classList.toggle('active', this.values.crosshairCenterDot);
+      centerDot.textContent = this.values.crosshairCenterDot ? '开' : '关';
+      centerDot.setAttribute('aria-pressed', String(this.values.crosshairCenterDot));
+    }
+
+    const outline = this.element.querySelector('#crosshair-outline') as HTMLButtonElement | null;
+    if (outline) {
+      outline.classList.toggle('active', this.values.crosshairOutline);
+      outline.textContent = this.values.crosshairOutline ? '开' : '关';
+      outline.setAttribute('aria-pressed', String(this.values.crosshairOutline));
+    }
+
+    const opac = this.element.querySelector('#crosshair-opacity') as HTMLInputElement;
+    const opacVal = this.element.querySelector('#crosshair-opacity-value') as HTMLElement;
+    if (opac) opac.value = String(this.values.crosshairOpacity);
+    if (opacVal) opacVal.textContent = Math.round(this.values.crosshairOpacity * 100) + '%';
   }
 
   private createElement(): HTMLElement {
@@ -180,6 +242,46 @@ export class Settings {
                 <option value="yellow" ${this.values.crosshairColor === 'yellow' ? 'selected' : ''}>黄色</option>
               </select>
             </div>
+            <div class="setting-row">
+              <label for="crosshair-size">长度</label>
+              <div class="slider-row">
+                <input type="range" id="crosshair-size" min="2" max="20" step="1" value="${this.values.crosshairSize}">
+                <span class="slider-value" id="crosshair-size-value">${this.values.crosshairSize}</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <label for="crosshair-thickness">粗细</label>
+              <div class="slider-row">
+                <input type="range" id="crosshair-thickness" min="1" max="6" step="1" value="${this.values.crosshairThickness}">
+                <span class="slider-value" id="crosshair-thickness-value">${this.values.crosshairThickness}</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <label for="crosshair-gap">间隙</label>
+              <div class="slider-row">
+                <input type="range" id="crosshair-gap" min="0" max="20" step="1" value="${this.values.crosshairGap}">
+                <span class="slider-value" id="crosshair-gap-value">${this.values.crosshairGap}</span>
+              </div>
+            </div>
+            <div class="setting-row setting-row-toggle">
+              <label for="crosshair-center-dot">中心点</label>
+              <button class="toggle-btn ${this.values.crosshairCenterDot ? 'active' : ''}" id="crosshair-center-dot" type="button" aria-pressed="${this.values.crosshairCenterDot}">${this.values.crosshairCenterDot ? '开' : '关'}</button>
+            </div>
+            <div class="setting-row setting-row-toggle">
+              <label for="crosshair-outline">描边</label>
+              <button class="toggle-btn ${this.values.crosshairOutline ? 'active' : ''}" id="crosshair-outline" type="button" aria-pressed="${this.values.crosshairOutline}">${this.values.crosshairOutline ? '开' : '关'}</button>
+            </div>
+            <div class="setting-row">
+              <label for="crosshair-opacity">透明度</label>
+              <div class="slider-row">
+                <input type="range" id="crosshair-opacity" min="0.2" max="1" step="0.05" value="${this.values.crosshairOpacity}">
+                <span class="slider-value" id="crosshair-opacity-value">${Math.round(this.values.crosshairOpacity * 100)}%</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <label>高级编辑</label>
+              <button class="crosshair-edit-btn" id="crosshair-edit-btn" type="button">打开编辑器</button>
+            </div>
           </div>
           <div class="settings-group">
             <h3>按键绑定</h3>
@@ -239,7 +341,63 @@ export class Settings {
     cStyle?.addEventListener('change', () => { this.values.crosshairStyle = cStyle.value as GameSettings['crosshairStyle']; this.notifyChange(); });
 
     const cColor = panel.querySelector('#crosshair-color') as HTMLSelectElement;
-    cColor?.addEventListener('change', () => { this.values.crosshairColor = cColor.value as GameSettings['crosshairColor']; this.notifyChange(); });
+    const colorMap: Record<string, string> = { green: '#00e600', cyan: '#00c8dc', white: '#dcdcdc', yellow: '#dcc800' };
+    cColor?.addEventListener('change', () => { this.values.crosshairColor = colorMap[cColor.value] ?? cColor.value; this.notifyChange(); });
+
+    const sizeSlider = panel.querySelector('#crosshair-size') as HTMLInputElement;
+    const sizeVal = panel.querySelector('#crosshair-size-value') as HTMLElement;
+    sizeSlider?.addEventListener('input', () => {
+      this.values.crosshairSize = parseInt(sizeSlider.value);
+      if (sizeVal) sizeVal.textContent = sizeSlider.value;
+      this.notifyChange();
+    });
+
+    const thickSlider = panel.querySelector('#crosshair-thickness') as HTMLInputElement;
+    const thickVal = panel.querySelector('#crosshair-thickness-value') as HTMLElement;
+    thickSlider?.addEventListener('input', () => {
+      this.values.crosshairThickness = parseInt(thickSlider.value);
+      if (thickVal) thickVal.textContent = thickSlider.value;
+      this.notifyChange();
+    });
+
+    const gapSlider = panel.querySelector('#crosshair-gap') as HTMLInputElement;
+    const gapVal = panel.querySelector('#crosshair-gap-value') as HTMLElement;
+    gapSlider?.addEventListener('input', () => {
+      this.values.crosshairGap = parseInt(gapSlider.value);
+      if (gapVal) gapVal.textContent = gapSlider.value;
+      this.notifyChange();
+    });
+
+    const centerDotBtn = panel.querySelector('#crosshair-center-dot') as HTMLButtonElement | null;
+    centerDotBtn?.addEventListener('click', () => {
+      this.values.crosshairCenterDot = !this.values.crosshairCenterDot;
+      centerDotBtn.classList.toggle('active', this.values.crosshairCenterDot);
+      centerDotBtn.textContent = this.values.crosshairCenterDot ? '开' : '关';
+      centerDotBtn.setAttribute('aria-pressed', String(this.values.crosshairCenterDot));
+      this.notifyChange();
+    });
+
+    const outlineBtn = panel.querySelector('#crosshair-outline') as HTMLButtonElement | null;
+    outlineBtn?.addEventListener('click', () => {
+      this.values.crosshairOutline = !this.values.crosshairOutline;
+      outlineBtn.classList.toggle('active', this.values.crosshairOutline);
+      outlineBtn.textContent = this.values.crosshairOutline ? '开' : '关';
+      outlineBtn.setAttribute('aria-pressed', String(this.values.crosshairOutline));
+      this.notifyChange();
+    });
+
+    const opacSlider = panel.querySelector('#crosshair-opacity') as HTMLInputElement;
+    const opacVal = panel.querySelector('#crosshair-opacity-value') as HTMLElement;
+    opacSlider?.addEventListener('input', () => {
+      this.values.crosshairOpacity = parseFloat(opacSlider.value);
+      if (opacVal) opacVal.textContent = Math.round(this.values.crosshairOpacity * 100) + '%';
+      this.notifyChange();
+    });
+
+    const editBtn = panel.querySelector('#crosshair-edit-btn');
+    editBtn?.addEventListener('click', () => {
+      this.onOpenCrosshairEditorHandler?.();
+    });
 
     const closeBtn = panel.querySelector('.settings-btn-close');
     closeBtn?.addEventListener('click', () => this.hide());

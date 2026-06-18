@@ -136,6 +136,7 @@ export class HUD {
   private maxHealth = 100;
   private currentAmmo = 0;
   private maxAmmo = 0;
+  private baseCrosshairGap = 5;
   private notificationTimeout: number | null = null;
   private buyHandler: ((request: BuyRequest) => void) | null = null;
   private resumeHandler: (() => void) | null = null;
@@ -327,6 +328,7 @@ export class HUD {
           <div class="ch-bottom"></div>
           <div class="ch-left"></div>
           <div class="ch-right"></div>
+          <div class="ch-dot" style="display:none"></div>
         </div>
       </div>
 
@@ -895,10 +897,96 @@ export class HUD {
     this.crosshair.querySelectorAll('.ch-top, .ch-bottom, .ch-left, .ch-right').forEach(el => {
       (el as HTMLElement).style.backgroundColor = c;
     });
-    // Toggle dot style
     this.crosshair.classList.toggle('crosshair-dot', style === 'dot');
     this.crosshair.classList.toggle('crosshair-t', style === 't-cross');
     this.crosshair.classList.toggle('crosshair-static', style === 'static');
+  }
+
+  applyCrosshair(settings: {
+    style: string;
+    color: string;
+    size: number;
+    thickness: number;
+    gap: number;
+    centerDot: boolean;
+    outline: boolean;
+    opacity: number;
+  }): void {
+    this.baseCrosshairGap = settings.gap;
+    const alpha = settings.opacity;
+    const hex = settings.color;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const bgColor = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+
+    this.crosshair.querySelectorAll('.ch-top, .ch-bottom, .ch-left, .ch-right').forEach(el => {
+      const h = el as HTMLElement;
+      h.style.backgroundColor = bgColor;
+      if (settings.outline) {
+        h.style.boxShadow = '0 0 0 1px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8)';
+      } else {
+        h.style.boxShadow = 'none';
+      }
+    });
+
+    const chTop = this.crosshair.querySelector('.ch-top') as HTMLElement | null;
+    const chBottom = this.crosshair.querySelector('.ch-bottom') as HTMLElement | null;
+    const chLeft = this.crosshair.querySelector('.ch-left') as HTMLElement | null;
+    const chRight = this.crosshair.querySelector('.ch-right') as HTMLElement | null;
+    const chDot = this.crosshair.querySelector('.ch-dot') as HTMLElement | null;
+
+    const isDot = settings.style === 'dot';
+    if (chTop) {
+      chTop.style.width = `${settings.thickness}px`;
+      chTop.style.height = isDot ? `${settings.thickness}px` : `${settings.size}px`;
+      chTop.style.bottom = isDot ? 'auto' : `${settings.gap}px`;
+      chTop.style.top = isDot ? '-1px' : 'auto';
+      chTop.style.left = `${-settings.thickness / 2}px`;
+      chTop.style.borderRadius = isDot ? '50%' : '0';
+    }
+    if (chBottom) {
+      chBottom.style.width = `${settings.thickness}px`;
+      chBottom.style.height = isDot ? `${settings.thickness}px` : `${settings.size}px`;
+      chBottom.style.top = isDot ? '-1px' : `${settings.gap}px`;
+      chBottom.style.bottom = isDot ? 'auto' : 'auto';
+      chBottom.style.left = `${-settings.thickness / 2}px`;
+      chBottom.style.borderRadius = isDot ? '50%' : '0';
+    }
+    if (chLeft) {
+      chLeft.style.height = `${settings.thickness}px`;
+      chLeft.style.width = isDot ? `${settings.thickness}px` : `${settings.size}px`;
+      chLeft.style.right = isDot ? 'auto' : `${settings.gap}px`;
+      chLeft.style.left = isDot ? '-1px' : 'auto';
+      chLeft.style.top = `${-settings.thickness / 2}px`;
+      chLeft.style.borderRadius = isDot ? '50%' : '0';
+    }
+    if (chRight) {
+      chRight.style.height = `${settings.thickness}px`;
+      chRight.style.width = isDot ? `${settings.thickness}px` : `${settings.size}px`;
+      chRight.style.left = isDot ? '-1px' : `${settings.gap}px`;
+      chRight.style.right = isDot ? 'auto' : 'auto';
+      chRight.style.top = `${-settings.thickness / 2}px`;
+      chRight.style.borderRadius = isDot ? '50%' : '0';
+    }
+
+    if (chDot) {
+      chDot.style.display = settings.centerDot ? 'block' : 'none';
+      chDot.style.width = `${settings.thickness}px`;
+      chDot.style.height = `${settings.thickness}px`;
+      chDot.style.borderRadius = '50%';
+      chDot.style.backgroundColor = bgColor;
+      if (settings.outline) {
+        chDot.style.boxShadow = '0 0 0 1px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8)';
+      } else {
+        chDot.style.boxShadow = 'none';
+      }
+    }
+
+    this.crosshair.className = 'crosshair';
+    if (settings.style === 'dot') this.crosshair.classList.add('crosshair-dot');
+    if (settings.style === 't-cross') this.crosshair.classList.add('crosshair-t');
+    if (settings.style === 'static') this.crosshair.classList.add('crosshair-static');
   }
 
   showDamage(): void {
@@ -1195,7 +1283,8 @@ export class HUD {
     ctx.restore();
   }
 
-  updateCrosshair(spread: number): void {    const gap = Math.min(5 + spread * 22, 20);
+  updateCrosshair(spread: number): void {
+    const gap = this.baseCrosshairGap + Math.min(spread * 22, 20);
     const chTop = this.crosshair.querySelector('.ch-top') as HTMLElement;
     const chBottom = this.crosshair.querySelector('.ch-bottom') as HTMLElement;
     const chLeft = this.crosshair.querySelector('.ch-left') as HTMLElement;

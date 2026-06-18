@@ -569,6 +569,319 @@ body {
 }
 .crosshair-static { } /* gap stays fixed, no dynamic spread */
 
+/* ==================== Crosshair Editor ==================== */
+.crosshair-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.crosshair-editor-container {
+  background: var(--surface-1, #1a1d23);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  width: 380px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.crosshair-editor-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  padding: 16px 20px 8px;
+  margin: 0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.crosshair-preview-area {
+  position: relative;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    linear-gradient(45deg, #222 25%, transparent 25%),
+    linear-gradient(-45deg, #222 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #222 75%),
+    linear-gradient(-45deg, transparent 75%, #222 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-color: #1a1a1a;
+}
+
+.crosshair-preview-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+.crosshair-preview {
+  position: relative;
+  width: 0;
+  height: 0;
+  z-index: 1;
+}
+
+.crosshair-preview .ch-top,
+.crosshair-preview .ch-bottom,
+.crosshair-preview .ch-left,
+.crosshair-preview .ch-right,
+.crosshair-preview .ch-dot {
+  position: absolute;
+  transition: all 0.1s ease;
+}
+
+.crosshair-preview .ch-top,
+.crosshair-preview .ch-bottom {
+  left: 0;
+}
+
+.crosshair-preview .ch-left,
+.crosshair-preview .ch-right {
+  top: 0;
+}
+
+.crosshair-preview .ch-dot {
+  display: none;
+  border-radius: 50%;
+  top: 0;
+  left: 0;
+}
+
+.crosshair-editor-body {
+  padding: 4px 20px 8px;
+}
+
+.crosshair-editor-body .settings-group {
+  margin-bottom: 12px;
+}
+
+.crosshair-editor-body .settings-group h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #8b919e);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+}
+
+.crosshair-editor-body .setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.crosshair-editor-body .setting-row label {
+  font-size: 13px;
+  color: var(--text-primary, #e4e6eb);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 500;
+}
+
+.crosshair-editor-body .slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 200px;
+  margin-left: auto;
+}
+
+.crosshair-editor-body .slider-row input[type="range"] {
+  flex: 1;
+  accent-color: #4a9eff;
+  height: 4px;
+}
+
+.crosshair-editor-body .slider-value {
+  font-size: 12px;
+  color: var(--text-secondary, #8b919e);
+  min-width: 32px;
+  text-align: right;
+  font-family: Rajdhani, sans-serif;
+}
+
+.crosshair-editor-body select {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #e4e6eb);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: 'Rajdhani', sans-serif;
+  cursor: pointer;
+  flex: 1;
+  max-width: 200px;
+  margin-left: auto;
+}
+
+.crosshair-editor-body select:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.toggle-btn {
+  min-width: 48px;
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #8b919e);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.toggle-btn.active {
+  background: rgba(74, 158, 255, 0.2);
+  border-color: #4a9eff;
+  color: #4a9eff;
+}
+
+.crosshair-edit-btn {
+  padding: 4px 14px;
+  border: 1px solid rgba(74, 158, 255, 0.4);
+  border-radius: 6px;
+  background: rgba(74, 158, 255, 0.1);
+  color: #4a9eff;
+  font-size: 12px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.crosshair-edit-btn:hover {
+  background: rgba(74, 158, 255, 0.2);
+  border-color: #4a9eff;
+}
+
+.setting-row-toggle {
+  justify-content: space-between;
+}
+
+.setting-row-toggle label {
+  margin-right: auto;
+}
+
+.color-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.color-preset {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.color-preset:hover {
+  transform: scale(1.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.color-preset.active {
+  border-color: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.color-preset.active::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.6);
+}
+
+.crosshair-editor-body input[type="color"] {
+  width: 40px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+  margin-left: auto;
+}
+
+.crosshair-editor-body input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.crosshair-editor-body input[type="color"]::-webkit-color-swatch {
+  border-radius: 4px;
+  border: none;
+}
+
+.crosshair-editor-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 20px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.crosshair-editor-btn {
+  padding: 8px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary, #e4e6eb);
+  font-size: 13px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.crosshair-editor-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.crosshair-editor-btn-close {
+  background: #4a9eff;
+  border-color: #4a9eff;
+  color: #fff;
+}
+
+.crosshair-editor-btn-close:hover {
+  background: #5aadff;
+  border-color: #5aadff;
+}
+
 /* ==================== Sniper Scope ==================== */
 .scope-overlay {
   position: fixed;
