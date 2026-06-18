@@ -17,6 +17,7 @@ import { SurvivalMode } from './game/SurvivalMode.js';
 import { GrenadeSystem } from './game/GrenadeSystem.js';
 import { ShellCasingManager } from './game/ShellCasing.js';
 import { ScreenShake } from './game/ScreenShake.js';
+import { FeedbackEffects } from './game/FeedbackEffects.js';
 import { DroppedWeapon, DroppedWeaponSystem } from './game/DroppedWeaponSystem.js';
 import { HitRegion, calculateDamage } from './game/Combat.js';
 import { AudioFeedback } from './game/AudioFeedback.js';
@@ -1033,6 +1034,7 @@ function gameLoop(now: number) {
       hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
       hud.showDamage();
       screenShake.trigger(ScreenShake.presets.damageMedium.strength, ScreenShake.presets.damageMedium.duration);
+      scene.triggerPlayerHitFeedback();
       if (player.isDead()) {
         if (soloBotMatch) {
           soloBotMatch.recordPlayerDeath();
@@ -1157,6 +1159,9 @@ function gameLoop(now: number) {
       } else {
         const result = weaponManager.shoot(scene.getCamera(), now, { isMoving: player.isMoving() });
       if (result) {
+        // Weapon fire feedback - screen shake
+        scene.triggerWeaponFireFeedback();
+
         if (currentMode === 'multiplayer') {
           network.send({
             type: 'shoot',
@@ -1173,7 +1178,7 @@ function gameLoop(now: number) {
           : projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
 
         if (hitscanResult.hit) {
-          hud.showHitMarker();
+          scene.triggerHitMarker();
         }
 
         applyLocalWeaponHit(result);
@@ -1569,8 +1574,9 @@ function applyLocalWeaponHit(result: ShootResult): void {
     ).healthDamage;
     target.enemy.takeDamage(damage, target.region);
     lastHitRegion = target.region;
-    hud.showHitMarker();
+    scene.triggerHitMarker();
     if (target.enemy.isDead()) {
+      scene.triggerKillIcon();
       hud.showKillFeedEntry(`你 ${weapon.displayName}${target.region === 'head' ? ' 爆头' : ''} NPC`);
       audioFeedback.playKill();
     }
@@ -1587,8 +1593,9 @@ function applyLocalWeaponHit(result: ShootResult): void {
     const damage = calculateDamage(weapon.getDamageProfile(), target.region, 0).healthDamage;
     target.enemy.takeDamage(damage, target.region);
     lastHitRegion = target.region;
-    hud.showHitMarker();
+    scene.triggerHitMarker();
     if (target.enemy.isDead()) {
+      scene.triggerKillIcon();
       hud.showKillFeedEntry(`你 ${weapon.displayName}${target.region === 'head' ? ' 爆头' : ''} NPC`);
       audioFeedback.playKill();
     }

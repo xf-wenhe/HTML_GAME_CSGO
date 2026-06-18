@@ -12,6 +12,7 @@ export class PlayerController {
   private camera: THREE.PerspectiveCamera;
   private input: InputManager;
   private physics: Physics;
+  private scene: Scene; // Reference to scene for feedback effects
 
   private movementParams: MovementParams = CSGO_MOVEMENT;
   private jumpForce = PLAYER_JUMP_FORCE;
@@ -22,8 +23,9 @@ export class PlayerController {
   private armor = 100;
   private maxArmor = 100;
   private moving = false;
-  
+
   private grounded = false;
+  private wasGrounded = false; // Track previous grounded state
   private airborneTime = 0;
   private crouched = false;
   private crouchJumpActive = false;
@@ -41,6 +43,7 @@ export class PlayerController {
   private readonly maxStepDownHeight = 2.0; // Increased to reach ground plane at spawn
 
   constructor(scene: Scene, physics: Physics, input: InputManager, position: THREE.Vector3 = new THREE.Vector3(0, 1.7, 0)) {
+    this.scene = scene;
     this.camera = scene.getCamera();
     this.input = input;
     this.physics = physics;
@@ -78,7 +81,7 @@ export class PlayerController {
     if (this.input.isKeyPressed('KeyA')) wishDirection.sub(right);
     if (this.input.isKeyPressed('KeyD')) wishDirection.add(right);
 
-    const wasGrounded = this.grounded;
+    this.wasGrounded = this.grounded; // Store previous grounded state
     const landingVelocity = Math.abs(this.body.velocity.y);
     this.moving = wishDirection.lengthSq() > 0;
 
@@ -95,13 +98,14 @@ export class PlayerController {
 
     this.applyMovement(wishDirection, dt);
 
-    if (this.grounded) {
-      this.airborneTime = 0;
-    } else {
-      this.airborneTime += dt;
-    }
-    if (!wasGrounded && this.grounded) {
+    // Check if just landed
+    if (!this.wasGrounded && this.grounded) {
       this.lastLandingSpeed = landingVelocity;
+      this.airborneTime = 0;
+      // Trigger landing feedback if landing speed is significant
+      if (landingVelocity > 5) {
+        this.scene.getFeedbackEffects().landHard();
+      }
       // CS1.6 摔落伤害
       if (landingVelocity > FALL_DAMAGE_SAFE_SPEED) {
         const excessSpeed = landingVelocity - FALL_DAMAGE_SAFE_SPEED;
@@ -111,6 +115,8 @@ export class PlayerController {
           this.takeDamage(damage, 'leg');
         }
       }
+    } else if (!this.grounded) {
+      this.airborneTime += dt;
     }
   }
 

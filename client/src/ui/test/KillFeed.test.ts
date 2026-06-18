@@ -1,3 +1,4 @@
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { KillFeed } from '../KillFeed.js';
 
 describe('KillFeed', () => {
@@ -15,7 +16,7 @@ describe('KillFeed', () => {
     container.remove();
   });
 
-  test('should add a kill entry', () => {
+  it('should add a kill entry', () => {
     killFeed.addKill('Player1', 'Player2', 'AK-47');
 
     const entries = killFeed.getEntries();
@@ -26,7 +27,7 @@ describe('KillFeed', () => {
     expect(entries[0].headshot).toBe(false);
   });
 
-  test('should add a headshot entry', () => {
+  it('should add a headshot entry', () => {
     killFeed.addKill('Player1', 'Player2', 'AK-47', true);
 
     const entries = killFeed.getEntries();
@@ -34,7 +35,7 @@ describe('KillFeed', () => {
     expect(entries[0].headshot).toBe(true);
   });
 
-  test('should limit to max 5 entries', () => {
+  it('should limit to max 5 entries', () => {
     for (let i = 0; i < 10; i++) {
       killFeed.addKill(`Killer${i}`, `Victim${i}`, 'AK-47');
     }
@@ -45,7 +46,7 @@ describe('KillFeed', () => {
     expect(entries[4].killer).toBe('Killer5');
   });
 
-  test('should clear all entries', () => {
+  it('should clear all entries', () => {
     killFeed.addKill('Player1', 'Player2', 'AK-47');
     killFeed.addKill('Player3', 'Player4', 'M4A1');
 
@@ -57,7 +58,7 @@ describe('KillFeed', () => {
     expect(container.children.length).toBe(0);
   });
 
-  test('should render entries to DOM', () => {
+  it('should render entries to DOM', () => {
     killFeed.addKill('Player1', 'Player2', 'AK-47');
 
     expect(container.children.length).toBe(1);
@@ -66,27 +67,26 @@ describe('KillFeed', () => {
     expect(container.textContent).toContain('AK-47');
   });
 
-  test('should render headshot indicator', () => {
+  it('should render headshot indicator', () => {
     killFeed.addKill('Player1', 'Player2', 'AK-47', true);
 
     expect(container.textContent).toContain('爆头');
   });
 
-  test('should remove old entries automatically', (done) => {
-    jest.useFakeTimers();
+  it('should remove old entries automatically', () => {
+    vi.useFakeTimers();
 
     killFeed.addKill('Player1', 'Player2', 'AK-47');
     expect(killFeed.getEntries().length).toBe(1);
 
-    jest.advanceTimersByTime(3500);
+    vi.advanceTimersByTime(3500);
 
     expect(killFeed.getEntries().length).toBe(0);
 
-    jest.useRealTimers();
-    done();
+    vi.useRealTimers();
   });
 
-  test('should clean up timers on destroy', () => {
+  it('should clean up timers on destroy', () => {
     killFeed.addKill('Player1', 'Player2', 'AK-47');
     expect(() => killFeed.destroy()).not.toThrow();
   });

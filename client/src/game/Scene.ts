@@ -4,6 +4,7 @@ import { MapId } from './types.js';
 import { PLAYER_EYE_HEIGHT } from './constants/MapUnits.js';
 import { getTexture, loadPBRTextureSet, PBRTextureKey } from './ProceduralTextures.js';
 import { Physics } from './Physics.js';
+import { FeedbackEffects } from './FeedbackEffects.js';
 
 export class Scene {
   private scene: THREE.Scene;
@@ -18,6 +19,7 @@ export class Scene {
   private skyDome: THREE.Mesh | null = null;
   private currentMapId: MapId = 'dust2';
   private physics: Physics;
+  private feedbackEffects: FeedbackEffects;
 
   // 性能优化：视锥剔除
   private frustum = new THREE.Frustum();
@@ -49,6 +51,9 @@ export class Scene {
     );
     this.camera.position.set(0, 1.7, 5);
     this.scene.add(this.camera);
+
+    // Initialize feedback effects
+    this.feedbackEffects = new FeedbackEffects(this.scene, this.camera);
 
     try {
       this.renderer = new THREE.WebGLRenderer({
@@ -634,12 +639,58 @@ export class Scene {
     // 更新视锥剔除
     this.updateFrustumCulling();
 
+    // Update feedback effects (needs to happen before rendering)
+    // Note: In a real game, deltaTime would be calculated from actual time passed
+    this.feedbackEffects.update(1/60);
+
     // 渲染场景
     this.renderer?.render(this.scene, this.camera);
 
     // 更新相机位置用于下次视锥更新
     this.previousCameraPosition.copy(this.camera.position);
     this.previousCameraQuaternion.copy(this.camera.quaternion);
+  }
+
+  /**
+   * Get the feedback effects manager
+   */
+  getFeedbackEffects(): FeedbackEffects {
+    return this.feedbackEffects;
+  }
+
+  /**
+   * Trigger weapon fire feedback (light shake)
+   */
+  triggerWeaponFireFeedback(): void {
+    this.feedbackEffects.weaponFire();
+  }
+
+  /**
+   * Trigger player hit feedback (strong shake + screen flash)
+   */
+  triggerPlayerHitFeedback(): void {
+    this.feedbackEffects.playerHit();
+  }
+
+  /**
+   * Trigger hit marker at center screen
+   */
+  triggerHitMarker(): void {
+    this.feedbackEffects.showHitMarker();
+  }
+
+  /**
+   * Trigger kill icon feedback
+   */
+  triggerKillIcon(): void {
+    this.feedbackEffects.showKillIcon();
+  }
+
+  /**
+   * Trigger explosion feedback
+   */
+  triggerExplosionFeedback(): void {
+    this.feedbackEffects.explosion();
   }
 
   private updateFrustumCulling(): void {
@@ -703,6 +754,7 @@ export class Scene {
       (this.skyDome.material as THREE.Material).dispose();
       this.skyDome = null;
     }
+    this.feedbackEffects.dispose();
     this.renderer?.dispose();
   }
 
