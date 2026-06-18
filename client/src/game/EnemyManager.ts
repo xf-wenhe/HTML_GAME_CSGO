@@ -13,6 +13,8 @@ export class EnemyManager {
   private preloadingPromise: Promise<void> | null = null;
   private isPreloaded = false;
   private pendingRemovals: Map<string, number> = new Map();
+  private stuckCheckInterval = 3.0;
+  private stuckCheckAccum = 0;
 
   constructor(scene: THREE.Scene, physics: Physics) {
     this.scene = scene;
@@ -78,6 +80,12 @@ export class EnemyManager {
   }
 
   update(dt: number, playerPosition: THREE.Vector3, now: number, lineOfSightColliders: BoxSpec[] = [], canMove: boolean = true): number {
+    this.stuckCheckAccum += dt;
+    if (this.stuckCheckAccum >= this.stuckCheckInterval) {
+      this.stuckCheckAccum = 0;
+      this.recoverStuckEnemies();
+    }
+
     let damage = 0;
     this.enemies.forEach((enemy, id) => {
       damage += enemy.update(dt, playerPosition, now, lineOfSightColliders, canMove);
@@ -91,6 +99,27 @@ export class EnemyManager {
       }
     });
     return damage;
+  }
+
+  getStuckEnemies(): { id: string; stuckTimer: number }[] {
+    const stuck: { id: string; stuckTimer: number }[] = [];
+    this.enemies.forEach((enemy) => {
+      if (enemy.isStuck()) {
+        stuck.push({ id: enemy.getDebugState().id, stuckTimer: enemy.getStuckTimer() });
+      }
+    });
+    return stuck;
+  }
+
+  recoverStuckEnemies(): void {
+    this.enemies.forEach((enemy) => {
+      if (enemy.isStuck()) {
+        enemy.advanceRouteIndex(2);
+        if (typeof window !== 'undefined' && (window as any).__debugBots) {
+          console.log(`[EnemyManager] Force-recovering ${enemy.getDebugState().id} to route index ${enemy.getDebugState().routeIndex}`);
+        }
+      }
+    });
   }
 
   removeEnemy(id: string): void {

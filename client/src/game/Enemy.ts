@@ -71,6 +71,11 @@ export class Enemy {
   private botTargetVisible = false;
   private botRouteIndex = 0;
   public readonly damage = 10;
+  private stuckTimer = 0;
+  private lastStuckCheckPosition = new THREE.Vector3();
+  private readonly STUCK_THRESHOLD = 2.8;
+  private readonly STUCK_TIME_LIMIT = 3.0;
+  private randomSeed = Math.random() * 10000;
 
   constructor(config: EnemyConfig, scene: THREE.Scene, physics: Physics, isPreload: boolean = false) {
     this.id = `enemy_${Math.random().toString(36).substr(2, 9)}`;
@@ -122,6 +127,9 @@ export class Enemy {
       fixedRotation: true
     });
     physics.addBody(this.body);
+
+    this.stuckTimer = 0;
+    this.lastStuckCheckPosition.copy(config.position);
 
     if (this.patrolPath.length > 0) {
       this.state = 'patrol';
@@ -176,6 +184,30 @@ export class Enemy {
   update(dt: number, playerPosition: THREE.Vector3, now: number, lineOfSightColliders: BoxSpec[] = [], canMove: boolean = true): number {
     if (this.state === 'dead') return 0;
 
+    // Track position for stuck detection (bot mode) - before canMove so we track even during freeze
+    if (this.botProfile) {
+      const currentPos = new THREE.Vector3(this.body.position.x, this.body.position.y - 0.8, this.body.position.z);
+      const posDelta = currentPos.distanceTo(this.lastStuckCheckPosition);
+      if (posDelta < 0.15) {
+        this.stuckTimer += dt;
+      } else {
+        this.stuckTimer = Math.max(0, this.stuckTimer - dt * 2);
+      }
+      this.lastStuckCheckPosition.copy(currentPos);
+    } else {
+      this.stuckTimer = 0;
+    }
+
+    // Stuck recovery: try to recover before the canMove check
+    if (this.botProfile && this.stuckTimer > this.STUCK_TIME_LIMIT && this.patrolPath.length > 0) {
+      this.botRouteIndex = (this.botRouteIndex + 1 + Math.floor(Math.random() * 2)) % this.patrolPath.length;
+      this.body.velocity.set(0, this.body.velocity.y, 0);
+      this.stuckTimer = 0;
+      if (typeof window !== 'undefined' && (window as any).__debugBots) {
+        console.log(`[Enemy] Stuck recovery: ${this.id} skipped to route ${this.botRouteIndex}`);
+      }
+    }
+
     // Freeze time restriction - bots should not move or attack during freeze
     if (!canMove) {
       this.body.velocity.x = 0;
@@ -185,18 +217,19 @@ export class Enemy {
 
     // 【防飞天补丁】物理引擎卡模型时会产生极大的Y轴速度，我们强制截断向上的最大速度
     if (this.body.velocity.y > 2) {
-      this.body.velocity.y = 2; 
+      this.body.velocity.y = 2;
     }
 
     // 将模型锚点完美对齐到物理盒子的底部（减去 0.8 的半高）
     this.mesh.position.set(this.body.position.x, this.body.position.y - 0.8, this.body.position.z);
     this.healthBar.lookAt(playerPosition);
     this.animate(dt);
-    
+
     this.hitStunRemaining = Math.max(0, this.hitStunRemaining - dt);
     if (this.hitStunRemaining > 0) {
       this.body.velocity.x = 0;
       this.body.velocity.z = 0;
+      this.stuckTimer = 0;
       return 0;
     }
 
@@ -252,47 +285,77 @@ export class Enemy {
 
     if (this.botTargetVisible && distanceToPlayer <= attackRange) {
       this.state = 'attack';
-      this.rotateTowards(playerPosition, dt);
-      this.body.velocity.x = 0;
-      this.body.velocity.z = 0;
+      this.body.velocity.x *= 0.85;
+      this.body.velocity.z *= 0.85;
       return this.botShoot(now, distanceToPlayer);
     }
 
     this.state = this.patrolPath.length > 0 ? 'patrol' : 'idle';
-    this.followBotRoute(dt);
+    this.followBotRoute(dt, playerPosition);
     return 0;
   }
 
-  private followBotRoute(dt: number): void {
+  private followBotRoute(dt: number, playerPosition: THREE.Vector3): void {
     if (this.patrolPath.length === 0) {
       this.body.velocity.x = 0;
       this.body.velocity.z = 0;
       return;
     }
 
-    const target = this.patrolPath[this.botRouteIndex % this.patrolPath.length];
-    const direction = new THREE.Vector3().subVectors(target, this.mesh.position);
-    direction.y = 0;
-    const distance = direction.length();
-    if (distance < 0.75) {
+    // Use seed-based jitter for deterministic-but-varying path when player is visible
+    const seesPlayer = this.botTargetVisible;
+    const jitterAmount = seesPlayer ? 0.3 : 0.15;
+
+    let target = this.patrolPath[this.botRouteIndex % this.patrolPath.length];
+    const toTarget = new THREE.Vector3().subVectors(target, this.mesh.position);
+    toTarget.y = 0;
+    const distanceToWaypoint = toTarget.length();
+
+    // Reached current waypoint, advance
+    if (distanceToWaypoint < 0.75) {
       this.botRouteIndex = (this.botRouteIndex + 1) % this.patrolPath.length;
       return;
     }
 
-    direction.normalize();
-    this.body.velocity.x = direction.x * this.speed;
-    this.body.velocity.z = direction.z * this.speed;
-    this.rotateTowards(target, dt);
+    let moveDir = toTarget.normalize();
+
+    // Add slight perpendicular jitter to avoid getting stuck on walls
+    const perpendicular = new THREE.Vector3(-moveDir.z, 0, moveDir.x);
+    const seedVal = Math.sin(this.randomSeed + this.botRouteIndex * 7.3) * 0.5 + 0.5;
+    moveDir.add(perpendicular.multiplyScalar((seedVal - 0.5) * jitterAmount)).normalize();
+
+    // If stuck for a while, try more aggressive deviation
+    if (this.stuckTimer > this.STUCK_TIME_LIMIT * 0.6) {
+      const recoveryBias = (this.stuckTimer / this.STUCK_TIME_LIMIT) * 0.6;
+      const recoveryDir = Math.sin(this.randomSeed * 3.7) > 0 ? 1 : -1;
+      moveDir.add(perpendicular.multiplyScalar(recoveryDir * recoveryBias)).normalize();
+    }
+
+    // Slow down when chasing player (more deliberate), full speed on patrol
+    const currentSpeed = Math.hypot(this.body.velocity.x, this.body.velocity.z);
+    const targetSpeed = this.speed * (seesPlayer ? 0.65 : 1.0);
+    const speedLerp = THREE.MathUtils.clamp(dt * 4, 0, 1);
+    const newSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeed, speedLerp);
+
+    this.body.velocity.x = moveDir.x * newSpeed;
+    this.body.velocity.z = moveDir.z * newSpeed;
+
+    // Smoother, slower turning for more natural movement
+    this.rotateTowards(target, dt, 5.5);
   }
 
   private botShoot(now: number, distanceToPlayer: number): number {
-    const cooldown = this.botProfile?.fireIntervalMs ?? 520;
+    const baseCooldown = this.botProfile?.fireIntervalMs ?? 520;
+    const jitter = (Math.sin(this.randomSeed * now * 0.01) * 0.5 + 0.5) * baseCooldown * 0.35;
+    const cooldown = baseCooldown + jitter;
     if (now - this.lastAttackTime < cooldown) return 0;
     this.lastAttackTime = now;
 
     const accuracy = this.botProfile?.accuracy ?? 0.34;
     const distancePenalty = THREE.MathUtils.clamp(distanceToPlayer / 36, 0, 0.42);
-    return Math.random() <= Math.max(0.08, accuracy - distancePenalty)
+    // Add burst behavior: first shot slightly more accurate, subsequent shots less
+    const burstPenalty = Math.random() < 0.3 ? 0.03 : -0.04;
+    return Math.random() <= Math.max(0.06, accuracy - distancePenalty + burstPenalty)
       ? (this.botProfile?.damage ?? 12)
       : 0;
   }
@@ -317,17 +380,17 @@ export class Enemy {
   }
 
   // 【新增】统一的转向逻辑
-  private rotateTowards(target: THREE.Vector3, dt: number): void {
+  private rotateTowards(target: THREE.Vector3, dt: number, maxTurnSpeed: number = 10): void {
     const direction = new THREE.Vector3().subVectors(target, this.mesh.position);
     direction.y = 0;
     if (direction.lengthSq() < 0.001) return;
-    
+
     // + Math.PI 是为了修正模型正反面反转的问题（180度）
     const angle = Math.atan2(direction.x, direction.z) + Math.PI;
-    
+
     // 寻找最短的旋转路径进行平滑插值
     const delta = Math.atan2(Math.sin(angle - this.mesh.rotation.y), Math.cos(angle - this.mesh.rotation.y));
-    const maxStep = Math.min(1, dt * 10);
+    const maxStep = Math.min(1, dt * maxTurnSpeed);
     this.mesh.rotation.y += delta * maxStep;
   }
 
@@ -466,6 +529,24 @@ export class Enemy {
     return this.state === 'dead';
   }
 
+  isStuck(): boolean {
+    return this.stuckTimer >= this.STUCK_TIME_LIMIT;
+  }
+
+  getStuckTimer(): number {
+    return this.stuckTimer;
+  }
+
+  getStuckTimeLimit(): number {
+    return this.STUCK_TIME_LIMIT;
+  }
+
+  advanceRouteIndex(steps: number = 1): void {
+    if (this.patrolPath.length > 0) {
+      this.botRouteIndex = (this.botRouteIndex + steps) % this.patrolPath.length;
+    }
+  }
+
   setVisible(visible: boolean): void {
     this.mesh.visible = visible;
   }
@@ -494,6 +575,8 @@ export class Enemy {
     this.lastAttackTime = 0;
     this.hitStunRemaining = 0;
     this.hitReact = 0;
+    this.stuckTimer = 0;
+    this.lastStuckCheckPosition.copy(position);
     this.body.position.set(position.x, position.y + 0.8, position.z);
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
