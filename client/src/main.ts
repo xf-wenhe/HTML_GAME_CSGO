@@ -32,6 +32,7 @@ import { MainMenu } from './ui/MainMenu.js';
 import { Settings } from './ui/Settings.js';
 import { KillFeed } from './ui/KillFeed.js';
 import { Scoreboard } from './ui/Scoreboard.js';
+import { RadioMenu } from './ui/RadioMenu.js';
 import { MULTIPLAYER_MAPS } from './game/config/maps.js';
 import { Cs16BotMatch } from './game/Cs16BotMatch.js';
 import { CS16_ALLOWED_WEAPON_IDS, canCs16WeaponScope } from './game/Cs16Weapons.js';
@@ -147,6 +148,7 @@ const droppedWeapons = new DroppedWeaponSystem(scene.getScene());
 const remotePlayers = new RemotePlayers(scene.getScene());
 const hud = new HUD();
 const mainMenu = new MainMenu();
+const radioMenu = new RadioMenu();
 const audioManager = new AudioManager();
 const audioFeedback = new AudioFeedback(audioManager);
 const settings = new Settings();
@@ -268,7 +270,12 @@ function syncArenaPhysics(): void {
 
 document.getElementById('app')?.appendChild(scene.getCanvas());
 document.getElementById('app')?.appendChild(hud.getElement());
+document.getElementById('app')?.appendChild(radioMenu.getElement());
 document.getElementById('app')?.appendChild(mainMenu.getElement());
+radioMenu.onCommandSelected((_page, _key, label) => {
+  hud.showNotification(`[无线电] ${label}`);
+  audioManager.play('weapon_switch', { volume: 0.15 });
+});
 input.bindTouchControls(hud.getTouchControlsElement());
 hud.setTouchControlsVisible(input.isTouchControlsActive());
 
@@ -719,6 +726,10 @@ network.on('roomError', (data) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    if (radioMenu.isOpen()) {
+      radioMenu.open(null);
+      return;
+    }
     if (inputMode === 'playing' || inputMode === 'scoreboard') {
       // Fix: In multiplayer mode, pressing ESC once should end the game directly
       // to avoid pointer lock issues in browser security model
@@ -858,6 +869,21 @@ document.addEventListener('keydown', (e) => {
       if (currentSnapshot?.bomb?.plantedAt) network.send({ type: 'defuseBomb' });
       else network.send({ type: 'plantBomb', request: { site } });
     }
+  }
+
+  // ==================== Z/X/C：无线电命令菜单 ====================
+  if (e.key === 'z' || e.key === 'Z' || e.key === 'x' || e.key === 'X' || e.key === 'c' || e.key === 'C') {
+    if (inputMode === 'playing') {
+      e.preventDefault();
+      const page = e.key.toLowerCase() as 'z' | 'x' | 'c';
+      radioMenu.open(radioMenu.isOpen() ? null : page);
+    }
+  }
+
+  // 数字键选择无线电命令
+  if (['1', '2', '3', '4', '5', '6'].includes(e.key) && radioMenu.isOpen()) {
+    e.preventDefault();
+    radioMenu.selectNumber(parseInt(e.key, 10));
   }
 });
 
@@ -1354,6 +1380,9 @@ function syncSwitchedWeapon(): void {
 }
 
 function setInputMode(mode: InputMode): void {
+  if (mode !== 'playing') {
+    radioMenu.open(null);
+  }
   inputMode = mode;
 }
 

@@ -237,6 +237,7 @@ export class MainMenu {
           <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 &nbsp; <kbd>Shift</kbd> 静步 &nbsp; <kbd>Ctrl</kbd> 蹲下</p>
           <p><kbd>左键</kbd> 射击 / 投掷 &nbsp; <kbd>R</kbd> 换弹 &nbsp; <kbd>B</kbd> 购买 &nbsp; <kbd>E</kbd> 互动</p>
           <p><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> 武器切换 &nbsp; <kbd>Tab</kbd> 战绩面板 &nbsp; <kbd>ESC</kbd> 暂停</p>
+          <p><kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd> 无线电菜单 &nbsp; 数字键选择命令</p>
         </div>
       </div>
     `;
