@@ -280,13 +280,26 @@ export class WeaponManager {
   }
 
   private resolveWeaponAssetId(weaponId: string): string {
-    if (['usp_s', 'p250', 'five_seven', 'dual_berettas', 'r8', 'cz75', 'tec9', 'p2000', 'sidearm'].includes(weaponId)) return 'pistol';
-    if (['deagle', 'heavy_pistol'].includes(weaponId)) return 'heavy_pistol';
-    if (['m4a1s', 'm4a4', 'sentinel'].includes(weaponId)) return 'defender_rifle';
-    if (['ak47', 'galil', 'sg553', 'aug', 'famas', 'vandal'].includes(weaponId)) return 'rifle';
-    if (['awp', 'ssg08', 'scar20', 'g3sg1', 'operator'].includes(weaponId)) return 'sniper';
-    if (['mp9', 'mac10', 'pp_bizon', 'mp7', 'ump45', 'p90', 'specter'].includes(weaponId)) return 'smg';
-    if (['nova', 'mag7', 'xm1014', 'bulldog'].includes(weaponId)) return 'shotgun';
+    // CS 1.6 weapons first
+    if (['glock', 'usp', 'p228', 'deagle', 'five_seven'].includes(weaponId)) return weaponId;
+    if (['mp5', 'tmp', 'p90', 'mac10', 'ump45'].includes(weaponId)) return weaponId;
+    if (['m3', 'xm1014'].includes(weaponId)) return weaponId;
+    if (['ak47', 'm4a1', 'sg552', 'aug', 'galil', 'famas'].includes(weaponId)) return weaponId;
+    if (['scout', 'sg550', 'g3sg1'].includes(weaponId)) return weaponId;
+    if (['m249', 'hegrenade'].includes(weaponId)) return weaponId;
+
+    // CS:GO weapons for compatibility
+    if (['usp_s', 'p250', 'dual_berettas', 'r8', 'cz75', 'tec9', 'p2000', 'sidearm'].includes(weaponId)) return 'pistol';
+    if (['heavy_pistol'].includes(weaponId)) return 'deagle';
+    if (['m4a1s', 'm4a4', 'sentinel'].includes(weaponId)) return 'm4a1';
+    if (['vandal'].includes(weaponId)) return 'ak47';
+    if (['sg553'].includes(weaponId)) return 'sg552';
+    if (['ssg08'].includes(weaponId)) return 'scout';
+    if (['scar20'].includes(weaponId)) return 'g3sg1';
+    if (['mp9', 'pp_bizon', 'mp7', 'mp5sd', 'specter'].includes(weaponId)) return 'mp5';
+    if (['nova', 'mag7', 'sawedoff', 'bulldog'].includes(weaponId)) return 'm3';
+    if (['negev'].includes(weaponId)) return 'm249';
+
     return weaponId;
   }
 

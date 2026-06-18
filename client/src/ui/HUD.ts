@@ -1,53 +1,7 @@
 import { Weapon } from '../game/Weapon.js';
 import { BuyRequest, MatchSnapshot, WeaponId } from '../game/types.js';
 
-// CS 1.6 武器配置 - 只显示这些，隐藏其他
-const CS16_VISIBLE_WEAPONS = new Set([
-  'glock', 'usp', 'p228', 'deagle', 'fiveseven',
-  'mp5', 'tmp', 'p90', 'mac10', 'ump45',
-  'm3', 'xm1014',
-  'ak47', 'm4a1', 'sg552', 'aug', 'galil', 'famas',
-  'scout', 'awp', 'sg550', 'g3sg1',
-  'm249', 'knife', 'hegrenade'
-]);
-
-// CS 1.6 武器 ID 映射（从 CS:GO ID 到 CS 1.6 ID）
-const CS16_WEAPON_ID_MAP: Record<string, string> = {
-  'pistol': 'glock',
-  'usp_s': 'usp',
-  'p2000': 'usp',
-  'mp5sd': 'mp5',
-  'ssg08': 'scout',
-  'm4a1s': 'm4a1',
-  'sawedoff': 'm3',
-  'nova': 'm3',
-  'mag7': 'xm1014',
-  'negev': 'm249',
-  'pp_bizon': 'p90',
-  'mp7': 'mp5',
-  'mp9': 'tmp',
-  'r8': 'deagle',
-  'cz75': 'p228',
-  'tec9': 'tmp',
-  'sg553': 'sg552',
-  'm4a4': 'm4a1',
-  'scar20': 'g3sg1'
-};
-
-function getCs16WeaponId(weaponId: string): string {
-  return CS16_WEAPON_ID_MAP[weaponId] || weaponId;
-}
-
-function isCs16WeaponVisible(weaponId: string): boolean {
-  return CS16_VISIBLE_WEAPONS.has(getCs16WeaponId(weaponId));
-}
-
-function getCs16WeaponIcon(weaponId: string, type: 'hud' | 'buy' = 'buy'): string {
-  const safeId = getCs16WeaponId(weaponId);
-  return `/assets/icons/cs16/${type}/${safeId}.png`;
-}
-
-type WeaponSlotId = 'primary' | 'pistol' | 'knife' | 'grenade';
+export type WeaponSlotId = 'primary' | 'pistol' | 'knife' | 'grenade';
 
 type WeaponSvgType = 'pistol' | 'pistol-heavy' | 'smg' | 'rifle' | 'sniper' | 'shotgun' | 'lmg' | 'knife';
 
@@ -71,56 +25,70 @@ const BUY_MENU_CATEGORIES: BuyMenuCategory[] = [
   {
     title: '手枪',
     items: [
-      { label: 'Glock 18',       price: 200,  hint: '默认T方手枪',    damage: 25,  svgType: 'pistol',       weaponId: 'glock' },
-      { label: 'USP .45',      price: 200,  hint: '默认CT方手枪',   damage: 30,  svgType: 'pistol',       weaponId: 'usp' },
-      { label: 'P228',         price: 300,  hint: '精准备用',        damage: 32,  svgType: 'pistol',       weaponId: 'p228' },
-      { label: 'Five-SeveN',   price: 500,  hint: '穿甲利器',        damage: 28,  svgType: 'pistol',       weaponId: 'fiveseven' },
-      { label: 'Desert Eagle',  price: 650, hint: '强力单发',       damage: 54,  svgType: 'pistol-heavy', weaponId: 'deagle' },
+      { label: 'Glock-18',      price: 200,  hint: '默认T方手枪',    damage: 28,  svgType: 'pistol',       weaponId: 'pistol' },
+      { label: 'USP-S',         price: 200,  hint: '默认CT方手枪',   damage: 35,  svgType: 'pistol',       weaponId: 'usp_s' },
+      { label: 'P2000',         price: 200,  hint: '精准备用',        damage: 32,  svgType: 'pistol',       weaponId: 'p2000' },
+      { label: 'P250',          price: 300,  hint: '经济换代',        damage: 38,  svgType: 'pistol',       weaponId: 'p250' },
+      { label: 'Dual Berettas', price: 400,  hint: '双枪火力',        damage: 26,  svgType: 'pistol',       weaponId: 'dual_berettas' },
+      { label: 'CZ75-Auto',     price: 500,  hint: '全自动手枪',      damage: 31,  svgType: 'pistol',       weaponId: 'cz75' },
+      { label: 'Tec-9',         price: 500,  hint: 'T方进攻手枪',    damage: 33,  svgType: 'pistol',       weaponId: 'tec9' },
+      { label: 'Five-SeveN',    price: 500,  hint: '穿甲利器',        damage: 32,  svgType: 'pistol',       weaponId: 'five_seven' },
+      { label: 'R8 Revolver',   price: 600,  hint: '高伤转轮',        damage: 86,  svgType: 'pistol-heavy', weaponId: 'r8' },
+      { label: 'Desert Eagle',  price: 700,  hint: '强力单发',        damage: 55,  svgType: 'pistol-heavy', weaponId: 'deagle' },
+      { label: 'Zeus x27',     price: 200,  hint: '电击一击必杀',      damage: 500, svgType: 'pistol-heavy', weaponId: 'zeus' },
     ]
   },
   {
     title: '微型冲锋枪',
     items: [
-      { label: 'TMP',        price: 1250, hint: 'CT方消音SMG',  damage: 20, svgType: 'smg', weaponId: 'tmp' },
-      { label: 'MAC-10',    price: 1400, hint: 'T方近距离',    damage: 25, svgType: 'smg', weaponId: 'mac10' },
-      { label: 'MP5 Navy',  price: 1500, hint: '经典SMG',       damage: 26, svgType: 'smg', weaponId: 'mp5' },
-      { label: 'UMP-45',    price: 1700, hint: '高穿甲伤害',   damage: 30, svgType: 'smg', weaponId: 'ump45' },
-      { label: 'P90',       price: 2350, hint: '50发弹匣',     damage: 24, svgType: 'smg', weaponId: 'p90' },
+      { label: 'MAC-10',   price: 1050, hint: 'T方近距离',   damage: 29, svgType: 'smg', weaponId: 'mac10' },
+      { label: 'MP9',      price: 1250, hint: 'CT方SMG',     damage: 26, svgType: 'smg', weaponId: 'mp9' },
+      { label: 'MP5-SD',   price: 1500, hint: '消音SMG',     damage: 27, svgType: 'smg', weaponId: 'mp5sd' },
+      { label: 'UMP-45',   price: 1200, hint: '高穿甲伤害',  damage: 35, svgType: 'smg', weaponId: 'ump45' },
+      { label: 'PP-野牛',  price: 1400, hint: '超大弹匣',    damage: 27, svgType: 'smg', weaponId: 'pp_bizon' },
+      { label: 'MP7',      price: 1500, hint: '精准全能',    damage: 29, svgType: 'smg', weaponId: 'mp7' },
+      { label: 'P90',      price: 2350, hint: '50发弹匣',    damage: 26, svgType: 'smg', weaponId: 'p90' },
     ]
   },
   {
     title: '步枪',
     items: [
-      { label: 'Galil AR',    price: 2000, hint: 'T方经济步枪',  damage: 30, svgType: 'rifle', weaponId: 'galil' },
-      { label: 'FAMAS',       price: 2250, hint: 'CT方经济步枪', damage: 30, svgType: 'rifle', weaponId: 'famas' },
-      { label: 'AK-47',       price: 2500, hint: 'T方主步枪',    damage: 36, svgType: 'rifle', weaponId: 'ak47' },
-      { label: 'M4A1',        price: 3100, hint: 'CT方主步枪',   damage: 33, svgType: 'rifle', weaponId: 'm4a1' },
-      { label: 'SG 552',      price: 3500, hint: 'T方精准步枪',  damage: 34, svgType: 'rifle', weaponId: 'sg552' },
-      { label: 'AUG',         price: 3500, hint: 'CT方精准步枪', damage: 32, svgType: 'rifle', weaponId: 'aug' },
+      { label: 'Galil AR', price: 1800, hint: 'T方经济步枪',  damage: 30, svgType: 'rifle', weaponId: 'galil' },
+      { label: 'FAMAS',    price: 2050, hint: 'CT方经济步枪', damage: 30, svgType: 'rifle', weaponId: 'famas' },
+      { label: 'AK-47',    price: 2700, hint: 'T方主步枪',    damage: 36, svgType: 'rifle', weaponId: 'ak47' },
+      { label: 'M4A1-S',   price: 2900, hint: 'CT方消音步枪', damage: 38, svgType: 'rifle', weaponId: 'm4a1s' },
+      { label: 'M4A4',     price: 3100, hint: 'CT方主步枪',   damage: 33, svgType: 'rifle', weaponId: 'm4a4' },
+      { label: 'SG 553',   price: 3000, hint: 'T方精准步枪',  damage: 34, svgType: 'rifle', weaponId: 'sg553' },
+      { label: 'AUG',      price: 3300, hint: 'CT方精准步枪', damage: 32, svgType: 'rifle', weaponId: 'aug' },
     ]
   },
   {
     title: '狙击枪',
     items: [
-      { label: 'Scout',    price: 2750, hint: '轻量狙击',     damage: 65,  svgType: 'sniper', weaponId: 'scout' },
-      { label: 'AWP',      price: 4750, hint: '一击致命',     damage: 115, svgType: 'sniper', weaponId: 'awp' },
-      { label: 'G3SG1',    price: 5000, hint: 'T方自动狙',    damage: 75,  svgType: 'sniper', weaponId: 'g3sg1' },
-      { label: 'SG 550',   price: 5000, hint: 'CT方自动狙',    damage: 70,  svgType: 'sniper', weaponId: 'sg550' },
+      { label: 'SSG 08',  price: 1700, hint: '经济狙击',     damage: 88,  svgType: 'sniper', weaponId: 'ssg08' },
+      { label: 'AWP',     price: 4750, hint: '一击致命',     damage: 115, svgType: 'sniper', weaponId: 'awp' },
+      { label: 'SCAR-20', price: 5000, hint: 'CT自动狙',     damage: 80,  svgType: 'sniper', weaponId: 'scar20' },
+      { label: 'G3SG1',   price: 5000, hint: 'T方自动狙',    damage: 80,  svgType: 'sniper', weaponId: 'g3sg1' },
     ]
   },
   {
-    title: '霰弹枪 / 机枪',
+    title: '重型 / 霰弹枪 / 机枪',
     items: [
-      { label: 'M3 Super 90',  price: 1700, hint: '泵动霰弹',     damage: 22,  svgType: 'shotgun', weaponId: 'm3' },
-      { label: 'XM1014',       price: 3000, hint: '半自动霰弹',   damage: 18,  svgType: 'shotgun', weaponId: 'xm1014' },
-      { label: 'M249',         price: 5750, hint: '100发弹链',    damage: 32,  svgType: 'lmg',     weaponId: 'm249' },
+      { label: 'Sawed-Off',price: 1100, hint: 'T方短管霰弹',damage: 22,  svgType: 'shotgun', weaponId: 'sawedoff' },
+      { label: 'Nova',    price: 1050, hint: '近距爆发',  damage: 20,  svgType: 'shotgun', weaponId: 'nova' },
+      { label: 'MAG-7',   price: 1300, hint: 'CT方霰弹',  damage: 30,  svgType: 'shotgun', weaponId: 'mag7' },
+      { label: 'XM1014',  price: 2000, hint: '半自动霰弹',damage: 19,  svgType: 'shotgun', weaponId: 'xm1014' },
+      { label: 'Negev',   price: 1700, hint: '压制机枪',  damage: 35,  svgType: 'lmg',     weaponId: 'negev' },
+      { label: 'M249',    price: 5200, hint: '100发弹链', damage: 32,  svgType: 'lmg',     weaponId: 'm249' },
     ]
   },
   {
     title: '投掷物 / 护甲',
     items: [
       { label: '防弹衣', price: 650, hint: '补满护甲', armor: true },
-      { label: '高爆雷', price: 300, hint: '按 4 切换', weaponId: 'hegrenade' },
+      { label: '高爆雷', price: 300, hint: '本地库存，按 4 切换', unavailable: true },
+      { label: '闪光弹', price: 200, hint: '本地库存，按 4 切换', unavailable: true },
+      { label: '烟雾弹', price: 300, hint: '本地库存，按 4 切换', unavailable: true }
     ]
   }
 ];
@@ -257,35 +225,40 @@ export class HUD {
 
   private weaponIconSVG(category: WeaponSlotId): string {
     const icons: Record<WeaponSlotId, string> = {
-      // CS 1.6 风格主武器图标：AK-47 形状
-      primary: `<svg viewBox="0 0 32 16" class="slot-svg" aria-hidden="true" style="color: #00a0ff;">
-        <rect x="1" y="7" width="16" height="2" rx="0.4"/>
-        <rect x="3" y="4" width="8" height="2" rx="0.3" opacity="0.7"/>
-        <rect x="10" y="5" width="10" height="4" rx="0.5"/>
-        <path d="M14 9 Q16 14 19 15 Q21 15 22 13.5 L21 9Z" opacity="0.85"/>
-        <rect x="21" y="7" width="8" height="2" rx="0.4" opacity="0.8"/>
-        <rect x="6" y="7.5" width="5" height="1.5" rx="0.2" opacity="0.5"/>
-        <rect x="18" y="9" width="2.5" height="5" rx="0.6" opacity="0.8"/>
+      // CS:GO AK-47: barrel + gas tube + receiver + curved mag + wooden stock
+      primary: `<svg viewBox="0 0 32 16" class="slot-svg" aria-hidden="true">
+        <rect x="1" y="6" width="17" height="2.5" rx="0.8"/>
+        <rect x="5" y="4" width="10" height="2" rx="0.6" opacity="0.7"/>
+        <rect x="12" y="4.5" width="11" height="4" rx="1"/>
+        <path d="M16 8.5 Q18 15 21 16 Q23 16 24 14.5 L23 8.5Z" opacity="0.9"/>
+        <rect x="23" y="6" width="7" height="2.5" rx="0.8" opacity="0.85"/>
+        <rect x="29" y="6" width="2" height="4.5" rx="0.6" opacity="0.7"/>
+        <rect x="8" y="6.5" width="6" height="2" rx="0.4" opacity="0.5"/>
+        <rect x="20" y="8.5" width="2.5" height="6" rx="0.8" opacity="0.85"/>
       </svg>`,
-      // CS 1.6 风格手枪图标：USP/Deagle 形状
-      pistol: `<svg viewBox="0 0 24 16" class="slot-svg" aria-hidden="true" style="color: #00ff80;">
-        <rect x="1" y="6" width="13" height="2" rx="0.5"/>
-        <rect x="13" y="4.5" width="6" height="3.5" rx="0.8"/>
-        <rect x="17" y="7.5" width="1.8" height="6.5" rx="0.4" opacity="0.85"/>
-        <path d="M17 7.5 Q18 12 20 13 Q21 13 22 12 L22 7.5Z" opacity="0.7"/>
+      // CS:GO USP/Deagle pistol: barrel + slide + frame + grip
+      pistol: `<svg viewBox="0 0 24 16" class="slot-svg" aria-hidden="true">
+        <rect x="1" y="5" width="14" height="2.5" rx="0.7"/>
+        <rect x="14" y="3.5" width="7" height="4" rx="1"/>
+        <rect x="18" y="7.5" width="2" height="7.5" rx="0.6" opacity="0.85"/>
+        <path d="M18 7.5 Q19 13 21 14 Q22 14 23 13 L23 7.5Z" opacity="0.7"/>
       </svg>`,
-      // CS 1.6 风格匕首图标
-      knife: `<svg viewBox="0 0 22 12" class="slot-svg" aria-hidden="true" style="color: #a0a0a0;">
-        <polygon points="1,4 14,2 16,6 14,10 1,8" opacity="0.9"/>
-        <rect x="14" y="3" width="1.8" height="6" rx="0.3" opacity="0.6"/>
-        <rect x="15.8" y="3.5" width="5" height="5" rx="1.2" opacity="0.7"/>
+      // CS:GO Knife: blade + guard + textured handle
+      knife: `<svg viewBox="0 0 22 12" class="slot-svg" aria-hidden="true">
+        <polygon points="1,4 15,2 17,6 15,10 1,8" opacity="0.9"/>
+        <rect x="15" y="3" width="2" height="6" rx="0.4" opacity="0.6"/>
+        <rect x="17" y="3.5" width="5" height="5" rx="1.5" opacity="0.7"/>
       </svg>`,
-      // CS 1.6 风格手榴弹图标
-      grenade: `<svg viewBox="0 0 14 18" class="slot-svg" aria-hidden="true" style="color: #60a060;">
-        <ellipse cx="7" cy="11" rx="5" ry="5.5" opacity="0.95"/>
-        <rect x="5" y="3" width="4" height="4.5" rx="0.7"/>
-        <rect x="3.5" y="2" width="7" height="1.8" rx="0.8" opacity="0.7"/>
-        <rect x="6" y="0.5" width="2" height="2.2" rx="0.5" opacity="0.8"/>
+      // CS:GO HE Grenade: pineapple body + fuse + pin ring
+      grenade: `<svg viewBox="0 0 14 18" class="slot-svg" aria-hidden="true">
+        <ellipse cx="7" cy="11" rx="5.5" ry="6" opacity="0.95"/>
+        <line x1="3" y1="9" x2="4.5" y2="11" stroke="currentColor" stroke-width="0.4" opacity="0.3"/>
+        <line x1="11" y1="9" x2="9.5" y2="11" stroke="currentColor" stroke-width="0.4" opacity="0.3"/>
+        <line x1="3" y1="12" x2="4.5" y2="11" stroke="currentColor" stroke-width="0.4" opacity="0.3"/>
+        <line x1="11" y1="12" x2="9.5" y2="11" stroke="currentColor" stroke-width="0.4" opacity="0.3"/>
+        <rect x="5" y="2" width="4" height="5" rx="0.8"/>
+        <rect x="3" y="1" width="8" height="2" rx="1" opacity="0.7"/>
+        <rect x="6" y="0" width="2" height="2.5" rx="0.6" opacity="0.8"/>
       </svg>`,
     };
     return icons[category];
@@ -562,9 +535,9 @@ export class HUD {
     // 原有的 SVG 作为备用
     const svg = item.svgType ? this.weaponSvg(item.svgType) : '';
     
-    // 【CS 1.6 风格】构建 CS 1.6 武器图标
+    // 【增强】构建真实武器贴图的 img 标签，带 CS:GO 风格边框
     const imgIcon = item.weaponId
-      ? `<img src="${getCs16WeaponIcon(item.weaponId, 'buy')}" class="weapon-preview-img" alt="${this.escapeHtml(item.label)}" loading="lazy" onerror="this.style.display='none'; this.parentElement.querySelector('.weapon-preview-fallback').style.display='flex';" />`
+      ? `<img src="/assets/icons/weapons-png/${item.weaponId}.png" class="weapon-preview-img" alt="${this.escapeHtml(item.label)}" loading="lazy" onerror="this.style.display='none'; this.parentElement.querySelector('.weapon-preview-fallback').style.display='flex';" />`
       : '';
 
     const damageBar = item.damage

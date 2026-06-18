@@ -2674,6 +2674,7 @@ function createSpecificCS16Weapon(weaponId: string): THREE.Object3D {
     mac10: createMAC10,
     ump45: () => createFallbackWeapon(0x3a3a35, 0.70, 'smg'),
     five_seven: () => createFallbackWeapon(0x3a424c, 0.58, 'pistol'),
+    hegrenade: () => createFallbackWeapon(0x5a5030, 0.45, 'grenade'),
   };
 
   const builder = builders[weaponId];
@@ -2725,8 +2726,9 @@ export const ASSETS: Record<string, AssetDefinition> = {
   // ── CS 1.6 机枪 ─────────────────────────────────────────────────────────────
   m249: { id: 'm249', kind: 'weapon', path: '/assets/models/weapons/rifle.glb', scale: 0.16, rotation: [0, Math.PI / 2, 0], position: [-0.22, -0.10, 0.28], preferFallback: true, fallback: () => createSpecificCS16Weapon('m249') },
 
-  // ── CS 1.6 近战 ─────────────────────────────────────────────────────────────
+  // ── CS 1.6 近战/装备 ─────────────────────────────────────────────────────
   knife: { id: 'knife', kind: 'weapon', path: '/assets/models/weapons/knife.glb', scale: 0.62, rotation: [0, Math.PI / 2, 0], position: [-0.08, -0.08, 0.12], preferFallback: true, fallback: () => createSpecificCS16Weapon('knife') },
+  hegrenade: { id: 'hegrenade', kind: 'weapon', path: '/assets/models/weapons/grenade.glb', scale: 0.48, rotation: [0, Math.PI / 2, 0], position: [-0.10, -0.06, 0.14], preferFallback: true, fallback: () => createSpecificCS16Weapon('hegrenade') },
 
   // ── 兼容旧ID (保持兼容) ────────────────────────────────────────────────────────────
   pistol: { id: 'pistol', kind: 'weapon', path: '/assets/models/weapons/pistol.glb', scale: 0.42, rotation: [0, Math.PI / 2, 0], position: [-0.18, -0.06, 0.18], preferFallback: false, fallback: () => createSpecificWeapon('pistol') },

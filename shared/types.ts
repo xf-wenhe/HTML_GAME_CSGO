@@ -14,14 +14,14 @@ export type WeaponId =
   | 'm4a1s' | 'm4a4' | 'ak47' | 'famas' | 'galil' | 'sg553' | 'aug'
   | 'awp' | 'ssg08' | 'scar20' | 'g3sg1'
   | 'nova' | 'mag7' | 'xm1014' | 'm249' | 'negev' | 'sawedoff'
-  | 'knife' | 'zeus'
+  | 'knife' | 'zeus' | 'hegrenade'
   // Legacy IDs
   | 'sidearm' | 'heavy_pistol' | 'vandal' | 'sentinel' | 'operator' | 'specter' | 'bulldog'
   | 'rifle' | 'sniper' | 'shotgun' | 'smg' | 'defender_rifle'
   // CS 1.6 weapons
   | 'glock' | 'usp' | 'p228' | 'mp5' | 'tmp' | 'm3' | 'm4a1' | 'sg552' | 'sg550' | 'scout';
 export type MapId = 'dust2' | 'warehouse' | 'italy' | 'mirage' | 'inferno' | 'nuke' | 'train' | 'overpass' | 'bloodstrike';
-export type BuyCategory = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee';
+export type BuyCategory = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper' | 'melee' | 'grenade';
 export type GrenadeId = 'he' | 'flashbang' | 'smoke' | 'incendiary' | 'decoy';
 export type HitRegion = 'head' | 'chest' | 'stomach' | 'arm' | 'leg';
 
