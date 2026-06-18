@@ -151,7 +151,7 @@ export class WeaponManager {
     const camKickBase = weapon.isMelee ? 0.015 : 0.006;
     const camKickRand = weapon.isMelee ? 0.012 : 0.005;
     const crouchReduction = this.crouching ? 0.65 : 1.0;
-    this.cameraKickX += (recoilOffset.x * 0.02 + (Math.random() - 0.5) * camKickRand) * crouchReduction;
+    this.cameraKickX += (recoilOffset.x * 0.02 + Math.random() * camKickRand) * crouchReduction;
     this.cameraKickY += (recoilOffset.y * 0.02 + camKickBase) * crouchReduction;
     this.meleeSwing = weapon.isMelee ? 1 : this.meleeSwing;
     this.muzzleFlash.material.opacity = weapon.isMelee ? 0 : 0.95;
