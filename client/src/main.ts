@@ -29,6 +29,7 @@ import { InputMode, PointerLockState, canLook, canMove, canShoot } from './game/
 import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
 import { Settings } from './ui/Settings.js';
+import { KillFeed } from './ui/KillFeed.js';
 import { MULTIPLAYER_MAPS } from './game/config/maps.js';
 import { Cs16BotMatch } from './game/Cs16BotMatch.js';
 import { CS16_ALLOWED_WEAPON_IDS, canCs16WeaponScope } from './game/Cs16Weapons.js';
@@ -218,6 +219,7 @@ let selectedMapId: MapId = 'dust2';
 let arenaColliderBodies: CANNON.Body[] = [];
 let wasGrounded = true;
 let soloBotMatch: Cs16BotMatch | null = null;
+let killFeed: KillFeed | null = null;
 let botRoundRespawnPending = false;
 let currentEnemySpawns: EnemySpawnPoint[] = []; // 保存当前地图根据队伍选择的敌方出生点
 const multiplayerSessionStorageKey = 'fps-web-game:multiplayer-session:v1';
@@ -464,6 +466,15 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
       playerTeam: desiredTeam || 'attackers',
       startingMoney: 800
     });
+
+    // Initialize KillFeed
+    const killFeedContainer = hud.getElement().querySelector('.kill-feed-live') as HTMLElement;
+    if (killFeedContainer) {
+      killFeed = new KillFeed(killFeedContainer);
+      soloBotMatch.onKill((killer, victim, weapon, headshot) => {
+        killFeed?.addKill(killer, victim, weapon, headshot);
+      });
+    }
   }
 
   if (soloBotMatch) {
@@ -924,6 +935,8 @@ function endGame(): void {
   isSpectating = false;
   currentMode = null;
   soloBotMatch = null;
+  killFeed?.destroy();
+  killFeed = null;
   botRoundRespawnPending = false;
   usingGrenade = false;
   activeSlot = 'pistol';

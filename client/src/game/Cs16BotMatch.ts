@@ -68,6 +68,7 @@ export class Cs16BotMatch {
   private readonly roundEndSeconds: number;
   private readonly botCount: number;
   private readonly playerTeam: Team;
+  private onKillCallback: ((killer: string, victim: string, weapon: string, headshot?: boolean) => void) | null = null;
 
   constructor(options: Cs16BotMatchOptions = {}) {
     this.freezeSeconds = options.freezeSeconds ?? 5;  // CS1.6标准冻结时间5秒
@@ -76,6 +77,19 @@ export class Cs16BotMatch {
     this.botCount = options.botCount ?? 5;
     this.playerTeam = options.playerTeam ?? 'attackers';
     this.money = options.startingMoney ?? CS16_STARTING_MONEY;
+  }
+
+  onKill(callback: (killer: string, victim: string, weapon: string, headshot?: boolean) => void): void {
+    this.onKillCallback = callback;
+  }
+
+  private getWeaponName(weapon: string): string {
+    const weaponNames: Record<string, string> = {
+      'ak47': 'AK-47',
+      'mp5': 'MP5',
+      'usp': 'USP',
+    };
+    return weaponNames[weapon] || weapon;
   }
 
   startRound(): void {
@@ -124,17 +138,29 @@ export class Cs16BotMatch {
     }));
   }
 
-  recordBotKill(): void {
+  recordBotKill(weapon: string = 'ak47', headshot: boolean = false): void {
     if (this.botsAlive <= 0 || this.phase === 'roundEnd') return;
     this.botsAlive--;
     this.kills++;
     this.money = clampCs16Money(this.money + CS16_KILL_REWARD);
+
+    if (this.onKillCallback) {
+      const weaponName = this.getWeaponName(weapon);
+      this.onKillCallback('你', 'BOT', weaponName, headshot);
+    }
+
     if (this.botsAlive <= 0) this.endRound('allBotsDead');
   }
 
-  recordPlayerDeath(): void {
+  recordPlayerDeath(weapon: string = 'ak47', headshot: boolean = false): void {
     if (this.phase !== 'live') return;
     this.deaths++;
+
+    if (this.onKillCallback) {
+      const weaponName = this.getWeaponName(weapon);
+      this.onKillCallback('BOT', '你', weaponName, headshot);
+    }
+
     this.endRound('playerDead');
   }
 
