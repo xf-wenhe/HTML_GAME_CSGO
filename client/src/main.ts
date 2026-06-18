@@ -30,6 +30,7 @@ import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
 import { Settings } from './ui/Settings.js';
 import { KillFeed } from './ui/KillFeed.js';
+import { Scoreboard } from './ui/Scoreboard.js';
 import { MULTIPLAYER_MAPS } from './game/config/maps.js';
 import { Cs16BotMatch } from './game/Cs16BotMatch.js';
 import { CS16_ALLOWED_WEAPON_IDS, canCs16WeaponScope } from './game/Cs16Weapons.js';
@@ -151,6 +152,7 @@ const settings = new Settings();
 const prediction = new Prediction();
 const shellCasingManager = new ShellCasingManager(scene.getScene());
 const screenShake = new ScreenShake();
+let scoreboard: Scoreboard | null = null;
 
 audioManager.init().then(() => {
   audioManager.loadFiles({
@@ -475,6 +477,11 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
         killFeed?.addKill(killer, victim, weapon, headshot);
       });
     }
+
+    // Initialize Scoreboard
+    const hudElement = hud.getElement();
+    scoreboard = new Scoreboard(hudElement);
+    updateScoreboardWithBotMatch();
   }
 
   if (soloBotMatch) {
@@ -554,6 +561,9 @@ function restartSoloBotRound(): void {
     });
   });
   hud.updateCs16BotMatch(soloBotMatch.getStats());
+  if (scoreboard?.isVisible()) {
+    updateScoreboardWithBotMatch();
+  }
 }
 
 function updateSoloBotMatch(dt: number): void {
@@ -570,6 +580,9 @@ function updateSoloBotMatch(dt: number): void {
     }, 0);
   }
   hud.updateCs16BotMatch(soloBotMatch.getStats());
+  if (scoreboard?.isVisible()) {
+    updateScoreboardWithBotMatch();
+  }
 }
 
 network.on('connected', () => {
@@ -800,9 +813,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Tab') {
     e.preventDefault();
     if (inputMode === 'playing') {
-      updateScoreboardPanel();
+      updateScoreboardWithBotMatch();
+      scoreboard?.show();
       setInputMode('scoreboard');
-      hud.toggleScoreboard(true);
     }
   }
   // ==================== G 键：拾取与丢弃武器 ====================
@@ -849,7 +862,7 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
   if (e.key === 'Tab' && inputMode === 'scoreboard') {
-    hud.toggleScoreboard(false);
+    scoreboard?.hide();
     setInputMode('playing');
   }
 });
@@ -937,6 +950,8 @@ function endGame(): void {
   soloBotMatch = null;
   killFeed?.destroy();
   killFeed = null;
+  scoreboard?.destroy();
+  scoreboard = null;
   botRoundRespawnPending = false;
   usingGrenade = false;
   activeSlot = 'pistol';
@@ -1927,6 +1942,44 @@ function updateScoreboardPanel(): void {
       inputStatus: getMouseInputStatus()
     });
   }
+}
+
+function updateScoreboardWithBotMatch(): void {
+  if (!soloBotMatch || !scoreboard) return;
+
+  const stats = soloBotMatch.getStats();
+  const enemyTeam: Team = stats.playerTeam === 'attackers' ? 'defenders' : 'attackers';
+
+  // Create players list
+  const players: ScoreboardPlayer[] = [
+    {
+      name: '你',
+      team: stats.playerTeam,
+      kills: stats.kills,
+      deaths: stats.deaths,
+      ping: 0,
+      isLocalPlayer: true,
+    }
+  ];
+
+  // Add bots
+  for (let i = 0; i < stats.botsTotal; i++) {
+    players.push({
+      name: `BOT ${i + 1}`,
+      team: enemyTeam,
+      kills: 0,
+      deaths: stats.botsTotal - stats.botsAlive,
+      ping: 0,
+      isBot: true,
+    });
+  }
+
+  scoreboard.updatePlayers(players);
+  scoreboard.updateStats({
+    round: stats.round,
+    score: stats.score,
+    roundTimeRemaining: stats.phase === 'live' ? stats.roundTimeRemaining : stats.freezeRemaining,
+  });
 }
 
 function syncWeaponHud(): void {

@@ -2755,3 +2755,175 @@ body {
     display: none !important;
   }
 }
+
+/* ==================== Scoreboard ==================== */
+.scoreboard {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(600px, calc(100vw - 48px));
+  max-height: min(80vh, 600px);
+  background: rgba(10, 14, 18, 0.92);
+  border: 1px solid rgba(75, 105, 255, 0.25);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8), inset 0 0 40px rgba(0, 0, 0, 0.4);
+  padding: 20px;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+  z-index: 90;
+  overflow-y: auto;
+}
+
+.scoreboard-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scoreboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(75, 105, 255, 0.25);
+}
+
+.scoreboard-round {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--csgo-gold);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.scoreboard-team-scores {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scoreboard-team-score {
+  font-size: 32px;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: center;
+}
+
+.scoreboard-ct-score {
+  color: var(--ct-blue);
+}
+
+.scoreboard-t-score {
+  color: var(--t-red);
+}
+
+.scoreboard-score-separator {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+
+.scoreboard-time {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.scoreboard-players {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scoreboard-team-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scoreboard-team-header {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 6px 12px;
+  border-radius: 2px;
+}
+
+.scoreboard-team-defenders .scoreboard-team-header {
+  background: rgba(75, 105, 255, 0.15);
+  color: var(--ct-blue);
+}
+
+.scoreboard-team-attackers .scoreboard-team-header {
+  background: rgba(255, 70, 85, 0.15);
+  color: var(--t-red);
+}
+
+.scoreboard-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scoreboard-table-row {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.8fr 0.8fr;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 2px;
+  align-items: center;
+}
+
+.scoreboard-table-header {
+  background: rgba(75, 105, 255, 0.1);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.scoreboard-table-row:not(.scoreboard-table-header):nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.scoreboard-local-player {
+  background: rgba(232, 201, 106, 0.12) !important;
+  border: 1px solid rgba(232, 201, 106, 0.35);
+}
+
+.scoreboard-col-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.scoreboard-bot {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.scoreboard-bot::after {
+  content: ' (BOT)';
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.scoreboard-col-kills,
+.scoreboard-col-deaths,
+.scoreboard-col-ping {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.scoreboard-col-kills {
+  color: var(--success);
+}
+
+.scoreboard-col-deaths {
+  color: var(--danger);
+}
