@@ -18,6 +18,8 @@ export class PlayerController {
   private jumpForce = PLAYER_JUMP_FORCE;
   private pitch = 0;
   private yaw = 0;
+  private recoilKickPitch = 0;
+  private recoilKickYaw = 0;
   private health = 100;
   private maxHealth = 100;
   private armor = 100;
@@ -149,8 +151,10 @@ export class PlayerController {
 
   private updateLookRotation(): void {
     const mouseDelta = this.input.getMouseDelta();
-    this.yaw -= mouseDelta.x;
-    this.pitch -= mouseDelta.y;
+    this.yaw -= mouseDelta.x + this.recoilKickYaw;
+    this.pitch -= mouseDelta.y + this.recoilKickPitch;
+    this.recoilKickYaw = 0;
+    this.recoilKickPitch = 0;
 
     this.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.pitch));
 
@@ -494,9 +498,8 @@ export class PlayerController {
   }
 
   addRecoilKick(pitchOffset: number, yawOffset: number): void {
-    this.pitch += pitchOffset;
-    this.yaw += yawOffset;
-    this.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.pitch));
+    this.recoilKickPitch += pitchOffset;
+    this.recoilKickYaw += yawOffset;
   }
 
   setPosition(position: THREE.Vector3): void {
