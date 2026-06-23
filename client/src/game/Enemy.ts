@@ -30,6 +30,7 @@ export interface EnemyConfig {
     damage?: number;
     fireIntervalMs?: number;
     accuracy?: number;
+    holdSeconds?: number;
   };
 }
 
@@ -72,6 +73,7 @@ export class Enemy {
   private botRouteIndex = 0;
   public readonly damage = 10;
   private stuckTimer = 0;
+  private botHoldRemaining = 0;
   private lastStuckCheckPosition = new THREE.Vector3();
   private readonly STUCK_THRESHOLD = 2.8;
   private readonly STUCK_TIME_LIMIT = 3.0;
@@ -85,6 +87,7 @@ export class Enemy {
     this.speed = config.speed ?? 2;
     this.patrolPath = config.patrolPath ?? [];
     this.botProfile = config.botProfile ?? null;
+    this.botHoldRemaining = this.botProfile?.holdSeconds ?? 0;
     if (this.botProfile?.route?.length) {
       this.patrolPath = this.botProfile.route.map(point => point.clone());
     }
@@ -288,6 +291,14 @@ export class Enemy {
       this.body.velocity.x *= 0.85;
       this.body.velocity.z *= 0.85;
       return this.botShoot(now, distanceToPlayer);
+    }
+
+    if (this.botHoldRemaining > 0) {
+      this.botHoldRemaining = Math.max(0, this.botHoldRemaining - dt);
+      this.state = 'idle';
+      this.body.velocity.x = 0;
+      this.body.velocity.z = 0;
+      return 0;
     }
 
     this.state = this.patrolPath.length > 0 ? 'patrol' : 'idle';
@@ -568,6 +579,7 @@ export class Enemy {
     this.speed = speed;
     this.state = 'idle';
     this.botProfile = botProfile ?? null;
+    this.botHoldRemaining = this.botProfile?.holdSeconds ?? 0;
     this.syncMountedWeapon(this.botProfile?.weaponId ?? 'ak47');
     this.patrolPath = botProfile?.route?.map(p => p.clone()) ?? [];
     this.botRouteIndex = 0;

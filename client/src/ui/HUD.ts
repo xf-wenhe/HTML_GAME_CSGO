@@ -1,5 +1,5 @@
 import { Weapon } from '../game/Weapon.js';
-import { BuyRequest, MatchSnapshot, WeaponId } from '../game/types.js';
+import { BuyRequest, GrenadeId, MatchSnapshot, WeaponId } from '../game/types.js';
 import { CS16_WEAPON_DEFINITIONS } from '../game/Cs16WeaponDefs.js';
 import { getCs16WeaponRule } from '../game/Cs16Weapons.js';
 import { getWeaponPresentation } from '../game/WeaponPresentation.js';
@@ -15,7 +15,10 @@ type BuyMenuItem = {
   damage?: number;
   svgType?: WeaponSvgType;
   weaponId?: WeaponId;
+  grenadeId?: GrenadeId;
   armor?: boolean;
+  helmet?: boolean;
+  defuseKit?: boolean;
   unavailable?: boolean;
 };
 
@@ -24,14 +27,14 @@ type BuyMenuCategory = {
   items: BuyMenuItem[];
 };
 
-function cs16SliceBuyItem(weaponId: 'usp' | 'ak47', hint: string, svgType: WeaponSvgType): BuyMenuItem {
+function cs16BuyItem(weaponId: WeaponId, hint: string, svgType: WeaponSvgType): BuyMenuItem {
   const rule = getCs16WeaponRule(weaponId);
-  const definition = CS16_WEAPON_DEFINITIONS[weaponId];
+  const definition = CS16_WEAPON_DEFINITIONS[weaponId] ?? CS16_WEAPON_DEFINITIONS[weaponId.replace('_', '')];
   return {
-    label: definition.displayName,
+    label: definition?.displayName ?? weaponId,
     price: rule?.price ?? 0,
     hint,
-    damage: definition.damage,
+    damage: definition?.damage,
     svgType,
     weaponId,
   };
@@ -41,22 +44,65 @@ const BUY_MENU_CATEGORIES: BuyMenuCategory[] = [
   {
     title: 'Pistols',
     items: [
-      cs16SliceBuyItem('usp', 'CT sidearm / 12 rounds', 'pistol'),
+      cs16BuyItem('glock', 'T 默认手枪 / 20 发', 'pistol'),
+      cs16BuyItem('usp', 'CT 默认手枪 / 12 发', 'pistol'),
+      cs16BuyItem('p228', 'P228 / 精准备用', 'pistol'),
+      cs16BuyItem('deagle', 'Desert Eagle / 高伤害', 'pistol-heavy'),
+      cs16BuyItem('five_seven', 'CT Five-SeveN / 穿甲手枪', 'pistol'),
+    ]
+  },
+  {
+    title: 'SMGs',
+    items: [
+      cs16BuyItem('mp5', 'MP5 Navy / 经典冲锋枪', 'smg'),
+      cs16BuyItem('tmp', 'CT TMP / 高射速', 'smg'),
+      cs16BuyItem('p90', 'P90 / 大弹匣', 'smg'),
+      cs16BuyItem('mac10', 'T MAC-10 / 近距离压制', 'smg'),
+      cs16BuyItem('ump45', 'UMP-45 / 稳定中近距', 'smg'),
+    ]
+  },
+  {
+    title: 'Shotguns',
+    items: [
+      cs16BuyItem('m3', 'M3 / 单发泵动', 'shotgun'),
+      cs16BuyItem('xm1014', 'XM1014 / 连发霰弹', 'shotgun'),
     ]
   },
   {
     title: 'Rifles',
     items: [
-      cs16SliceBuyItem('ak47', 'T rifle / 30 rounds', 'rifle'),
+      cs16BuyItem('galil', 'T Galil / 经济步枪', 'rifle'),
+      cs16BuyItem('famas', 'CT FAMAS / 经济步枪', 'rifle'),
+      cs16BuyItem('ak47', 'T AK-47 / 30 发', 'rifle'),
+      cs16BuyItem('m4a1', 'CT M4A1 / 30 发', 'rifle'),
+      cs16BuyItem('sg552', 'T SG 552 / 可开镜', 'rifle'),
+      cs16BuyItem('aug', 'CT AUG / 可开镜', 'rifle'),
+    ]
+  },
+  {
+    title: 'Snipers',
+    items: [
+      cs16BuyItem('scout', 'Scout / 轻型狙击', 'sniper'),
+      cs16BuyItem('awp', 'AWP / 一枪制胜', 'sniper'),
+      cs16BuyItem('g3sg1', 'T G3SG1 / 自动狙击', 'sniper'),
+      cs16BuyItem('sg550', 'CT SG 550 / 自动狙击', 'sniper'),
+    ]
+  },
+  {
+    title: 'Machine Gun',
+    items: [
+      cs16BuyItem('m249', 'M249 / 机枪', 'lmg'),
     ]
   },
   {
     title: 'Equipment',
     items: [
       { label: '防弹衣', price: 650, hint: '补满护甲', armor: true },
-      { label: '高爆雷', price: 300, hint: '本地库存，按 4 切换', unavailable: true },
-      { label: '闪光弹', price: 200, hint: '本地库存，按 4 切换', unavailable: true },
-      { label: '烟雾弹', price: 300, hint: '本地库存，按 4 切换', unavailable: true }
+      { label: '防弹衣+头盔', price: 1000, hint: 'CS1.6 头盔：降低爆头穿甲伤害', helmet: true },
+      { label: '拆弹钳', price: 200, hint: 'CT 装备：拆包时间缩短至 5 秒', defuseKit: true },
+      { label: '高爆雷', price: 300, hint: 'CS1.6 HE：最多 1 颗', grenadeId: 'he' },
+      { label: '闪光弹', price: 200, hint: 'CS1.6 Flash：最多 2 颗', grenadeId: 'flashbang' },
+      { label: '烟雾弹', price: 300, hint: 'CS1.6 Smoke：最多 1 颗', grenadeId: 'smoke' }
     ]
   }
 ];
@@ -86,6 +132,9 @@ export interface Cs16HudStats {
 
 export interface BuyMenuPolicy {
   allowedWeaponIds?: Set<string>;
+  allowDefuseKit?: boolean;
+  armor?: number;
+  hasHelmet?: boolean;
   money?: number;
   disabledReason?: string;
 }
@@ -94,6 +143,11 @@ export interface NetworkHudState {
   latencyMs?: number | null;
   inputStatus?: string;
 }
+
+const BOMB_PLANT_DURATION_MS = 3000;
+const BOMB_DEFUSE_DURATION_MS = 10000;
+const BOMB_DEFUSE_KIT_DURATION_MS = 5000;
+const BOMB_FUSE_DURATION_SECONDS = 40;
 
 export class HUD {
   private element: HTMLElement;
@@ -110,6 +164,9 @@ export class HUD {
   private scoreText: HTMLElement;
   private timerText: HTMLElement;
   private roundInfo: HTMLElement;
+  private bombProgress: HTMLElement;
+  private bombProgressLabel: HTMLElement;
+  private bombProgressFill: HTMLElement;
   private scoreCt: HTMLElement;
   private scoreT: HTMLElement;
   private damageOverlay: HTMLElement;
@@ -156,6 +213,9 @@ export class HUD {
     this.scoreText = this.element.querySelector('.score-text') as HTMLElement;
     this.timerText = this.element.querySelector('.timer-text') as HTMLElement;
     this.roundInfo = this.element.querySelector('.round-info') as HTMLElement;
+    this.bombProgress = this.element.querySelector('.bomb-progress') as HTMLElement;
+    this.bombProgressLabel = this.element.querySelector('.bomb-progress-label') as HTMLElement;
+    this.bombProgressFill = this.element.querySelector('.bomb-progress-fill') as HTMLElement;
     this.scoreCt = this.element.querySelector('.score-ct') as HTMLElement;
     this.scoreT = this.element.querySelector('.score-t') as HTMLElement;
     this.damageOverlay = this.element.querySelector('.damage-overlay') as HTMLElement;
@@ -266,6 +326,12 @@ export class HUD {
           <span class="room-text">房间 --/--</span>
           <span class="network-text">离线</span>
         </div>
+        <div class="bomb-progress hidden" aria-label="爆破目标进度">
+          <span class="bomb-progress-label"></span>
+          <span class="bomb-progress-track" aria-hidden="true">
+            <span class="bomb-progress-fill"></span>
+          </span>
+        </div>
       </div>
 
       <div class="hud-top-right">
@@ -351,7 +417,7 @@ export class HUD {
           <button class="touch-btn" type="button" data-touch-key="Space" data-touch-mode="tap" aria-label="跳跃">JUMP</button>
           <button class="touch-btn" type="button" data-touch-key="KeyR" data-touch-mode="tap" aria-label="换弹">R</button>
           <button class="touch-btn" type="button" data-touch-key="KeyG" data-touch-mode="tap" aria-label="丢弃/拾取">G 丢弃</button>
-          <button class="touch-btn" type="button" data-touch-key="KeyE" data-touch-mode="tap" aria-label="拆弹/互动">E 拆弹</button>
+          <button class="touch-btn" type="button" data-touch-key="KeyE" aria-label="拆弹/互动">E 拆弹</button>
           <button class="touch-btn" type="button" data-touch-key="KeyB" data-touch-mode="tap" aria-label="购买">B</button>
           <button class="touch-btn" type="button" data-touch-key="ControlLeft" aria-label="蹲下">C</button>
         </div>
@@ -401,8 +467,12 @@ export class HUD {
       button.addEventListener('click', () => {
         if (button.disabled) return;
         const weaponId = button.dataset.weapon as WeaponId | undefined;
+        const grenadeId = button.dataset.grenade as GrenadeId | undefined;
         if (weaponId) this.buyHandler?.({ weaponId });
+        if (grenadeId) this.buyHandler?.({ grenadeId });
         if (button.dataset.armor) this.buyHandler?.({ armor: true });
+        if (button.dataset.helmet) this.buyHandler?.({ helmet: true });
+        if (button.dataset.defuseKit) this.buyHandler?.({ defuseKit: true });
         // 购买反馈 — 按钮闪金
         button.classList.add('buy-success-flash');
         setTimeout(() => button.classList.remove('buy-success-flash'), 500);
@@ -497,7 +567,10 @@ export class HUD {
     const presentation = item.weaponId ? getWeaponPresentation(item.weaponId) : null;
     const dataAttributes = [
       item.weaponId ? `data-weapon="${item.weaponId}"` : '',
+      item.grenadeId ? `data-grenade="${item.grenadeId}"` : '',
       item.armor ? 'data-armor="kevlar"' : '',
+      item.helmet ? 'data-helmet="true"' : '',
+      item.defuseKit ? 'data-defuse-kit="true"' : '',
       `data-price="${item.price}"`,
       item.unavailable ? 'data-unavailable="true"' : '',
       presentation ? `data-slice-weapon="${presentation.id}" data-preview-aspect="${presentation.buy.aspect}"` : ''
@@ -647,15 +720,21 @@ export class HUD {
   }
 
   updateCs16BotMatch(stats: Cs16HudStats): void {
-    this.timerText.textContent = this.formatClock(stats.phase === 'freezeTime' ? stats.freezeRemaining : stats.roundTimeRemaining);
-    this.roundInfo.textContent = `R${stats.round}`;
+    const timeRemaining = stats.phase === 'freezeTime'
+      ? stats.freezeRemaining
+      : stats.phase === 'roundEnd'
+        ? stats.roundEndRemaining
+        : stats.roundTimeRemaining;
+    this.timerText.textContent = this.formatClock(timeRemaining);
+    this.roundInfo.textContent = `第 ${stats.round} 回合`;
     this.scoreCt.textContent = stats.score.defenders.toString();
     this.scoreT.textContent = stats.score.attackers.toString();
     this.waveText.textContent = stats.objective;
     this.enemiesText.textContent = `${stats.botsAlive}/${stats.botsTotal} BOT`;
     this.roomText.textContent = 'Dust2 Bot Match';
-    this.networkText.textContent = stats.phase === 'freezeTime' ? 'BUY' : stats.phase === 'roundEnd' ? 'ROUND END' : 'LIVE';
+    this.networkText.textContent = stats.phase === 'freezeTime' ? 'FREEZE' : stats.phase === 'roundEnd' ? 'ROUND END' : 'LIVE';
     this.scoreText.textContent = `$${stats.money}`;
+    this.syncPointerLockGuideForCs16();
   }
 
   updateCs16Scoreboard(stats: Cs16HudStats): void {
@@ -699,6 +778,7 @@ export class HUD {
     this.roomText.textContent = `${snapshot.players.length}/${snapshot.config.maxPlayers}`;
     this.networkText.textContent = localPlayer ? `${localPingLabel}${inputLabel}` : `--ms${inputLabel}`;
     this.scoreText.textContent = localPlayer ? `$${localPlayer.money}` : '就绪';
+    this.updateBombProgress(snapshot, localPlayerId);
 
     if (localPlayer) {
       this.updateHealth(localPlayer.health, 100, localPlayer.armor);
@@ -740,13 +820,23 @@ export class HUD {
       const unavailable = button.dataset.unavailable === 'true';
       const weaponId = button.dataset.weapon;
       const weaponBlocked = Boolean(options?.policy?.allowedWeaponIds && weaponId && !options.policy.allowedWeaponIds.has(weaponId));
-      const price = Number(button.dataset.price ?? '0');
+      const defuseKitBlocked = Boolean(button.dataset.defuseKit && options?.policy?.allowDefuseKit === false);
+      const isHelmetButton = button.dataset.helmet === 'true';
+      const helmetAlreadyOwned = Boolean(isHelmetButton && options?.policy?.hasHelmet && (options.policy.armor ?? 0) >= 100);
+      const price = isHelmetButton && typeof options?.policy?.armor === 'number' && options.policy.armor >= 100
+        ? 350
+        : Number(button.dataset.price ?? '0');
+      if (isHelmetButton) {
+        const priceLabel = button.querySelector('.buy-item-price');
+        if (priceLabel) priceLabel.textContent = `$${price}`;
+        button.dataset.price = String(price);
+      }
       const tooExpensive = typeof options?.policy?.money === 'number' && price > options.policy.money;
       const disabledReason = options?.disabledReason ?? options?.policy?.disabledReason;
-      button.disabled = Boolean(disabledReason) || unavailable || weaponBlocked || tooExpensive;
+      button.disabled = Boolean(disabledReason) || unavailable || weaponBlocked || defuseKitBlocked || helmetAlreadyOwned || tooExpensive;
       const itemHint = button.querySelector('.buy-item-status')?.textContent ?? '';
       button.title = disabledReason
-        ?? (weaponBlocked ? 'CS1.6 子集不可用' : tooExpensive ? '金钱不足' : itemHint || (options?.solo ? '选择武器' : '购买武器'));
+        ?? (weaponBlocked ? '当前阵营不能购买' : defuseKitBlocked ? '当前模式不能购买' : helmetAlreadyOwned ? '已拥有头盔和防弹衣' : tooExpensive ? '金钱不足' : itemHint || (options?.solo ? '选择武器' : '购买武器'));
     });
     let hint = this.buyMenu.querySelector('.buy-hint') as HTMLElement | null;
     if (!hint) {
@@ -783,6 +873,22 @@ export class HUD {
     this.lockPanel.classList.add('hidden');
   }
 
+  private syncPointerLockGuideForCs16(): void {
+    const touchControlsVisible = !this.touchControls.classList.contains('hidden');
+    const touchStyle = window.getComputedStyle(this.touchControls);
+    const touchControlsUsable = touchControlsVisible
+      && touchStyle.display !== 'none'
+      && touchStyle.visibility !== 'hidden'
+      && touchStyle.pointerEvents !== 'none';
+    const pointerLocked = document.pointerLockElement === document.body;
+    const panelOpen = this.isBuyMenuOpen() || this.isScoreboardOpen() || !this.pausePanel.classList.contains('hidden');
+    if (!pointerLocked && !touchControlsUsable && !panelOpen) {
+      this.showPointerLockGuide();
+    } else {
+      this.hidePointerLockGuide();
+    }
+  }
+
   onBuy(handler: (request: BuyRequest) => void): void {
     this.buyHandler = handler;
   }
@@ -790,6 +896,18 @@ export class HUD {
   showKillFeedEntry(message: string): void {
     const current = Array.from(this.liveKillFeed.querySelectorAll('.kill-feed-row')).map(item => item.textContent ?? '');
     this.updateLiveKillFeed([message, ...current].slice(0, 5));
+  }
+
+  showStatusFeedEntry(message: string): void {
+    const row = document.createElement('p');
+    row.className = 'kill-feed-row kill-feed-entry team-neutral';
+    const text = document.createElement('span');
+    text.className = 'kill-feed-player';
+    text.textContent = message;
+    row.append(text);
+    this.liveKillFeed.prepend(row);
+    Array.from(this.liveKillFeed.querySelectorAll('.kill-feed-row')).slice(5).forEach(item => item.remove());
+    setTimeout(() => row.classList.add('kill-feed-fading'), 4000);
   }
 
   private updateLiveKillFeed(items: string[], snapshot?: MatchSnapshot): void {
@@ -1081,6 +1199,15 @@ export class HUD {
     this.ammoReserve.textContent = `${label} x${count}`;
   }
 
+  updateGrenadeWeapon(label: string, count: number): void {
+    this.weaponName.textContent = label;
+    this.ammoCurrent.textContent = '--';
+    this.ammoSeparator.textContent = '';
+    this.ammoReserve.textContent = `x${count}`;
+    this.ammoCurrent.classList.remove('ammo-low');
+    this.ammoCurrent.parentElement?.classList.remove('ammo-critical');
+  }
+
   updateWeaponSlots(state: WeaponSlotState): void {
     const names: Record<WeaponSlotId, string> = {
       primary: state.primary,
@@ -1165,6 +1292,49 @@ export class HUD {
       matchEnd: '结束'
     };
     return labels[phase] ?? phase;
+  }
+
+  private updateBombProgress(snapshot: MatchSnapshot, localPlayerId?: string): void {
+    if (snapshot.config.mode !== 'defusal' || !snapshot.bomb) {
+      this.bombProgress.classList.add('hidden');
+      this.bombProgressFill.style.width = '0%';
+      return;
+    }
+
+    const { bomb } = snapshot;
+    let label = '';
+    let progress = 0;
+
+    if (bomb.plantingPlayerId && bomb.plantStartedAt !== undefined) {
+      label = '正在安装 C4';
+      progress = (snapshot.serverTime - bomb.plantStartedAt) / BOMB_PLANT_DURATION_MS;
+    } else if (bomb.defusingPlayerId && bomb.defuseStartedAt !== undefined) {
+      const defuser = snapshot.players.find(player => player.id === bomb.defusingPlayerId);
+      const duration = defuser?.hasDefuseKit ? BOMB_DEFUSE_KIT_DURATION_MS : BOMB_DEFUSE_DURATION_MS;
+      label = defuser?.hasDefuseKit ? '正在拆除 C4 - 拆弹钳' : '正在拆除 C4';
+      progress = (snapshot.serverTime - bomb.defuseStartedAt) / duration;
+    } else if (bomb.plantedAt !== undefined) {
+      label = 'C4 已安放';
+      progress = 1 - snapshot.roundTimeRemaining / BOMB_FUSE_DURATION_SECONDS;
+    } else if (bomb.position) {
+      label = 'C4 掉落';
+      progress = 0;
+    } else if (bomb.carrierId) {
+      label = bomb.carrierId === localPlayerId ? '你携带 C4' : 'C4 由队友携带';
+      progress = 1;
+    } else {
+      this.bombProgress.classList.add('hidden');
+      this.bombProgressFill.style.width = '0%';
+      return;
+    }
+
+    const clamped = Math.max(0, Math.min(1, progress));
+    this.bombProgress.classList.remove('hidden');
+    const percent = bomb.plantingPlayerId || bomb.defusingPlayerId || bomb.plantedAt !== undefined
+      ? ` ${Math.round(clamped * 100)}%`
+      : '';
+    this.bombProgressLabel.textContent = `${label}${percent}`;
+    this.bombProgressFill.style.width = `${Math.round(clamped * 100)}%`;
   }
 
   private formatClock(secondsRemaining: number): string {
@@ -1295,9 +1465,9 @@ export class HUD {
     if (chRight) chRight.style.left = `${gap}px`;
   }
 
-  setScoped(scoped: boolean): void {
+  setScoped(scoped: boolean, suppressCrosshair = scoped): void {
     this.scopeOverlay.classList.toggle('hidden', !scoped);
-    this.crosshair.classList.toggle('hidden', scoped);
+    this.crosshair.classList.toggle('hidden', suppressCrosshair);
   }
 
   showHitMarker(): void {

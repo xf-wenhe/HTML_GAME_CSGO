@@ -35,6 +35,9 @@ export class WeaponManager {
   private switchDuration = 0;
   private aiming = false;
   private scoped = false;
+  private scopeLevel = 0;
+  private pendingAutoRescopeLevel = 0;
+  private pendingAutoRescopeAt = 0;
   private meleeSwing = 0;
   private feedbackEvents: WeaponFeedbackEvent[] = [];
   private shotCounter = 0;
@@ -87,6 +90,8 @@ export class WeaponManager {
     this.recoil = 0;
     this.aiming = false;
     this.scoped = false;
+    this.scopeLevel = 0;
+    this.cancelAutoRescope();
     void this.applyWeaponModel();
     return true;
   }
@@ -110,8 +115,19 @@ export class WeaponManager {
   }
 
   setAiming(aiming: boolean): void {
-    this.scoped = aiming && this.isSniperWeapon(this.currentWeaponId);
-    this.aiming = this.scoped;
+    if (!aiming) this.cancelAutoRescope();
+    this.scopeLevel = aiming && this.isSniperWeapon(this.currentWeaponId) ? Math.max(1, this.scopeLevel) : 0;
+    this.syncScopedState();
+  }
+
+  cycleScope(): void {
+    this.cancelAutoRescope();
+    if (!this.isSniperWeapon(this.currentWeaponId)) {
+      this.setAiming(false);
+      return;
+    }
+    this.scopeLevel = (this.scopeLevel + 1) % 3;
+    this.syncScopedState();
   }
 
   isAiming(): boolean {
@@ -120,6 +136,40 @@ export class WeaponManager {
 
   isScoped(): boolean {
     return this.scoped;
+  }
+
+  getScopeLevel(): number {
+    return this.scopeLevel;
+  }
+
+  getScopeFov(defaultFov = 82): number {
+    if (this.scopeLevel === 1) return 40;
+    if (this.scopeLevel === 2) return 10;
+    return defaultFov;
+  }
+
+  getScopeLookSensitivityMultiplier(defaultFov = 82, zoomSensitivityRatio = 1.2): number {
+    if (!this.scoped) return 1;
+    const scopedRatio = (this.getScopeFov(defaultFov) / defaultFov) * zoomSensitivityRatio;
+    return Math.max(0.05, Math.min(1.2, scopedRatio));
+  }
+
+  isAutoRescopePending(): boolean {
+    return this.pendingAutoRescopeLevel > 0;
+  }
+
+  shouldHideCrosshair(): boolean {
+    return this.scoped || this.isSniperWeapon(this.currentWeaponId);
+  }
+
+  startScopedShotRecovery(now: number = performance.now(), delayMs = 900): boolean {
+    if (!this.scoped || !this.isSniperWeapon(this.currentWeaponId)) return false;
+    this.pendingAutoRescopeLevel = this.scopeLevel;
+    this.pendingAutoRescopeAt = now + delayMs;
+    this.scopeLevel = 0;
+    this.scoped = false;
+    this.aiming = true;
+    return true;
   }
 
   setCrouching(crouching: boolean): void {
@@ -196,8 +246,35 @@ export class WeaponManager {
     if (!wasReloading && weapon.getIsReloading()) {
       this.aiming = false;
       this.scoped = false;
+      this.scopeLevel = 0;
+      this.cancelAutoRescope();
       this.feedbackEvents.push({ type: 'reload', weaponId: weapon.id });
     }
+  }
+
+  private cancelAutoRescope(): void {
+    this.pendingAutoRescopeLevel = 0;
+    this.pendingAutoRescopeAt = 0;
+  }
+
+  private updateAutoRescope(now: number): void {
+    if (!this.pendingAutoRescopeLevel) return;
+    const weapon = this.getCurrentWeapon();
+    if (!this.isSniperWeapon(this.currentWeaponId) || weapon.getIsReloading()) {
+      this.cancelAutoRescope();
+      this.syncScopedState();
+      return;
+    }
+    if (now < this.pendingAutoRescopeAt) return;
+    this.scopeLevel = this.pendingAutoRescopeLevel;
+    this.cancelAutoRescope();
+    this.syncScopedState();
+  }
+
+  private syncScopedState(): void {
+    this.scoped = this.scopeLevel > 0 && this.isSniperWeapon(this.currentWeaponId);
+    this.aiming = this.scoped;
+    if (!this.scoped) this.scopeLevel = 0;
   }
 
   consumeFeedbackEvents(): WeaponFeedbackEvent[] {
@@ -208,6 +285,7 @@ export class WeaponManager {
 
   update(now: number = performance.now(), dt = 0.016, isMoving = false): void {
     this.weapons.forEach(weapon => weapon.update(now));
+    this.updateAutoRescope(now);
     const weapon = this.getCurrentWeapon();
     const viewmodel = this.getViewmodelPresentation();
     const recoilDecay = viewmodel?.recoil.recover ?? 0.9;

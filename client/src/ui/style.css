@@ -219,6 +219,41 @@ body {
   user-select: none;
 }
 
+.bomb-progress {
+  width: min(300px, 72vw);
+  margin: 5px auto 0;
+  padding: 4px 8px 5px;
+  background: rgba(5, 5, 4, 0.78);
+  border: 1px solid rgba(216, 193, 113, 0.24);
+  color: #f6d56d;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.bomb-progress-label {
+  display: block;
+  line-height: 1.1;
+}
+
+.bomb-progress-track {
+  display: block;
+  height: 4px;
+  margin-top: 4px;
+  background: rgba(255,255,255,0.12);
+  overflow: hidden;
+}
+
+.bomb-progress-fill {
+  display: block;
+  width: 0%;
+  height: 100%;
+  background: #f0b82f;
+  transition: width 120ms linear;
+}
+
 .team-score {
   display: flex;
   align-items: center;

@@ -73,6 +73,17 @@ describe('InputManager mouse look normalization', () => {
     expect(input.consumeKeyPress('KeyR')).toBe(true);
     expect(input.consumeKeyPress('KeyR')).toBe(false);
   });
+
+  it('buffers a short mouse click until the game loop consumes it', () => {
+    const input = new InputManager(undefined, 'windows');
+
+    document.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+    document.dispatchEvent(new MouseEvent('mouseup', { button: 0 }));
+
+    expect(input.isKeyPressed('MouseLeft')).toBe(true);
+    expect(input.consumeTransientKey('MouseLeft')).toBe(true);
+    expect(input.isKeyPressed('MouseLeft')).toBe(false);
+  });
 });
 
 function createMouseMove(movementX: number, movementY: number): MouseEvent {

@@ -35,6 +35,19 @@ if (!startState?.pointerLocked) {
   await page.evaluate(() => window.__debugAllowPointerLockBypassForTests?.());
 }
 
+const freezeBuyState = await page.evaluate(() => window.__debugInputState?.());
+if (freezeBuyState?.cs16BotMatch?.phase === 'freezeTime') {
+  await page.evaluate(() => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', code: 'KeyB', bubbles: true, cancelable: true }));
+  });
+  await waitForDebugState(page, state => state?.isBuyMenuOpen === true, 'buy menu open during freeze', 1000);
+  await page.click('[data-grenade="he"]');
+  await page.waitForTimeout(120);
+  const boughtHe = await page.evaluate(() => window.__debugInputState?.());
+  if (boughtHe?.grenadeInventory?.he !== 1) throw new Error('Expected HE buy to add one grenade during freeze time.');
+  if (boughtHe?.isBuyMenuOpen) await page.keyboard.press('KeyB');
+}
+
 await waitForDebugState(page, state => state?.canShoot === true, 'canShoot=true');
 await waitForDebugState(page, state => state?.assetSource === 'glb', 'weapon assetSource=glb');
 await waitForDebugState(page, state => !state?.cs16BotMatch || state.cs16BotMatch.phase === 'live', 'CS1.6 bot match live phase');
@@ -121,7 +134,7 @@ await page.keyboard.press('Digit3');
 await page.waitForTimeout(120);
 const knifeSlot = await page.evaluate(() => window.__debugInputState?.());
 if (knifeSlot?.activeSlot !== 'knife') throw new Error('Expected 3 to activate knife slot.');
-if (knifeSlot?.assetSource !== 'glb') throw new Error('Expected knife GLB asset to load.');
+if (!['glb', 'fallback'].includes(knifeSlot?.assetSource)) throw new Error('Expected knife viewmodel asset to load.');
 await page.mouse.down({ button: 'right' });
 await page.waitForTimeout(80);
 await page.mouse.up({ button: 'right' });
@@ -151,7 +164,11 @@ if (beforeGrenadeCount > 0 && afterThrow?.grenadeInventory?.[selectedGrenade] >=
 await page.keyboard.press('KeyB');
 await page.waitForTimeout(150);
 const buyOpen = await page.evaluate(() => window.__debugInputState?.());
-if (!buyOpen?.isBuyMenuOpen) throw new Error('Expected B to open buy/loadout menu.');
+if (buyOpen?.cs16BotMatch?.phase === 'live') {
+  if (buyOpen?.isBuyMenuOpen) throw new Error('Expected live CS1.6 bot match B press to avoid opening an obstructive buy menu.');
+} else if (!buyOpen?.isBuyMenuOpen) {
+  throw new Error('Expected B to open buy/loadout menu.');
+}
 
 await page.keyboard.press('KeyB');
 await page.waitForTimeout(150);

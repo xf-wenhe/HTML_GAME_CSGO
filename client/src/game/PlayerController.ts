@@ -22,6 +22,8 @@ export class PlayerController {
   private scene: Scene; // Reference to scene for feedback effects
 
   private movementParams: MovementParams = CSGO_MOVEMENT;
+  private movementSpeedMultiplier = 1;
+  private lookSensitivityMultiplier = 1;
   private jumpForce = PLAYER_JUMP_FORCE;
   private pitch = 0;
   private yaw = 0;
@@ -31,6 +33,7 @@ export class PlayerController {
   private maxHealth = 100;
   private armor = 100;
   private maxArmor = 100;
+  private hasHelmet = true;
   private moving = false;
 
   private grounded = false;
@@ -164,8 +167,8 @@ export class PlayerController {
 
   private updateLookRotation(): void {
     const mouseDelta = this.input.getMouseDelta();
-    this.yaw -= mouseDelta.x + this.recoilKickYaw;
-    this.pitch -= mouseDelta.y + this.recoilKickPitch;
+    this.yaw -= mouseDelta.x * this.lookSensitivityMultiplier + this.recoilKickYaw;
+    this.pitch -= mouseDelta.y * this.lookSensitivityMultiplier + this.recoilKickPitch;
     this.recoilKickYaw = 0;
     this.recoilKickPitch = 0;
 
@@ -190,11 +193,12 @@ export class PlayerController {
     const isWalkingInput = this.input.isKeyPressed('ShiftLeft') || this.input.isKeyPressed('ShiftRight');
 
     // Priority: Crouch > Walk > Run (prevent state conflicts)
-    const targetSpeed = isCrouchingInput
+    const baseTargetSpeed = isCrouchingInput
       ? this.movementParams.crouchSpeed
       : isWalkingInput
         ? this.movementParams.walkSpeed
         : this.movementParams.runSpeed;
+    const targetSpeed = baseTargetSpeed * this.movementSpeedMultiplier;
 
     // Debug log for movement analysis
     if (typeof window !== 'undefined' && (window as any).__debugMovement) {
@@ -228,6 +232,14 @@ export class PlayerController {
     this.body.velocity.z = velocity.z;
     this.tryStepUp(wishDirection, Math.hypot(velocity.x, velocity.z));
     this.snapDownToGround(wishDirection);
+  }
+
+  setMovementSpeedMultiplier(multiplier: number): void {
+    this.movementSpeedMultiplier = Math.max(0.1, Math.min(1.2, multiplier));
+  }
+
+  setLookSensitivityMultiplier(multiplier: number): void {
+    this.lookSensitivityMultiplier = Math.max(0.05, Math.min(1.2, multiplier));
   }
 
   private tryStepUp(wishDirection: THREE.Vector3, horizontalSpeed: number): void {
@@ -459,6 +471,10 @@ export class PlayerController {
     return Math.hypot(this.body.velocity.x, this.body.velocity.z);
   }
 
+  getVerticalVelocityForDebug(): number {
+    return this.body.velocity.y;
+  }
+
   isGrounded(): boolean {
     return this.grounded;
   }
@@ -496,7 +512,8 @@ export class PlayerController {
         multipliers: { head: 1, chest: 1, stomach: 1, arm: 1, leg: 1 }
       } satisfies DamageProfile,
       region,
-      this.armor
+      this.armor,
+      this.hasHelmet
     );
     this.armor = Math.max(0, this.armor - result.armorDamage);
     this.health = Math.max(0, this.health - result.healthDamage);
@@ -505,10 +522,25 @@ export class PlayerController {
   healFull(): void {
     this.health = this.maxHealth;
     this.armor = this.maxArmor;
+    this.hasHelmet = true;
   }
 
   buyArmor(amount = this.maxArmor): void {
     this.armor = Math.max(this.armor, Math.min(this.maxArmor, amount));
+  }
+
+  buyArmorHelmet(): void {
+    this.buyArmor();
+    this.hasHelmet = true;
+  }
+
+  setArmor(amount: number): void {
+    this.armor = Math.max(0, Math.min(this.maxArmor, amount));
+    if (this.armor <= 0) this.hasHelmet = false;
+  }
+
+  setHelmet(hasHelmet: boolean): void {
+    this.hasHelmet = hasHelmet;
   }
 
   getHealth(): number {
@@ -521,6 +553,10 @@ export class PlayerController {
 
   getArmor(): number {
     return this.armor;
+  }
+
+  getHasHelmet(): boolean {
+    return this.hasHelmet;
   }
 
   getMaxArmor(): number {

@@ -51,6 +51,8 @@ const GRENADE_COLORS: Record<GrenadeId, number> = {
   decoy: 0xd6a84f
 };
 
+const DEFAULT_GRENADE_INVENTORY: GrenadeInventory = { he: 0, flash: 0, smoke: 0, incendiary: 0, decoy: 0 };
+
 function createSmokeTexture(size: number = 64): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -115,7 +117,7 @@ function getFlashTexture(): THREE.CanvasTexture {
 }
 
 export class GrenadeSystem {
-  private inventory: GrenadeInventory = { he: 1, flash: 2, smoke: 1, incendiary: 1, decoy: 1 };
+  private inventory: GrenadeInventory = { ...DEFAULT_GRENADE_INVENTORY };
   private selected: GrenadeId = 'he';
   private active: ActiveGrenade[] = [];
   private effects: THREE.Object3D[] = [];
@@ -132,9 +134,45 @@ export class GrenadeSystem {
     this.selected = type;
   }
 
+  setInventory(inventory: Partial<GrenadeInventory>): void {
+    this.inventory = { ...DEFAULT_GRENADE_INVENTORY, ...inventory };
+    if (this.inventory[this.selected] <= 0) {
+      this.selected = (Object.keys(this.inventory) as GrenadeId[]).find(type => this.inventory[type] > 0) ?? 'he';
+    }
+  }
+
+  addGrenade(type: GrenadeId, amount: number = 1): void {
+    this.inventory = {
+      ...this.inventory,
+      [type]: Math.max(0, (this.inventory[type] ?? 0) + amount)
+    };
+    this.selected = type;
+  }
+
+  hasAnyGrenade(): boolean {
+    return Object.values(this.inventory).some(count => count > 0);
+  }
+
+  getInventoryForBuy(): Partial<Record<'he' | 'flashbang' | 'smoke' | 'incendiary' | 'decoy', number>> {
+    return {
+      he: this.inventory.he,
+      flashbang: this.inventory.flash,
+      smoke: this.inventory.smoke,
+      incendiary: this.inventory.incendiary,
+      decoy: this.inventory.decoy,
+    };
+  }
+
   cycle(): GrenadeId {
     const order: GrenadeId[] = ['he', 'flash', 'smoke', 'incendiary', 'decoy'];
-    this.selected = order[(order.indexOf(this.selected) + 1) % order.length];
+    const start = order.indexOf(this.selected);
+    for (let offset = 1; offset <= order.length; offset++) {
+      const candidate = order[(start + offset) % order.length];
+      if (this.inventory[candidate] > 0) {
+        this.selected = candidate;
+        break;
+      }
+    }
     return this.selected;
   }
 
@@ -454,7 +492,7 @@ export class GrenadeSystem {
     this.effects = [];
     this.flashBursts = [];
     this.smokeParticles = [];
-    this.inventory = { he: 1, flash: 2, smoke: 1, incendiary: 1, decoy: 1 };
+    this.inventory = { ...DEFAULT_GRENADE_INVENTORY };
     this.selected = 'he';
     this.lastFlashIntensity = 0;
   }

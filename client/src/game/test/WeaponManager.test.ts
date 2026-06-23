@@ -73,6 +73,86 @@ describe('WeaponManager', () => {
     expect(weapon.adsSpreadMultiplier).toBeLessThan(1);
   });
 
+  it('cycles sniper scope through CS1.6 first zoom, second zoom, and unscoped', () => {
+    const manager = new WeaponManager();
+    manager.switchWeapon('awp');
+
+    expect(manager.getScopeLevel()).toBe(0);
+    expect(manager.getScopeFov()).toBe(82);
+
+    manager.cycleScope();
+    expect(manager.isScoped()).toBe(true);
+    expect(manager.getScopeLevel()).toBe(1);
+    expect(manager.getScopeFov()).toBe(40);
+    expect(manager.getScopeLookSensitivityMultiplier()).toBeCloseTo((40 / 82) * 1.2, 5);
+
+    manager.cycleScope();
+    expect(manager.isScoped()).toBe(true);
+    expect(manager.getScopeLevel()).toBe(2);
+    expect(manager.getScopeFov()).toBe(10);
+    expect(manager.getScopeLookSensitivityMultiplier()).toBeCloseTo((10 / 82) * 1.2, 5);
+
+    manager.cycleScope();
+    expect(manager.isScoped()).toBe(false);
+    expect(manager.getScopeLevel()).toBe(0);
+    expect(manager.getScopeFov()).toBe(82);
+    expect(manager.getScopeLookSensitivityMultiplier()).toBe(1);
+  });
+
+  it('auto re-zooms after a scoped sniper shot while retaining scoped accuracy', () => {
+    const manager = new WeaponManager();
+    manager.switchWeapon('awp');
+    manager.cycleScope();
+    manager.cycleScope();
+
+    const weapon = manager.getCurrentWeapon();
+    const scopedSpread = weapon.getEffectiveSpread(false, true);
+    expect(manager.getScopeLevel()).toBe(2);
+
+    expect(manager.startScopedShotRecovery(1000, 900)).toBe(true);
+    expect(manager.isScoped()).toBe(false);
+    expect(manager.isAiming()).toBe(true);
+    expect(manager.isAutoRescopePending()).toBe(true);
+    expect(manager.getScopeFov()).toBe(82);
+    expect(weapon.getEffectiveSpread(false, manager.isAiming())).toBe(scopedSpread);
+
+    manager.update(1899, 0.016);
+    expect(manager.isScoped()).toBe(false);
+    expect(manager.isAutoRescopePending()).toBe(true);
+
+    manager.update(1900, 0.016);
+    expect(manager.isScoped()).toBe(true);
+    expect(manager.getScopeLevel()).toBe(2);
+    expect(manager.isAutoRescopePending()).toBe(false);
+    expect(manager.getScopeFov()).toBe(10);
+  });
+
+  it('hides the normal crosshair for unscoped sniper weapons', () => {
+    const manager = new WeaponManager();
+
+    expect(manager.shouldHideCrosshair()).toBe(false);
+
+    manager.switchWeapon('awp');
+    expect(manager.isScoped()).toBe(false);
+    expect(manager.shouldHideCrosshair()).toBe(true);
+
+    manager.switchWeapon('pistol');
+    expect(manager.shouldHideCrosshair()).toBe(false);
+  });
+
+  it('makes CS1.6 AWP no-scopes unreliable while scoped shots stay precise', () => {
+    const manager = new WeaponManager();
+    manager.switchWeapon('awp');
+    const weapon = manager.getCurrentWeapon();
+
+    const noScopeSpread = weapon.getEffectiveSpread(false, false);
+    const scopedSpread = weapon.getEffectiveSpread(false, true);
+
+    expect(noScopeSpread).toBeGreaterThan(0.03);
+    expect(scopedSpread).toBeLessThan(0.001);
+    expect(noScopeSpread).toBeGreaterThan(scopedSpread * 100);
+  });
+
   it('keeps the knife as ammo-free melee with short range', () => {
     const manager = new WeaponManager();
 
@@ -198,5 +278,17 @@ describe('WeaponManager', () => {
     weapon.update(1001);
     weapon.shoot(1001);
     expect(weapon.getSpreadMultiplier()).toBeGreaterThan(1);
+  });
+
+  it('uses the CS 1.6 AWP 10-round magazine', () => {
+    const manager = new WeaponManager();
+    manager.switchWeapon('awp');
+
+    expect(manager.getCurrentWeapon().magazineSize).toBe(10);
+    expect(manager.getCurrentWeapon().currentAmmo).toBe(10);
+    expect(manager.getCurrentWeapon().reloadTime).toBe(2.5);
+    expect(manager.getCurrentWeapon().movementSpeedMultiplier).toBe(0.84);
+    expect(manager.getCurrentWeapon().scopedMovementSpeedMultiplier).toBe(0.6);
+    expect(manager.getCurrentWeapon().unscopedSpreadMultiplier).toBe(18);
   });
 });

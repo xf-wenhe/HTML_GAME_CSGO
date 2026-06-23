@@ -1,4 +1,5 @@
 import * as CANNON from 'cannon-es';
+import { CSGO_GRAVITY } from './Movement.js';
 
 export interface PhysicsBodyUserData {
   name?: string;
@@ -21,7 +22,7 @@ export class Physics {
 
   constructor() {
     this.world = new CANNON.World();
-    this.world.gravity.set(0, -7.06, 0); // CS1.6 标准重力（与 Movement.ts 保持同步）
+    this.world.gravity.set(0, -CSGO_GRAVITY, 0); // CS1.6 标准重力（与 Movement.ts 保持同步）
     this.world.defaultContactMaterial.friction = 0;
     this.world.defaultContactMaterial.restitution = 0;
 

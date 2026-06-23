@@ -43,6 +43,18 @@ export class AudioFeedback {
 
   playKill(): void { this.audioManager.play('kill', { volume: 0.55 }); }
 
+  playBomb(type: 'plantStart' | 'planted' | 'defuseStart' | 'defused' | 'explode'): void {
+    const cues: Record<'plantStart' | 'planted' | 'defuseStart' | 'defused' | 'explode', { id: string; volume: number; pitch?: number }> = {
+      plantStart: { id: 'c4_plant_start', volume: 0.36, pitch: 1.05 },
+      planted: { id: 'c4_planted', volume: 0.48, pitch: 0.92 },
+      defuseStart: { id: 'c4_defuse_start', volume: 0.34, pitch: 1.2 },
+      defused: { id: 'c4_defused', volume: 0.44, pitch: 1.35 },
+      explode: { id: 'c4_explode', volume: 0.62, pitch: 0.72 },
+    };
+    const cue = cues[type];
+    this.audioManager.play(cue.id, { volume: cue.volume, pitch: cue.pitch });
+  }
+
   playLand(speed: number): void {
     if (speed < 2.2) return;
     this.audioManager.play('land', { volume: Math.min(0.5, speed / 18) });

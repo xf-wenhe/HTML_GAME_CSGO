@@ -252,26 +252,12 @@ export function createGameServer() {
 
   const TARGET_TICK = 64;
   const TARGET_INTERVAL = 1000 / TARGET_TICK;
-  const tickDriftWindow: number[] = [];
-  let currentInterval = TARGET_INTERVAL;
   let lastTick = Date.now();
   const lastSnapshots = new Map<string, any>(); // 用于存放上一帧状态
 
   const tick = () => {
     const now = Date.now();
-    const actualInterval = now - lastTick;
     lastTick = now;
-
-    tickDriftWindow.push(actualInterval);
-    if (tickDriftWindow.length > 64) tickDriftWindow.shift();
-    const avgDrift = tickDriftWindow.reduce((s, v) => s + Math.abs(v - currentInterval), 0) / tickDriftWindow.length;
-    if (avgDrift > 5 && currentInterval === TARGET_INTERVAL) {
-      currentInterval = 1000 / 32;
-      debugLog(`Tick rate degraded to 32Hz (avg drift ${avgDrift.toFixed(1)}ms)`);
-    } else if (avgDrift < 3 && currentInterval !== TARGET_INTERVAL) {
-      currentInterval = TARGET_INTERVAL;
-      debugLog(`Tick rate restored to ${TARGET_TICK}Hz`);
-    }
 
     // 替换原有的 tick 发送逻辑：
     roomManager.tick().forEach(snapshot => {
@@ -291,7 +277,7 @@ export function createGameServer() {
       lastSnapshots.set(roomId, cloneSnapshot(snapshot));
     });
 
-    const nextTickAt = lastTick + currentInterval;
+    const nextTickAt = lastTick + TARGET_INTERVAL;
     const delay = Math.max(0, nextTickAt - Date.now());
     tickTimer = setTimeout(tick, delay);
   };
@@ -304,6 +290,13 @@ export function createGameServer() {
 
 export function startServer(port: number | string = SERVER_CONFIG.port) {
   const server = createGameServer();
+  server.httpServer.once('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`[server] Port ${port} is already in use. Stop the existing server or run with PORT=<free-port> npm run dev.`);
+      return;
+    }
+    console.error('[server] Failed to start:', error);
+  });
   server.httpServer.listen(port, () => {
     debugLog(`Server running on port ${port}`);
   });

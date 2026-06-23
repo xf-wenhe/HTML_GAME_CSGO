@@ -67,9 +67,11 @@ export interface PlayerSnapshot {
   health: number;
   armor: number;
   hasHelmet?: boolean; // 新增头盔状态
+  hasDefuseKit?: boolean;
   money: number;
   weaponId: WeaponId;
   ownedWeapons?: WeaponId[];
+  weaponAmmo?: Partial<Record<WeaponId, { ammo: number; reserveAmmo: number }>>;
   ammo: number;
   reserveAmmo: number;
   isReloading?: boolean;
@@ -93,6 +95,8 @@ export interface BombState {
   plantedBy?: string;
   site?: 'A' | 'B';
   position?: Vector3;
+  plantStartedAt?: number;
+  plantingPlayerId?: string;
   plantedAt?: number;
   defuseStartedAt?: number;
   defusingPlayerId?: string;
@@ -152,6 +156,8 @@ export interface ShootRequest {
 export interface BuyRequest {
   weaponId?: WeaponId;
   armor?: boolean;
+  helmet?: boolean;
+  defuseKit?: boolean;
   grenadeId?: GrenadeId;
 }
 

@@ -4,7 +4,7 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-const TEST_URL = 'http://localhost:5173/';
+const TEST_URL = process.env.E2E_URL || 'http://localhost:5173/';
 const CS16_RULES = {
   FREEZE_TIME: 5000,
   ROUND_TIME: 115000,
@@ -120,6 +120,7 @@ class Dust2TestSuite {
     await this.takeScreenshot('tdm-started');
 
     await this.testBasicMechanics();
+    await this.testTdmBuyPolicy();
     await this.testMovement();
     await this.testUiElements();
 
@@ -138,8 +139,8 @@ class Dust2TestSuite {
     await this.takeScreenshot('defusal-started');
 
     await this.testBasicMechanics();
-    await this.testMovement();
     await this.testBombMechanics();
+    await this.testMovement();
     await this.testUiElements();
 
     await this.exitGame();
@@ -153,6 +154,14 @@ class Dust2TestSuite {
     this.check(typeof state?.armor === 'number', '护甲状态可用');
     this.check(state?.weaponId, '有默认武器');
     this.check(Array.isArray(state?.keys), '按键状态可用');
+    if (state?.cs16BotMatch) {
+      this.check(state.cs16BotMatch.playerTeam === 'attackers', 'CS1.6 单人自动阵营默认 T 方');
+      this.check(state.activeSlot === 'pistol' && state.weaponId === 'glock', 'CS1.6 T 方手枪局默认 Glock');
+      this.check(state.armor === 0, 'CS1.6 单人手枪局默认不带护甲');
+    } else if (state?.matchMode && state?.localTeam) {
+      const expectedPistol = state.localTeam === 'defenders' ? 'usp' : 'glock';
+      this.check(state.weaponId === expectedPistol, `多人 ${state.localTeam} 默认手枪为 ${expectedPistol}`);
+    }
     await this.takeScreenshot('basic-mechanics');
   }
 
@@ -184,6 +193,8 @@ class Dust2TestSuite {
     });
 
     const initialPos = await this.page.evaluate(() => (window).__debugPlayerPosition?.());    this.check(!!initialPos, '可以获取玩家位置');
+    const initialState = await this.getDebugState();
+    const expectFrozen = this.currentMode === 'defusal' && initialState?.matchMode === 'defusal' && initialState?.matchPhase === 'buy';
 
     await this.page.keyboard.down('KeyW');
     await this.page.waitForTimeout(500);
@@ -191,6 +202,11 @@ class Dust2TestSuite {
 
     const afterMove = await this.page.evaluate(() => (window).__debugPlayerPosition?.());    if (initialPos && afterMove) {
       const moved = Math.abs(afterMove.z - initialPos.z) > 0.1 || Math.abs(afterMove.x - initialPos.x) > 0.1;
+      if (expectFrozen) {
+        this.check(!moved && initialState?.canMove === false, '爆破购买阶段冻结移动');
+        await this.takeScreenshot('movement-test');
+        return;
+      }
       this.check(moved, 'W 键可以移动');
     }
 
@@ -221,29 +237,167 @@ class Dust2TestSuite {
     const state = await this.getDebugState();
     this.check(state?.canShoot !== undefined, '射击状态可用');
 
+    const ammoBeforeShoot = state?.ammo;
     await this.page.mouse.click(640, 360);
     await this.page.waitForTimeout(100);
 
     const afterShoot = await this.getDebugState();
     this.check(afterShoot?.ammo !== undefined, '弹药计数可用');
+    if (state?.canShoot && typeof ammoBeforeShoot === 'number') {
+      this.check(afterShoot?.ammo === ammoBeforeShoot - 1, '左键点击会开火并消耗 1 发弹药');
+    }
 
     await this.page.keyboard.press('KeyB');
     await this.page.waitForTimeout(300);
     const buyState = await this.getDebugState();
-    this.check(buyState?.isBuyMenuOpen === true, 'B 键打开购买菜单');
+    if (buyState?.cs16BotMatch?.phase === 'live') {
+      this.check(buyState?.isBuyMenuOpen === false, 'LIVE 阶段 B 键只提示，不遮挡战斗视野');
+    } else {
+      this.check(buyState?.isBuyMenuOpen === true, 'B 键打开购买菜单');
+    }
 
-    await this.page.keyboard.press('Escape');
-    await this.page.waitForTimeout(200);
+    if (buyState?.isBuyMenuOpen) {
+      await this.page.keyboard.press('Escape');
+      await this.page.waitForTimeout(200);
+    }
 
     await this.page.keyboard.press('KeyR');
     await this.page.waitForTimeout(500);
 
+    if (state?.cs16BotMatch) {
+      await this.page.keyboard.press('Digit3');
+      await this.page.waitForTimeout(120);
+      const knifeState = await this.getDebugState();
+      this.check(knifeState?.activeSlot === 'knife' && knifeState?.weaponId === 'knife', '3 键切到战术刀且 HUD 状态一致');
+
+      await this.page.keyboard.press('Digit4');
+      await this.page.waitForTimeout(120);
+      const grenadeState = await this.getDebugState();
+      const grenadeHud = await this.page.evaluate(() => ({
+        weaponName: document.querySelector('.weapon-name')?.textContent?.trim() ?? '',
+        ammoReserve: document.querySelector('.ammo-reserve')?.textContent?.trim() ?? ''
+      }));
+      this.check(
+        grenadeState?.activeSlot === 'knife'
+          && grenadeState?.weaponId === 'knife'
+          && grenadeHud.weaponName === '战术刀',
+        '没有投掷物时 4 键不会切到空雷槽'
+      );
+      this.check(
+        grenadeState?.grenadeInventory?.he === 0
+          && grenadeState?.grenadeInventory?.flash === 0
+          && grenadeState?.grenadeInventory?.smoke === 0
+          && grenadeState?.grenadeInventory?.incendiary === 0
+          && grenadeState?.grenadeInventory?.decoy === 0,
+        'CS1.6 单人开局不免费携带全套投掷物'
+      );
+    }
+
     await this.takeScreenshot('combat-test');
+  }
+
+  async testTdmBuyPolicy() {
+    const state = await this.getDebugState();
+    if (this.currentMode !== 'tdm' || state?.matchMode !== 'tdm') return;
+
+    await this.page.keyboard.press('KeyB');
+    await this.page.waitForTimeout(200);
+    const buyPolicy = await this.page.evaluate(() => ({
+      isBuyMenuOpen: window.__debugInputState?.().isBuyMenuOpen,
+      localTeam: window.__debugInputState?.().localTeam,
+      p228Disabled: document.querySelector('[data-weapon="p228"]')?.disabled ?? null,
+      glockDisabled: document.querySelector('[data-weapon="glock"]')?.disabled ?? null,
+      glockTitle: document.querySelector('[data-weapon="glock"]')?.getAttribute('title') ?? '',
+      akDisabled: document.querySelector('[data-weapon="ak47"]')?.disabled ?? null,
+      akTitle: document.querySelector('[data-weapon="ak47"]')?.getAttribute('title') ?? '',
+      awpDisabled: document.querySelector('[data-weapon="awp"]')?.disabled ?? null,
+      awpTitle: document.querySelector('[data-weapon="awp"]')?.getAttribute('title') ?? '',
+      m4Disabled: document.querySelector('[data-weapon="m4a1"]')?.disabled ?? null,
+      m4Title: document.querySelector('[data-weapon="m4a1"]')?.getAttribute('title') ?? '',
+      uspDisabled: document.querySelector('[data-weapon="usp"]')?.disabled ?? null,
+      uspTitle: document.querySelector('[data-weapon="usp"]')?.getAttribute('title') ?? '',
+      kitDisabled: document.querySelector('[data-defuse-kit="true"]')?.disabled ?? null,
+      kitTitle: document.querySelector('[data-defuse-kit="true"]')?.getAttribute('title') ?? '',
+      heDisabled: document.querySelector('[data-grenade="he"]')?.disabled ?? null,
+    }));
+    this.check(buyPolicy.isBuyMenuOpen === true, 'TDM B 键打开 CS1.6 买菜单');
+    this.check(buyPolicy.localTeam === 'attackers' || buyPolicy.localTeam === 'defenders', `TDM 本地阵营可识别: ${buyPolicy.localTeam}`);
+    this.check(buyPolicy.p228Disabled === false, 'TDM 手枪局可以买 P228');
+    this.check(buyPolicy.awpDisabled === true && buyPolicy.awpTitle === '金钱不足', 'TDM AWP 因金钱不足禁用');
+    if (buyPolicy.localTeam === 'attackers') {
+      this.check(buyPolicy.akDisabled === true && buyPolicy.akTitle === '金钱不足', 'TDM T 方 AK 因金钱不足禁用');
+      this.check(buyPolicy.m4Disabled === true && buyPolicy.m4Title === '当前阵营不能购买', 'TDM T 方不能购买 M4A1');
+      this.check(buyPolicy.uspDisabled === true && buyPolicy.uspTitle === '当前阵营不能购买', 'TDM T 方不能购买 USP');
+    } else if (buyPolicy.localTeam === 'defenders') {
+      this.check(buyPolicy.m4Disabled === true && buyPolicy.m4Title === '金钱不足', 'TDM CT 方 M4A1 因金钱不足禁用');
+      this.check(buyPolicy.akDisabled === true && buyPolicy.akTitle === '当前阵营不能购买', 'TDM CT 方不能购买 AK-47');
+      this.check(buyPolicy.glockDisabled === true && buyPolicy.glockTitle === '当前阵营不能购买', 'TDM CT 方不能购买 Glock');
+    }
+    this.check(buyPolicy.kitDisabled === true && buyPolicy.kitTitle === '当前模式不能购买', 'TDM 不能购买拆弹钳');
+    this.check(buyPolicy.heDisabled === false, 'TDM 手枪局可以买 HE');
+    if (buyPolicy.isBuyMenuOpen) {
+      await this.page.click('[data-grenade="he"]');
+      await this.waitForState(async () => {
+        const state = await this.getDebugState();
+        return state?.isBuyMenuOpen === false && state?.grenadeInventory?.he === 1;
+      }, 3000);
+    }
+
+    await this.page.keyboard.press('Digit4');
+    await this.page.waitForTimeout(500);
+    const grenadeState = await this.getDebugState();
+    const grenadeHud = await this.page.evaluate(() => ({
+      weaponName: document.querySelector('.weapon-name')?.textContent?.trim(),
+    }));
+    this.check(
+      grenadeState?.activeSlot === 'grenade'
+        && grenadeState?.weaponId === 'grenade'
+        && grenadeState?.grenadeInventory?.he === 1
+        && grenadeHud.weaponName?.includes('高爆'),
+      'TDM 多人快照不会打断已切出的 HE'
+    );
+
+    const originalPosition = state.playerPosition;
+    await this.page.evaluate(() => window.__debugSetPlayerPosition?.(0, -30));
+    await this.page.waitForTimeout(100);
+    await this.page.keyboard.press('KeyB');
+    await this.page.waitForTimeout(200);
+    const awayBuyState = await this.getDebugState();
+    this.check(awayBuyState?.isBuyMenuOpen === false, 'TDM 离开出生买区不能打开购买菜单');
+    if (originalPosition) {
+      await this.page.evaluate((position) => window.__debugSetPlayerPosition?.(position.x, position.z, 0, position.y), originalPosition);
+      await this.page.waitForTimeout(100);
+    }
+
+    await this.takeScreenshot('tdm-buy-policy');
   }
 
   async testBombMechanics() {
     const state = await this.getDebugState();
     this.check(state?.cs16BotMatch !== null || state?.activePanel !== undefined, '游戏状态系统可用');
+    if (this.currentMode === 'defusal' && state?.matchMode === 'defusal' && state?.matchPhase === 'buy') {
+      await this.page.keyboard.press('KeyB');
+      await this.page.waitForTimeout(200);
+      const buyPolicy = await this.page.evaluate(() => ({
+        isBuyMenuOpen: window.__debugInputState?.().isBuyMenuOpen,
+        localTeam: window.__debugInputState?.().localTeam,
+        hasAwp: Boolean(document.querySelector('[data-weapon="awp"]')),
+        akDisabled: document.querySelector('[data-weapon="ak47"]')?.disabled ?? null,
+        akTitle: document.querySelector('[data-weapon="ak47"]')?.getAttribute('title') ?? '',
+        m4Disabled: document.querySelector('[data-weapon="m4a1"]')?.disabled ?? null,
+        m4Title: document.querySelector('[data-weapon="m4a1"]')?.getAttribute('title') ?? '',
+        uspDisabled: document.querySelector('[data-weapon="usp"]')?.disabled ?? null,
+        uspTitle: document.querySelector('[data-weapon="usp"]')?.getAttribute('title') ?? '',
+      }));
+      this.check(buyPolicy.isBuyMenuOpen === true, '爆破购买阶段 B 键打开 CS1.6 买菜单');
+      this.check(buyPolicy.localTeam === 'attackers', '爆破首个本地玩家默认 T 方');
+      this.check(buyPolicy.hasAwp === true, '爆破买菜单包含 CS1.6 AWP');
+      this.check(buyPolicy.akDisabled === true && buyPolicy.akTitle === '金钱不足', '爆破 T 方 AK 可见但手枪局金钱不足');
+      this.check(buyPolicy.m4Disabled === true && buyPolicy.m4Title === '当前阵营不能购买', '爆破 T 方不能购买 M4A1');
+      this.check(buyPolicy.uspDisabled === true && buyPolicy.uspTitle === '当前阵营不能购买', '爆破 T 方不能购买 USP');
+      await this.page.keyboard.press('KeyB');
+      await this.page.waitForTimeout(100);
+    }
     await this.takeScreenshot('bomb-mechanics');
   }
 
@@ -253,11 +407,16 @@ class Dust2TestSuite {
     const hasCrosshair = await this.page.$('.crosshair') !== null;
     this.check(hasCrosshair, '准星显示正常');
 
-    await this.page.keyboard.press('Tab');
+    await this.page.keyboard.down('Tab');
     await this.page.waitForTimeout(300);
     const scoreboardState = await this.getDebugState();
     console.log(`Tab状态: isScoreboardOpen=${scoreboardState?.isScoreboardOpen}, activePanel=${scoreboardState?.activePanel}`);
-    this.check(true, 'Tab键机制已测试（跳过断言）');
+    this.check(scoreboardState?.isScoreboardOpen === true && scoreboardState?.activePanel === 'scoreboard', '按住 Tab 显示计分板');
+
+    await this.page.keyboard.up('Tab');
+    await this.page.waitForTimeout(150);
+    const scoreboardClosedState = await this.getDebugState();
+    this.check(scoreboardClosedState?.isScoreboardOpen === false && scoreboardClosedState?.activePanel !== 'scoreboard', '松开 Tab 隐藏计分板');
 
     await this.takeScreenshot('ui-test');
   }

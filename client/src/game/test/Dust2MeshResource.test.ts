@@ -139,7 +139,10 @@ describe('Dust2 mesh resource conversion', () => {
         'dust2-source-boundary-south',
         'dust2-source-boundary-west',
       ]));
-      expect(ARENA_MAPS.dust2.colliders.some(collider => collider.name === 'dust2-source-stable-t-spawn')).toBe(false);
+      expect(ARENA_MAPS.dust2.colliders).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'dust2-source-stable-t-spawn', walkable: true, sourceBacked: true }),
+        expect.objectContaining({ name: 'dust2-source-stable-ct-spawn', walkable: true, sourceBacked: true }),
+      ]));
       expect(ARENA_MAPS.dust2.colliders.some(collider => collider.walkable && collider.sourceBacked)).toBe(true);
       expect(ARENA_MAPS.dust2.props).toEqual([]);
       expect(ARENA_MAPS.dust2.source).toMatchObject({

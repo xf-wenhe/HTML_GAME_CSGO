@@ -44,9 +44,8 @@ export const CSGO_MOVEMENT: MovementParams = {
 // 目标：h = 0.45, t = 0.38
 // => g = 2h/t² = 2*0.45/(0.38²) ≈ 6.23
 // => v0 = g*t = 6.23*0.38 ≈ 2.37
-// 实际游戏中需要增大重力确保下落真实（对抗 cannon-es 的阻尼）
-export const CSGO_GRAVITY = 7.06;
-export const PLAYER_JUMP_FORCE = 2.521;
+export const CSGO_GRAVITY = 6.23;
+export const PLAYER_JUMP_FORCE = 2.37;
 export const PLAYER_CROUCH_JUMP_BONUS = hammerToGame(8); // 0.08
 
 // CS1.6 摔落伤害参数

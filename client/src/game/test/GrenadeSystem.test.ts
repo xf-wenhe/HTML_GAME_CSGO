@@ -8,6 +8,7 @@ describe('GrenadeSystem', () => {
     const system = new GrenadeSystem(scene);
     const camera = new THREE.PerspectiveCamera();
 
+    system.setInventory({ he: 0, smoke: 1 });
     system.select('smoke');
     expect(system.getSelectedLabel()).toBe('烟雾弹');
     expect(system.throwSelected(camera).success).toBe(true);
@@ -21,6 +22,7 @@ describe('GrenadeSystem', () => {
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(0, 1.7, 0);
 
+    system.setInventory({ he: 1 });
     expect(system.throwSelected(camera).success).toBe(true);
     for (let i = 0; i < 130; i++) {
       system.update(1 / 60, new THREE.Vector3(0, 1.7, -3));

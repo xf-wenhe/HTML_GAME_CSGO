@@ -366,6 +366,9 @@ function createDust2SourceStabilityFloors(): BoxSpec[] {
   ): BoxSpec => ({
     ...box(x, eyeY - PLAYER_EYE_HEIGHT - 0.08, z, sx, 0.16, sz, 0x000000, name, 0, 1, 0),
     physicsOnly: true,
+    walkable: true,
+    collisionKind: 'floor' as const,
+    sourceBacked: true,
   });
 
   return [
@@ -1525,6 +1528,7 @@ function buildDust2Arena(): ArenaData {
     colliders: sourceGeometry.meshes.length > 0
       ? [
           ...createDust2CollisionProxyColliders(DUST2_WORLD_MESH_RESOURCE, rawSourceMeshes),
+          ...createDust2SourceStabilityFloors(),
           ...createDust2SourceSafetyColliders(DUST2_WORLD_MESH_RESOURCE),
         ]
       : sourceGeometry.colliders,

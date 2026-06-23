@@ -208,7 +208,7 @@ export const CS16_WEAPON_RULES: Record<string, Cs16WeaponRule> = {
     role: 'sniper',
     killReward: CS16_SNIPER_KILL_REWARD,
     scoped: true,
-    team: 't',
+    team: 'ct',
   },
   g3sg1: {
     id: 'g3sg1',
@@ -216,7 +216,7 @@ export const CS16_WEAPON_RULES: Record<string, Cs16WeaponRule> = {
     role: 'sniper',
     killReward: CS16_SNIPER_KILL_REWARD,
     scoped: true,
-    team: 'ct',
+    team: 't',
   },
 
   // Machine Gun
@@ -254,6 +254,17 @@ export function getCs16WeaponDefinition(weaponId: string) {
 
 export function isCs16Weapon(weaponId: string): boolean {
   return CS16_ALLOWED_WEAPON_IDS.has(weaponId);
+}
+
+export function canTeamBuyCs16Weapon(weaponId: string, team: 'attackers' | 'defenders'): boolean {
+  const rule = getCs16WeaponRule(weaponId);
+  if (!rule) return false;
+  if (rule.team === 'both') return true;
+  return rule.team === (team === 'attackers' ? 't' : 'ct');
+}
+
+export function getCs16BuyableWeaponIdsForTeam(team: 'attackers' | 'defenders'): Set<string> {
+  return new Set(Object.keys(CS16_WEAPON_RULES).filter(weaponId => canTeamBuyCs16Weapon(weaponId, team)));
 }
 
 export function canCs16WeaponScope(weaponId: string): boolean {

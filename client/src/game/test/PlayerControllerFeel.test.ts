@@ -101,6 +101,39 @@ describe('PlayerController CS1.6 feel', () => {
     expect(player.getHorizontalSpeed()).toBeGreaterThan(CSGO_MOVEMENT.runSpeed * 0.85);
   });
 
+  it('applies weapon movement speed multipliers to running speed', () => {
+    const { physics, input, player } = createController();
+    player.setMovementSpeedMultiplier(0.84);
+    input.setKeyPressed('KeyW', true);
+
+    for (let i = 0; i < 160; i++) tick(player, physics);
+
+    expect(player.getHorizontalSpeed()).toBeCloseTo(CSGO_MOVEMENT.runSpeed * 0.84, 1);
+  });
+
+  it('applies scoped look sensitivity without muting recoil kick', () => {
+    const { physics, input, player } = createController();
+
+    input.setMouseDelta(0.02, 0);
+    tick(player, physics);
+    const normalYaw = player.getRotation().yaw;
+
+    player.setRotation(0, 0);
+    player.setLookSensitivityMultiplier(0.25);
+    input.setMouseDelta(0.02, 0);
+    tick(player, physics);
+    const scopedYaw = player.getRotation().yaw;
+
+    expect(Math.abs(scopedYaw)).toBeCloseTo(Math.abs(normalYaw) * 0.25, 5);
+
+    player.setRotation(0, 0);
+    input.setMouseDelta(0, 0);
+    player.addRecoilKick(0, 0.01);
+    tick(player, physics);
+
+    expect(player.getRotation().yaw).toBeCloseTo(-0.01, 5);
+  });
+
   it('uses a quick CS1.6-style jump arc and lands cleanly', () => {
     const { physics, input, player } = createController();
     input.setKeyPressed('Space', true);
@@ -164,5 +197,34 @@ describe('PlayerController CS1.6 feel', () => {
 
     expect(player.isGrounded()).toBe(false);
     expect(player.getFootGroundDistanceForDebug()).toBeNull();
+  });
+
+  it('can reset armor separately for CS1.6 pistol rounds', () => {
+    const { player } = createController();
+
+    player.healFull();
+    player.setArmor(0);
+
+    expect(player.getHealth()).toBe(100);
+    expect(player.getArmor()).toBe(0);
+  });
+
+  it('only lets armor protect head damage after buying a helmet', () => {
+    const unhelmeted = createController().player;
+    unhelmeted.healFull();
+    unhelmeted.setHelmet(false);
+    unhelmeted.takeDamage(50, 'head', 0.5);
+
+    expect(unhelmeted.getHealth()).toBe(50);
+    expect(unhelmeted.getArmor()).toBe(100);
+
+    const helmeted = createController().player;
+    helmeted.healFull();
+    helmeted.setHelmet(false);
+    helmeted.buyArmorHelmet();
+    helmeted.takeDamage(50, 'head', 0.5);
+
+    expect(helmeted.getHealth()).toBe(75);
+    expect(helmeted.getArmor()).toBeLessThan(100);
   });
 });

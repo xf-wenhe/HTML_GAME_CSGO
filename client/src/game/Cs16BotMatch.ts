@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import type { Team, WeaponId } from './types.js';
+import type { GrenadeId, Team, WeaponId } from './types.js';
 import {
   CS16_KILL_REWARD,
   CS16_ROUND_LOSS_REWARD,
   CS16_ROUND_WIN_REWARD,
   CS16_STARTING_MONEY,
   clampCs16Money,
+  canTeamBuyCs16Weapon,
   getCs16WeaponRule,
   isCs16Weapon,
 } from './Cs16Weapons.js';
@@ -41,6 +42,7 @@ export interface Cs16BotSpawnPlan {
   position: THREE.Vector3;
   route: THREE.Vector3[];
   weaponId: WeaponId;
+  holdSeconds: number;
 }
 
 export interface Cs16BotMatchOptions {
@@ -51,6 +53,12 @@ export interface Cs16BotMatchOptions {
   playerTeam?: Team;
   startingMoney?: number;
 }
+
+const CS16_GRENADE_RULES: Partial<Record<GrenadeId, { price: number; max: number }>> = {
+  he: { price: 300, max: 1 },
+  flashbang: { price: 200, max: 2 },
+  smoke: { price: 300, max: 1 },
+};
 
 export class Cs16BotMatch {
   private phase: Cs16BotMatchPhase = 'restart';
@@ -68,7 +76,10 @@ export class Cs16BotMatch {
   private readonly roundEndSeconds: number;
   private readonly botCount: number;
   private readonly playerTeam: Team;
+  private armor = 0;
+  private hasHelmet = false;
   private onKillCallback: ((killer: string, victim: string, weapon: string, headshot?: boolean) => void) | null = null;
+  private onRoundEndCallback: ((reason: Exclude<Cs16RoundEndReason, null>, winner: Team, stats: Cs16BotMatchStats) => void) | null = null;
 
   constructor(options: Cs16BotMatchOptions = {}) {
     this.freezeSeconds = options.freezeSeconds ?? 5;  // CS1.6标准冻结时间5秒
@@ -83,6 +94,10 @@ export class Cs16BotMatch {
     this.onKillCallback = callback;
   }
 
+  onRoundEnd(callback: (reason: Exclude<Cs16RoundEndReason, null>, winner: Team, stats: Cs16BotMatchStats) => void): void {
+    this.onRoundEndCallback = callback;
+  }
+
   private getWeaponName(weapon: string): string {
     const weaponNames: Record<string, string> = {
       'ak47': 'AK-47',
@@ -92,6 +107,22 @@ export class Cs16BotMatch {
     return weaponNames[weapon] || weapon;
   }
 
+  private getOpponentTeam(): Team {
+    return this.playerTeam === 'attackers' ? 'defenders' : 'attackers';
+  }
+
+  private teamLabel(team: Team): string {
+    return team === 'attackers' ? 'T' : 'CT';
+  }
+
+  private botWeaponForIndex(index: number): WeaponId {
+    const enemyTeam = this.getOpponentTeam();
+    const loadout: WeaponId[] = enemyTeam === 'defenders'
+      ? ['m4a1', 'mp5', 'usp']
+      : ['ak47', 'mp5', 'glock'];
+    return loadout[index % loadout.length];
+  }
+
   startRound(): void {
     this.round++;
     this.phase = 'freezeTime';
@@ -99,6 +130,8 @@ export class Cs16BotMatch {
     this.endReason = null;
     this.botsTotal = this.botCount;
     this.botsAlive = this.botCount;
+    this.armor = 0;
+    this.hasHelmet = false;
   }
 
   update(dt: number, playerDead: boolean): { shouldRestartRound: boolean } {
@@ -115,7 +148,7 @@ export class Cs16BotMatch {
     }
 
     if (this.phase === 'live') {
-      if (playerDead) this.endRound('playerDead');
+      if (playerDead) this.recordPlayerDeath();
       else if (this.botsAlive <= 0) this.endRound('allBotsDead');
       else if (this.phaseElapsed >= this.roundSeconds) this.endRound('timeExpired');
     }
@@ -130,11 +163,13 @@ export class Cs16BotMatch {
 
   createBotPlans(spawns: THREE.Vector3[], routeFactory: (index: number) => THREE.Vector3[]): Cs16BotSpawnPlan[] {
     const fallback = spawns[0] ?? new THREE.Vector3(2.56, 1, -22.4);
+    const advancingBots = Math.max(1, Math.ceil(this.botCount * 0.6));
     return Array.from({ length: this.botCount }, (_, index) => ({
       id: `cs16_bot_${this.round}_${index}`,
       position: (spawns[index % spawns.length] ?? fallback).clone(),
-      route: routeFactory(index),
-      weaponId: index % 3 === 0 ? 'ak47' : index % 3 === 1 ? 'mp5' : 'usp',
+      route: index < advancingBots ? routeFactory(index) : [],
+      weaponId: this.botWeaponForIndex(index),
+      holdSeconds: index === advancingBots - 1 && advancingBots > 1 ? 1.4 : 0,
     }));
   }
 
@@ -164,18 +199,42 @@ export class Cs16BotMatch {
     this.endRound('playerDead');
   }
 
-  tryBuy(request: { weaponId?: string; armor?: boolean }, inBuyZone: boolean): Cs16BuyResult {
+  tryBuy(
+    request: { weaponId?: string; armor?: boolean; helmet?: boolean; grenadeId?: GrenadeId },
+    inBuyZone: boolean,
+    currentGrenades: Partial<Record<GrenadeId, number>> = {}
+  ): Cs16BuyResult {
     if (this.phase !== 'freezeTime') return { ok: false, reason: '只能在冻结购买时间购买', money: this.money };
     if (!inBuyZone) return { ok: false, reason: '必须站在出生买区内购买', money: this.money };
 
-    const price = request.armor ? 650 : request.weaponId ? getCs16WeaponRule(request.weaponId)?.price : undefined;
+    const grenadeRule = request.grenadeId ? CS16_GRENADE_RULES[request.grenadeId] : undefined;
+    const weaponRule = request.weaponId ? getCs16WeaponRule(request.weaponId) : undefined;
+    const price = request.armor
+      ? 650
+      : request.helmet
+        ? this.armor >= 100 ? 350 : 1000
+        : request.weaponId ? weaponRule?.price : grenadeRule?.price;
+    if (request.armor && this.armor >= 100) return { ok: false, reason: '已拥有防弹衣', money: this.money };
+    if (request.helmet && this.hasHelmet && this.armor >= 100) return { ok: false, reason: '已拥有头盔和防弹衣', money: this.money };
     if (request.weaponId && !isCs16Weapon(request.weaponId)) {
       return { ok: false, reason: '该武器不属于 CS1.6 子集', money: this.money };
+    }
+    if (request.weaponId && !canTeamBuyCs16Weapon(request.weaponId, this.playerTeam)) {
+      return { ok: false, reason: '该阵营不能购买此武器', money: this.money };
+    }
+    if (request.grenadeId && !grenadeRule) return { ok: false, reason: '无法购买该投掷物', money: this.money };
+    if (request.grenadeId && (currentGrenades[request.grenadeId] ?? 0) >= grenadeRule!.max) {
+      return { ok: false, reason: '投掷物数量已达上限', money: this.money };
     }
     if (typeof price !== 'number') return { ok: false, reason: '无法购买该物品', money: this.money };
     if (price > this.money) return { ok: false, reason: '金钱不足', money: this.money };
 
     this.money = clampCs16Money(this.money - price);
+    if (request.armor) this.armor = 100;
+    if (request.helmet) {
+      this.armor = 100;
+      this.hasHelmet = true;
+    }
     return { ok: true, money: this.money };
   }
 
@@ -215,16 +274,22 @@ export class Cs16BotMatch {
     this.phase = 'roundEnd';
     this.phaseElapsed = 0;
     this.endReason = reason;
-    const winner: Team = reason === 'allBotsDead' ? this.playerTeam : 'defenders';
+    const winner: Team = reason === 'allBotsDead'
+      ? this.playerTeam
+      : reason === 'playerDead'
+        ? this.getOpponentTeam()
+        : 'defenders';
     this.score[winner]++;
     this.money = clampCs16Money(this.money + (winner === this.playerTeam ? CS16_ROUND_WIN_REWARD : CS16_ROUND_LOSS_REWARD));
-    if (reason === 'playerDead') this.deaths++;
+    this.onRoundEndCallback?.(reason, winner, this.getStats());
   }
 
   private objective(): string {
     if (this.phase === 'freezeTime') return `购买时间 ${Math.ceil(Math.max(0, this.freezeSeconds - this.phaseElapsed))} 秒`;
     if (this.phase === 'roundEnd') {
-      return this.endReason === 'allBotsDead' ? 'T 胜利：敌方全灭' : 'CT 胜利';
+      if (this.endReason === 'allBotsDead') return `${this.teamLabel(this.playerTeam)} 胜利：敌方全灭`;
+      if (this.endReason === 'playerDead') return `${this.teamLabel(this.getOpponentTeam())} 胜利：玩家阵亡`;
+      return 'CT 胜利：时间耗尽';
     }
     return 'Dust2 Bot Match';
   }

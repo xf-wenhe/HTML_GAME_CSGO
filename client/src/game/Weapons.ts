@@ -230,43 +230,44 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     id: 'scout', name: 'Scout', displayName: 'Scout',
     damage: 68, fireRate: 1.1, magazineSize: 10, reloadTime: 3.0, spread: 0.02,
     projectileSpeed: 110, switchTime: 0.56, range: 120, reserveAmmo: 60,
-    armorPenetration: 0.96, adsSpreadMultiplier: 0.1
+    armorPenetration: 0.96, adsSpreadMultiplier: 0.1, unscopedSpreadMultiplier: 12
   }),
   ssg08: new Weapon({
     id: 'ssg08', name: 'Scout', displayName: 'Scout',
     damage: 68, fireRate: 1.1, magazineSize: 10, reloadTime: 3.0, spread: 0.02,
     projectileSpeed: 110, switchTime: 0.56, range: 120, reserveAmmo: 60,
-    armorPenetration: 0.96, adsSpreadMultiplier: 0.1
+    armorPenetration: 0.96, adsSpreadMultiplier: 0.1, unscopedSpreadMultiplier: 12
   }),
   awp: new Weapon({
     id: 'awp', name: 'AWP', displayName: 'AWP',
-    damage: 115, fireRate: 0.8, magazineSize: 5, reloadTime: 3.3, spread: 0.015,
+    damage: 115, fireRate: 0.8, magazineSize: 10, reloadTime: 2.5, spread: 0.015,
     projectileSpeed: 120, switchTime: 0.64, range: 130, reserveAmmo: 30,
-    armorPenetration: 0.98, adsSpreadMultiplier: 0.08
+    armorPenetration: 0.98, adsSpreadMultiplier: 0.08, unscopedSpreadMultiplier: 18,
+    movementSpeedMultiplier: 0.84, scopedMovementSpeedMultiplier: 0.6
   }),
   sniper: new Weapon({
     id: 'sniper', name: 'AWP', displayName: 'AWP',
     damage: 115, fireRate: 0.8, magazineSize: 5, reloadTime: 3.3, spread: 0.015,
     projectileSpeed: 120, switchTime: 0.64, range: 130, reserveAmmo: 30,
-    armorPenetration: 0.98, adsSpreadMultiplier: 0.08
+    armorPenetration: 0.98, adsSpreadMultiplier: 0.08, unscopedSpreadMultiplier: 18
   }),
   g3sg1: new Weapon({
     id: 'g3sg1', name: 'G3SG1', displayName: 'G3SG1',
     damage: 80, fireRate: 3.0, magazineSize: 20, reloadTime: 3.2, spread: 0.025,
     projectileSpeed: 105, switchTime: 0.6, range: 115, reserveAmmo: 60,
-    armorPenetration: 0.95, adsSpreadMultiplier: 0.12
+    armorPenetration: 0.95, adsSpreadMultiplier: 0.12, unscopedSpreadMultiplier: 10
   }),
   sg550: new Weapon({
     id: 'sg550', name: 'SG 550', displayName: 'SG 550',
     damage: 80, fireRate: 3.0, magazineSize: 20, reloadTime: 3.2, spread: 0.025,
     projectileSpeed: 105, switchTime: 0.6, range: 115, reserveAmmo: 60,
-    armorPenetration: 0.95, adsSpreadMultiplier: 0.12
+    armorPenetration: 0.95, adsSpreadMultiplier: 0.12, unscopedSpreadMultiplier: 10
   }),
   scar20: new Weapon({
     id: 'scar20', name: 'G3SG1', displayName: 'G3SG1',
     damage: 80, fireRate: 3.0, magazineSize: 20, reloadTime: 3.2, spread: 0.025,
     projectileSpeed: 105, switchTime: 0.6, range: 115, reserveAmmo: 60,
-    armorPenetration: 0.95, adsSpreadMultiplier: 0.12
+    armorPenetration: 0.95, adsSpreadMultiplier: 0.12, unscopedSpreadMultiplier: 10
   }),
 
   // ── CS 1.6 机枪 ──────────────────────────────────────────────────────────────
@@ -329,7 +330,7 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
     id: 'operator', name: 'AWP', displayName: 'AWP',
     damage: 115, fireRate: 0.8, magazineSize: 5, reloadTime: 3.3, spread: 0.015,
     projectileSpeed: 120, switchTime: 0.64, range: 130, reserveAmmo: 30,
-    armorPenetration: 0.98, adsSpreadMultiplier: 0.08
+    armorPenetration: 0.98, adsSpreadMultiplier: 0.08, unscopedSpreadMultiplier: 18
   }),
   specter: new Weapon({
     id: 'specter', name: 'TMP', displayName: 'TMP',

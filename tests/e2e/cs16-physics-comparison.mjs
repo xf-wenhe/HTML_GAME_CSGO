@@ -176,26 +176,37 @@ class CS16ComparisonTest {
   async measureJumpPhysics() {
     console.log('  Measuring jump physics...');
 
+    await this.page.keyboard.up('KeyW');
+    await this.page.keyboard.up('ShiftLeft');
+    await this.page.keyboard.up('ControlLeft');
+    await this.page.keyboard.up('Space');
+    await this.waitForState(s => s?.grounded === true, 5000);
+    await this.page.waitForTimeout(100);
+
     const startPos = await this.getPlayerPosition();
     const startY = startPos.y;
 
     // Jump
-    await this.page.keyboard.press('Space');
+    const jumpStartTime = await this.page.evaluate(() => performance.now());
+    await this.page.keyboard.down('Space');
+    await this.page.waitForTimeout(80);
+    await this.page.keyboard.up('Space');
 
     let maxY = startY;
     let peakTime = 0;
-    let landed = false;
 
     // Sample position during jump
     for (let i = 0; i < 60; i++) {
-      const pos = await this.getPlayerPosition();
+      const { pos, now } = await this.page.evaluate(() => ({
+        pos: window.__debugPlayerPosition?.(),
+        now: performance.now(),
+      }));
       if (pos.y > maxY) {
         maxY = pos.y;
-        peakTime = i * 16.67; // ms
+        peakTime = now - jumpStartTime;
       }
       // Check if we landed (close to original height)
       if (Math.abs(pos.y - startY) < 0.01 && i > 10) {
-        landed = true;
         break;
       }
       await this.page.waitForTimeout(16.67);

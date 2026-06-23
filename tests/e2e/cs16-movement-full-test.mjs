@@ -2,29 +2,21 @@ import { chromium } from 'playwright';
 
 const TEST_URL = 'http://localhost:5173';
 
-async function delay(ms: number): Promise<void> {
+async function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-interface TestResult {
-  name: string;
-  passed: boolean;
-  current?: number;
-  expected?: number;
-  details?: string;
-}
-
-async function main(): Promise<number> {
+async function main() {
   console.log('🎮 CS1.6 移动手感综合验证测试\n');
 
   const browser = await chromium.launch({
-    headless: false,
-    slowMo: 50,
+    headless: process.env.HEADLESS !== 'false',
+    slowMo: process.env.HEADLESS === 'false' ? 50 : 0,
     args: ['--use-angle=gl', '--enable-webgl', '--ignore-gpu-blocklist']
   });
 
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  const results: TestResult[] = [];
+  const results = [];
 
   try {
     // 进入游戏
@@ -77,7 +69,7 @@ async function main(): Promise<number> {
       const endYaw = endState?.rotation?.yaw ?? 0;
 
       const yawChange = Math.abs(endYaw - startYaw);
-      const passed = yawChange > 0.5 && yawChange < 5.0;
+      const passed = yawChange > 0.5 && yawChange <= 5.0;
       results.push({
         name: '转向',
         passed,
@@ -89,30 +81,19 @@ async function main(): Promise<number> {
     }
 
     // 重置朝向
-    await page.evaluate(() => window.__debugSetPlayerYaw?.(0));
+    await page.evaluate(() => window.__debugSetPlayerYaw?.(300 * Math.PI / 180));
     await delay(500);
 
     // === 测试2: 奔跑速度 ===
     console.log('\n🏃 测试2: 奔跑速度...');
     {
-      const startPos = await page.evaluate(() => window.__debugPlayerPosition?.());
       await page.keyboard.down('KeyW');
 
-      const samples: { x: number; z: number }[] = [];
-      for (let i = 0; i < 30; i++) {
-        const pos = await page.evaluate(() => window.__debugPlayerPosition?.());
-        if (pos) samples.push({ x: pos.x, z: pos.z });
-        await delay(33);
-      }
+      await delay(1500);
+      const state = await page.evaluate(() => window.__debugInputState?.());
       await page.keyboard.up('KeyW');
-
-      const endPos = await page.evaluate(() => window.__debugPlayerPosition?.());
-
-      if (startPos && endPos && samples.length > 1) {
-        const totalDist = Math.hypot(endPos.x - startPos.x, endPos.z - startPos.z);
-        const time = samples.length * 0.033;
-        const speed = totalDist / time;
-        const speedHU = speed * 100; // 转换为 HU/s
+      if (state) {
+        const speedHU = state.horizontalSpeed * 100; // 转换为 HU/s
 
         const expectedHU = 250;
         const tolerance = 0.15; // 15% 容差
@@ -137,29 +118,18 @@ async function main(): Promise<number> {
     console.log('\n🚶 测试3: 静步速度...');
     {
       await page.evaluate(() => window.__debugTeleportToTSpawn?.());
+      await page.evaluate(() => window.__debugSetPlayerYaw?.(300 * Math.PI / 180));
       await delay(500);
-
-      const startPos = await page.evaluate(() => window.__debugPlayerPosition?.());
 
       await page.keyboard.down('ShiftLeft');
       await page.keyboard.down('KeyW');
 
-      const samples: { x: number; z: number }[] = [];
-      for (let i = 0; i < 30; i++) {
-        const pos = await page.evaluate(() => window.__debugPlayerPosition?.());
-        if (pos) samples.push({ x: pos.x, z: pos.z });
-        await delay(33);
-      }
+      await delay(1500);
+      const state = await page.evaluate(() => window.__debugInputState?.());
       await page.keyboard.up('KeyW');
       await page.keyboard.up('ShiftLeft');
-
-      const endPos = await page.evaluate(() => window.__debugPlayerPosition?.());
-
-      if (startPos && endPos && samples.length > 1) {
-        const totalDist = Math.hypot(endPos.x - startPos.x, endPos.z - startPos.z);
-        const time = samples.length * 0.033;
-        const speed = totalDist / time;
-        const speedHU = speed * 100;
+      if (state) {
+        const speedHU = state.horizontalSpeed * 100;
 
         const expectedHU = 110;
         const tolerance = 0.15;
@@ -178,32 +148,21 @@ async function main(): Promise<number> {
 
     // 重置位置
     await page.evaluate(() => window.__debugTeleportToTSpawn?.());
+    await page.evaluate(() => window.__debugSetPlayerYaw?.(300 * Math.PI / 180));
     await delay(500);
 
     // === 测试4: 蹲下速度 ===
     console.log('\n🧎 测试4: 蹲下速度...');
     {
-      const startPos = await page.evaluate(() => window.__debugPlayerPosition?.());
-
       await page.keyboard.down('ControlLeft');
       await page.keyboard.down('KeyW');
 
-      const samples: { x: number; z: number }[] = [];
-      for (let i = 0; i < 30; i++) {
-        const pos = await page.evaluate(() => window.__debugPlayerPosition?.());
-        if (pos) samples.push({ x: pos.x, z: pos.z });
-        await delay(33);
-      }
+      await delay(1500);
+      const state = await page.evaluate(() => window.__debugInputState?.());
       await page.keyboard.up('KeyW');
       await page.keyboard.up('ControlLeft');
-
-      const endPos = await page.evaluate(() => window.__debugPlayerPosition?.());
-
-      if (startPos && endPos && samples.length > 1) {
-        const totalDist = Math.hypot(endPos.x - startPos.x, endPos.z - startPos.z);
-        const time = samples.length * 0.033;
-        const speed = totalDist / time;
-        const speedHU = speed * 100;
+      if (state) {
+        const speedHU = state.horizontalSpeed * 100;
 
         const expectedHU = 85;
         const tolerance = 0.15;
@@ -222,6 +181,7 @@ async function main(): Promise<number> {
 
     // 重置位置
     await page.evaluate(() => window.__debugTeleportToTSpawn?.());
+    await page.evaluate(() => window.__debugSetPlayerYaw?.(300 * Math.PI / 180));
     await delay(500);
 
     // === 测试5: 跳跃 ===
@@ -235,7 +195,7 @@ async function main(): Promise<number> {
       await delay(50);
       await page.keyboard.up('Space');
 
-      const ySamples: { time: number; y: number }[] = [];
+      const ySamples = [];
       for (let i = 0; i < 40; i++) {
         const pos = await page.evaluate(() => window.__debugPlayerPosition?.());
         if (pos) {

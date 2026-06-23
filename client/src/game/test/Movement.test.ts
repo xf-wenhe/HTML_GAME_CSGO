@@ -38,7 +38,7 @@ describe('CSGO-style movement helpers', () => {
     const jumpHeight = (PLAYER_JUMP_FORCE * PLAYER_JUMP_FORCE) / (2 * CSGO_GRAVITY);
     // CSGO jump is quick (~0.8s total airtime)
     expect(airtime).toBeGreaterThan(0.55);
-    expect(airtime).toBeLessThan(0.75);
+    expect(airtime).toBeLessThan(0.8);
     expect(jumpHeight).toBeGreaterThan(0.42);
     expect(jumpHeight).toBeLessThan(0.48);
   });

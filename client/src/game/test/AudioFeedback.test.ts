@@ -32,4 +32,23 @@ describe('AudioFeedback', () => {
 
     expect(mock.calls).toEqual([]);
   });
+
+  it('emits distinct C4 objective sound cues', () => {
+    const mock = createMockAudioManager();
+    const audio = new AudioFeedback(mock);
+
+    audio.playBomb('plantStart');
+    audio.playBomb('planted');
+    audio.playBomb('defuseStart');
+    audio.playBomb('defused');
+    audio.playBomb('explode');
+
+    expect(mock.calls.map(c => c.id)).toEqual([
+      'c4_plant_start',
+      'c4_planted',
+      'c4_defuse_start',
+      'c4_defused',
+      'c4_explode',
+    ]);
+  });
 });

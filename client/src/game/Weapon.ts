@@ -21,8 +21,11 @@ export interface WeaponConfig {
   adsSpreadMultiplier?: number;
   pellets?: number;
   recoilPattern?: Array<{ x: number; y: number }>;
+  unscopedSpreadMultiplier?: number;
   moveInaccuracy?: number;
   standRecovery?: number;
+  movementSpeedMultiplier?: number;
+  scopedMovementSpeedMultiplier?: number;
 }
 
 export class Weapon {
@@ -45,8 +48,11 @@ export class Weapon {
   public readonly adsSpreadMultiplier: number;
   public readonly pellets: number;
   public readonly recoilPattern: Array<{ x: number; y: number }>;
+  public readonly unscopedSpreadMultiplier: number;
   public readonly moveInaccuracy: number;
   public readonly standRecovery: number;
+  public readonly movementSpeedMultiplier: number;
+  public readonly scopedMovementSpeedMultiplier: number;
 
   public currentAmmo: number;
   public currentReserveAmmo: number;
@@ -84,9 +90,12 @@ export class Weapon {
       { x: 0.012, y: 0.044 },
       { x: -0.014, y: 0.052 }
     ];
+    this.unscopedSpreadMultiplier = config.unscopedSpreadMultiplier ?? 1;
     // CSGO中移动开枪惩罚非常高，如果未配置自动增加为站立散布的2.5倍
     this.moveInaccuracy = config.moveInaccuracy ?? (this.isMelee ? 0 : this.spread * 2.5);
     this.standRecovery = config.standRecovery ?? (this.recoilPattern.length > 15 ? 0.48 : 0.42);
+    this.movementSpeedMultiplier = config.movementSpeedMultiplier ?? 1;
+    this.scopedMovementSpeedMultiplier = config.scopedMovementSpeedMultiplier ?? this.movementSpeedMultiplier;
     this.currentAmmo = this.magazineSize;
   }
 
@@ -163,7 +172,7 @@ export class Weapon {
   }
 
   getEffectiveSpread(isMoving = false, isAiming = false): number {
-    const aimingMultiplier = isAiming && !this.isMelee ? this.adsSpreadMultiplier : 1;
+    const aimingMultiplier = isAiming && !this.isMelee ? this.adsSpreadMultiplier : this.unscopedSpreadMultiplier;
     // 【核心修复】原配置的散布在空间计算中偏差太大，用 0.15 缩小首发散布基数
     const baseCSGOPrecision = this.spread * 0.15; 
     return baseCSGOPrecision * this.getSpreadMultiplier() * aimingMultiplier + (isMoving ? this.moveInaccuracy : 0);
@@ -206,8 +215,11 @@ export class Weapon {
       adsSpreadMultiplier: this.adsSpreadMultiplier,
       pellets: this.pellets,
       recoilPattern: this.recoilPattern,
+      unscopedSpreadMultiplier: this.unscopedSpreadMultiplier,
       moveInaccuracy: this.moveInaccuracy,
-      standRecovery: this.standRecovery
+      standRecovery: this.standRecovery,
+      movementSpeedMultiplier: this.movementSpeedMultiplier,
+      scopedMovementSpeedMultiplier: this.scopedMovementSpeedMultiplier
     });
   }
 }

@@ -41,6 +41,7 @@ export function defaultMouseLookSettings(platform: MousePlatform): MouseLookSett
 
 export class InputManager {
   private keys = new Set<string>();
+  private transientKeys = new Set<string>();
   private mouseDelta: MouseDelta = { x: 0, y: 0 };
   private smoothedMouseDelta: MouseDelta = { x: 0, y: 0 };
   private mousePosition = { x: 0, y: 0 };
@@ -83,8 +84,14 @@ export class InputManager {
     });
 
     document.addEventListener('mousedown', (e) => {
-      if (e.button === 0) this.keys.add('MouseLeft');
-      if (e.button === 2) this.keys.add('MouseRight');
+      if (e.button === 0) {
+        this.keys.add('MouseLeft');
+        this.transientKeys.add('MouseLeft');
+      }
+      if (e.button === 2) {
+        this.keys.add('MouseRight');
+        this.transientKeys.add('MouseRight');
+      }
     });
 
     document.addEventListener('mouseup', (e) => {
@@ -102,6 +109,8 @@ export class InputManager {
       }
       this.keys.delete('MouseLeft');
       this.keys.delete('MouseRight');
+      this.transientKeys.delete('MouseLeft');
+      this.transientKeys.delete('MouseRight');
       this.mouseDelta = { x: 0, y: 0 };
       this.smoothedMouseDelta = { x: 0, y: 0 };
     });
@@ -111,11 +120,13 @@ export class InputManager {
       this.rawMouseInput = false;
       this.keys.delete('MouseLeft');
       this.keys.delete('MouseRight');
+      this.transientKeys.delete('MouseLeft');
+      this.transientKeys.delete('MouseRight');
     });
   }
 
   isKeyPressed(key: string): boolean {
-    return this.keys.has(key);
+    return this.keys.has(key) || this.transientKeys.has(key);
   }
 
   setKeyPressed(key: string, pressed: boolean): void {
@@ -123,12 +134,20 @@ export class InputManager {
       this.keys.add(key);
     } else {
       this.keys.delete(key);
+      this.transientKeys.delete(key);
     }
   }
 
   consumeKeyPress(key: string): boolean {
-    const pressed = this.keys.has(key);
+    const pressed = this.keys.has(key) || this.transientKeys.has(key);
     this.keys.delete(key);
+    this.transientKeys.delete(key);
+    return pressed;
+  }
+
+  consumeTransientKey(key: string): boolean {
+    const pressed = this.transientKeys.has(key);
+    this.transientKeys.delete(key);
     return pressed;
   }
 
@@ -208,6 +227,8 @@ export class InputManager {
     }
     this.keys.delete('MouseLeft');
     this.keys.delete('MouseRight');
+    this.transientKeys.delete('MouseLeft');
+    this.transientKeys.delete('MouseRight');
     this.mouseDelta = { x: 0, y: 0 };
     this.smoothedMouseDelta = { x: 0, y: 0 };
     this.rawMouseInput = false;
@@ -258,6 +279,7 @@ export class InputManager {
       'Digit3',
       'Digit4',
     ].forEach(key => this.keys.delete(key));
+    this.transientKeys.clear();
     this.mouseDelta = { x: 0, y: 0 };
     this.smoothedMouseDelta = { x: 0, y: 0 };
   }
@@ -396,7 +418,10 @@ export class InputManager {
   }
 
   private shouldUseTouchControls(): boolean {
-    return navigator.maxTouchPoints > 0 || window.matchMedia?.('(pointer: coarse)').matches === true;
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches === true
+      || window.matchMedia?.('(any-pointer: coarse)').matches === true;
+    const noHover = window.matchMedia?.('(hover: none)').matches === true;
+    return coarsePointer && (noHover || navigator.maxTouchPoints > 0);
   }
 
   private requestPointerLockWithOptions(options?: { unadjustedMovement: boolean }): Promise<void> {

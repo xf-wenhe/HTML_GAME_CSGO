@@ -1,6 +1,99 @@
-import { WeaponBalance } from '../../../../shared/types.js';
+import type { BuyCategory, Team, WeaponBalance, WeaponId } from '../../../../shared/types.js';
+import { CS16_WEAPON_RULES, type Cs16WeaponRole } from '../Cs16Weapons.js';
+import { WEAPON_DEFINITIONS } from '../Weapons.js';
+
+export const CS16_MULTIPLAYER_WEAPON_IDS = [
+  'glock', 'usp', 'p228', 'deagle', 'five_seven',
+  'mp5', 'tmp', 'p90', 'mac10', 'ump45',
+  'm3', 'xm1014',
+  'galil', 'famas', 'ak47', 'm4a1', 'sg552', 'aug',
+  'scout', 'awp', 'g3sg1', 'sg550',
+  'm249',
+] as const satisfies readonly WeaponId[];
+
+const CS16_BUY_CATEGORY_BY_ROLE: Record<Cs16WeaponRole, BuyCategory> = {
+  pistol: 'pistol',
+  smg: 'smg',
+  shotgun: 'shotgun',
+  rifle: 'rifle',
+  sniper: 'sniper',
+  machinegun: 'rifle',
+  grenade: 'grenade',
+  armor: 'melee',
+  melee: 'melee',
+};
+
+const CS16_MOVEMENT_SPEED_BY_ROLE: Record<Cs16WeaponRole, number> = {
+  pistol: 1,
+  smg: 0.98,
+  shotgun: 0.86,
+  rifle: 0.9,
+  sniper: 0.78,
+  machinegun: 0.75,
+  grenade: 0.98,
+  armor: 1,
+  melee: 1,
+};
+
+const movementSpeedForCs16Weapon = (weaponId: typeof CS16_MULTIPLAYER_WEAPON_IDS[number], role: Cs16WeaponRole): number => {
+  if (weaponId === 'awp') return 0.84;
+  return CS16_MOVEMENT_SPEED_BY_ROLE[role];
+};
+
+const teamsForCs16Rule = (team: 'both' | 't' | 'ct'): Team[] | 'both' => {
+  if (team === 'both') return 'both';
+  return team === 't' ? ['attackers'] : ['defenders'];
+};
+
+const makeCs16MultiplayerWeapon = (weaponId: typeof CS16_MULTIPLAYER_WEAPON_IDS[number]): WeaponBalance => {
+  const weapon = WEAPON_DEFINITIONS[weaponId];
+  const rule = CS16_WEAPON_RULES[weaponId];
+  if (!weapon || !rule) throw new Error(`Missing CS 1.6 multiplayer weapon config for ${weaponId}`);
+
+  return {
+    id: weaponId,
+    name: weapon.displayName,
+    price: rule.price,
+    teams: teamsForCs16Rule(rule.team),
+    buyCategory: CS16_BUY_CATEGORY_BY_ROLE[rule.role],
+    killReward: rule.killReward,
+    damage: weapon.damage,
+    fireRate: weapon.fireRate,
+    magazineSize: weapon.magazineSize,
+    maxReserveAmmo: weapon.reserveAmmo,
+    reloadTime: weapon.reloadTime,
+    spread: weapon.spread,
+    movementSpeedMultiplier: movementSpeedForCs16Weapon(weaponId, rule.role),
+    armorPenetration: weapon.armorPenetration,
+    headshotMultiplier: weapon.hitMultipliers.head,
+    range: weapon.range,
+    moveInaccuracy: weapon.moveInaccuracy,
+  };
+};
+
+const CS16_MULTIPLAYER_WEAPONS = Object.fromEntries(
+  CS16_MULTIPLAYER_WEAPON_IDS.map(weaponId => [weaponId, makeCs16MultiplayerWeapon(weaponId)])
+) as Record<typeof CS16_MULTIPLAYER_WEAPON_IDS[number], WeaponBalance>;
 
 export const MULTIPLAYER_WEAPONS: Record<string, WeaponBalance> = {
+  glock: {
+    id: 'glock',
+    name: 'Glock-18',
+    price: 200,
+    teams: ['attackers'],
+    buyCategory: 'pistol',
+    killReward: 300,
+    damage: 28,
+    fireRate: 5,
+    magazineSize: 20,
+    maxReserveAmmo: 120,
+    reloadTime: 2.2,
+    spread: 0.04,
+    movementSpeedMultiplier: 1,
+    armorPenetration: 0.47,
+    headshotMultiplier: 3.5,
+    range: 48
+  },
   usp: {
     id: 'usp',
     name: 'USP .45',
@@ -176,7 +269,7 @@ export const MULTIPLAYER_WEAPONS: Record<string, WeaponBalance> = {
     maxReserveAmmo: 0,
     reloadTime: 0,
     spread: 0,
-    movementSpeedMultiplier: 1.05,
+    movementSpeedMultiplier: 1,
     armorPenetration: 0.2,
     headshotMultiplier: 1,
     range: 2.4
@@ -235,5 +328,6 @@ export const MULTIPLAYER_WEAPONS: Record<string, WeaponBalance> = {
     armorPenetration: 1.0,
     headshotMultiplier: 1,
     range: 3.5
-  }
+  },
+  ...CS16_MULTIPLAYER_WEAPONS
 };

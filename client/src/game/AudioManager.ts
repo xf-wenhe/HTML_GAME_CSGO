@@ -4,7 +4,8 @@ export type AudioCueId =
   | 'weapon_empty' | 'weapon_switch'
   | 'hit_body' | 'hit_head' | 'kill'
   | 'footstep_concrete' | 'footstep_sand' | 'footstep_metal' | 'footstep_wood'
-  | 'land';
+  | 'land'
+  | 'c4_plant_start' | 'c4_planted' | 'c4_defuse_start' | 'c4_defused' | 'c4_explode';
 
 interface AudioBufferCache {
   [key: string]: AudioBuffer;
@@ -77,13 +78,14 @@ export class AudioManager {
       const isFootstep = id.includes('footstep');
       const isReload = id === 'weapon_reload';
       const isEmpty = id === 'weapon_empty';
+      const isBomb = id.startsWith('c4_');
 
-      osc.type = isHead ? 'triangle' : 'square';
-      osc.frequency.value = isFootstep ? 90 : isReload ? 180 : isEmpty ? 220 : isHead ? 880 : 420;
-      gain.gain.value = (options?.volume ?? 0.7) * 0.035;
+      osc.type = isHead || isBomb ? 'triangle' : 'square';
+      osc.frequency.value = isFootstep ? 90 : isReload ? 180 : isEmpty ? 220 : isHead ? 880 : isBomb ? 620 : 420;
+      gain.gain.value = (options?.volume ?? 0.7) * (isBomb ? 0.045 : 0.035);
       osc.connect(gain).connect(this.masterGain);
       osc.start();
-      osc.stop(this.context.currentTime + (isReload ? 0.09 : 0.045));
+      osc.stop(this.context.currentTime + (isReload ? 0.09 : isBomb ? 0.12 : 0.045));
     } catch { /* autoplay policy */ }
   }
 
