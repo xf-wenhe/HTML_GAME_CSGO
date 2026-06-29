@@ -1,6 +1,7 @@
 import type { BuyCategory, Team, WeaponBalance, WeaponId } from '../../../../shared/types.js';
 import { CS16_WEAPON_RULES, type Cs16WeaponRole } from '../Cs16Weapons.js';
 import { WEAPON_DEFINITIONS } from '../Weapons.js';
+import { getCs16WeaponMovementMultipliers } from '../../../../shared/cs16Movement.js';
 
 export const CS16_MULTIPLAYER_WEAPON_IDS = [
   'glock', 'usp', 'p228', 'deagle', 'five_seven',
@@ -23,21 +24,8 @@ const CS16_BUY_CATEGORY_BY_ROLE: Record<Cs16WeaponRole, BuyCategory> = {
   melee: 'melee',
 };
 
-const CS16_MOVEMENT_SPEED_BY_ROLE: Record<Cs16WeaponRole, number> = {
-  pistol: 1,
-  smg: 0.98,
-  shotgun: 0.86,
-  rifle: 0.9,
-  sniper: 0.78,
-  machinegun: 0.75,
-  grenade: 0.98,
-  armor: 1,
-  melee: 1,
-};
-
 const movementSpeedForCs16Weapon = (weaponId: typeof CS16_MULTIPLAYER_WEAPON_IDS[number], role: Cs16WeaponRole): number => {
-  if (weaponId === 'awp') return 0.84;
-  return CS16_MOVEMENT_SPEED_BY_ROLE[role];
+  return getCs16WeaponMovementMultipliers(weaponId)?.normal ?? (role === 'melee' ? 1 : 1);
 };
 
 const teamsForCs16Rule = (team: 'both' | 't' | 'ct'): Team[] | 'both' => {

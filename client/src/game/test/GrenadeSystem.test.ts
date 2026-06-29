@@ -30,4 +30,42 @@ describe('GrenadeSystem', () => {
 
     expect(scene.children.length).toBeGreaterThan(0);
   });
+
+  it('renders and detonates server-authoritative grenades thrown by remote players', () => {
+    const scene = new THREE.Scene();
+    const system = new GrenadeSystem(scene);
+    const sync = (system as GrenadeSystem & {
+      syncAuthoritativeGrenades?: (
+        grenades: Array<{
+          id: string;
+          type: 'he';
+          throwerId: string;
+          position: { x: number; y: number; z: number };
+          exploded: boolean;
+        }>,
+        localPlayerId?: string
+      ) => void;
+    }).syncAuthoritativeGrenades;
+
+    sync?.call(system, [{
+      id: 'remote-he',
+      type: 'he',
+      throwerId: 'remote-player',
+      position: { x: 2, y: 1, z: -3 },
+      exploded: false
+    }], 'local-player');
+
+    expect(scene.children.some(child => child.userData.authoritativeGrenadeId === 'remote-he')).toBe(true);
+
+    sync?.call(system, [{
+      id: 'remote-he',
+      type: 'he',
+      throwerId: 'remote-player',
+      position: { x: 3, y: 0.13, z: -4 },
+      exploded: true
+    }], 'local-player');
+
+    expect(scene.children.some(child => child.userData.authoritativeGrenadeId === 'remote-he')).toBe(false);
+    expect(scene.children.some(child => child.userData.kind === 'burst')).toBe(true);
+  });
 });

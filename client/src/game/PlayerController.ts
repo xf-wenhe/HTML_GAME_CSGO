@@ -3,7 +3,7 @@ import * as CANNON from 'cannon-es';
 import { NamedBody, Physics, PhysicsBodyUserData } from './Physics.js';
 import { InputManager } from './InputManager.js';
 import { Scene } from './Scene.js';
-import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, FALL_DAMAGE_SAFE_SPEED, FALL_DAMAGE_PER_HU, FALL_DAMAGE_SPEED_PER_HU, accelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle, MovementParams } from './Movement.js';
+import { CSGO_MOVEMENT, PLAYER_CROUCH_JUMP_BONUS, PLAYER_JUMP_FORCE, calculateCs16FallDamage, limitCs16BunnyhopSpeed, resolveCs16TargetSpeed, accelerate, airAccelerate, applyFriction, clampHorizontalSpeed, canStepUpObstacle, MovementParams } from './Movement.js';
 import { DamageProfile, HitRegion, calculateDamage } from './Combat.js';
 import { hammerToGame, PLAYER_EYE_HEIGHT, PLAYER_HEIGHT } from './constants/MapUnits.js';
 
@@ -40,15 +40,18 @@ export class PlayerController {
   private wasGrounded = false; // Track previous grounded state
   private airborneTime = 0;
   private crouched = false;
+  private duckingInProgress = false;
+  private duckTransitionElapsed = 0;
   private crouchJumpActive = false;
   private lastLandingSpeed = 0;
   private groundStickSuppressTime = 0;
 
-  // 【大跳修复核心】分离站立和下蹲的碰撞盒高度
+  // GoldSrc standing hull is -36..36 HU; duck hull is -18..32 HU.
   private readonly standingHalfHeight = PLAYER_HEIGHT / 2;
-  private readonly crouchingHalfHeight = 0.27; // crouched hull, kept slightly taller than CS duck hull for stable step clearance
+  private readonly crouchingHalfHeight = hammerToGame(50) / 2;
   private readonly standingEyeOffset = PLAYER_EYE_HEIGHT - this.standingHalfHeight;
-  private readonly crouchEyeOffset = hammerToGame(46) - this.crouchingHalfHeight;
+  private readonly crouchEyeOffset = hammerToGame(30) - this.crouchingHalfHeight;
+  private readonly duckTransitionDuration = 0.4;
   private eyeHeight = this.standingEyeOffset;
   private currentHalfHeight = this.standingHalfHeight;
   private readonly maxStepHeight = 0.18;
@@ -108,6 +111,10 @@ export class PlayerController {
       this.input.setKeyPressed('Space', false);
       if (this.grounded && this.groundStickSuppressTime <= 0) {
         this.crouchJumpActive = this.crouched;
+        const jumpVelocity = new THREE.Vector3(this.body.velocity.x, this.body.velocity.y, this.body.velocity.z);
+        limitCs16BunnyhopSpeed(jumpVelocity, resolveCs16TargetSpeed('run', this.movementSpeedMultiplier));
+        this.body.velocity.x = jumpVelocity.x;
+        this.body.velocity.z = jumpVelocity.z;
         this.body.velocity.y = this.jumpForce + (this.crouched ? PLAYER_CROUCH_JUMP_BONUS : 0);
         this.grounded = false;
         this.groundStickSuppressTime = 0.25; // 增加抑制时间防止连跳
@@ -127,14 +134,8 @@ export class PlayerController {
         this.scene.getFeedbackEffects().landHard();
       }
       // CS1.6 摔落伤害
-      if (landingVelocity > FALL_DAMAGE_SAFE_SPEED) {
-        const excessSpeed = landingVelocity - FALL_DAMAGE_SAFE_SPEED;
-        const excessHU = excessSpeed / FALL_DAMAGE_SPEED_PER_HU;
-        const damage = Math.floor(excessHU * FALL_DAMAGE_PER_HU);
-        if (damage > 0) {
-          this.takeDamage(damage, 'leg');
-        }
-      }
+      const fallDamage = calculateCs16FallDamage(landingVelocity);
+      if (fallDamage > 0) this.takeDamage(fallDamage, 'leg');
     } else if (!this.grounded) {
       this.airborneTime += dt;
     }
@@ -193,12 +194,8 @@ export class PlayerController {
     const isWalkingInput = this.input.isKeyPressed('ShiftLeft') || this.input.isKeyPressed('ShiftRight');
 
     // Priority: Crouch > Walk > Run (prevent state conflicts)
-    const baseTargetSpeed = isCrouchingInput
-      ? this.movementParams.crouchSpeed
-      : isWalkingInput
-        ? this.movementParams.walkSpeed
-        : this.movementParams.runSpeed;
-    const targetSpeed = baseTargetSpeed * this.movementSpeedMultiplier;
+    const movementMode = isCrouchingInput ? 'duck' : isWalkingInput ? 'walk' : 'run';
+    const targetSpeed = resolveCs16TargetSpeed(movementMode, this.movementSpeedMultiplier);
 
     // Debug log for movement analysis
     if (typeof window !== 'undefined' && (window as any).__debugMovement) {
@@ -214,18 +211,14 @@ export class PlayerController {
 
     if (wishDirection.lengthSq() > 0) {
       wishDirection.normalize();
-      // Increase acceleration when crouching for responsive movement
-      const isCurrentlyCrouching = this.crouched;
       const acceleration = this.grounded
-        ? (isCurrentlyCrouching ? this.movementParams.groundAcceleration * 2.5 : this.movementParams.groundAcceleration)
+        ? this.movementParams.groundAcceleration
         : this.movementParams.airAcceleration;
-      accelerate(horizontalVelocity.set(velocity.x, 0, velocity.z), wishDirection, targetSpeed, acceleration, dt);
-      if (!this.grounded) {
-        horizontalVelocity.lerp(new THREE.Vector3(velocity.x, 0, velocity.z), 1 - this.movementParams.airControl);
-      }
+      const accelerateMovement = this.grounded ? accelerate : airAccelerate;
+      accelerateMovement(horizontalVelocity.set(velocity.x, 0, velocity.z), wishDirection, targetSpeed, acceleration, dt);
       velocity.x = horizontalVelocity.x;
       velocity.z = horizontalVelocity.z;
-      clampHorizontalSpeed(velocity, targetSpeed);
+      if (this.grounded) clampHorizontalSpeed(velocity, targetSpeed);
     }
 
     this.body.velocity.x = velocity.x;
@@ -300,19 +293,39 @@ export class PlayerController {
 
   private updateCrouchState(dt: number): void {
     const wantsCrouch = this.input.isKeyPressed('ControlLeft') || this.input.isKeyPressed('ControlRight');
-    
+
     if (wantsCrouch && !this.crouched) {
-      this.crouched = true;
-      this.setHullSize(true);
-    } else if (!wantsCrouch && this.crouched) {
-      if (this.canStand()) { // 确保头顶有空间才允许站立
-        this.crouched = false;
-        this.setHullSize(false);
+      if (!this.duckingInProgress) {
+        this.duckingInProgress = true;
+        this.duckTransitionElapsed = 0;
+      }
+      this.duckTransitionElapsed = Math.min(this.duckTransitionDuration, this.duckTransitionElapsed + dt);
+      if (!this.grounded || this.duckTransitionElapsed >= this.duckTransitionDuration) {
+        this.crouched = true;
+        this.duckingInProgress = false;
+        this.setHullSize(true);
+      }
+    } else if (!wantsCrouch) {
+      this.duckingInProgress = false;
+      this.duckTransitionElapsed = 0;
+      if (!this.crouched) {
+        this.eyeHeight = this.standingEyeOffset;
+      } else if (this.crouched) {
+        if (this.canStand()) { // 确保头顶有空间才允许站立
+          this.crouched = false;
+          this.setHullSize(false);
+        }
       }
     }
 
-    const targetEyeHeight = this.crouched ? this.crouchEyeOffset : this.standingEyeOffset;
-    this.eyeHeight = THREE.MathUtils.lerp(this.eyeHeight, targetEyeHeight, 1 - Math.exp(-8 * dt));
+    if (this.duckingInProgress) {
+      const t = this.duckTransitionElapsed / this.duckTransitionDuration;
+      const smoothT = t * t * (3 - 2 * t);
+      const eyeAboveFeet = THREE.MathUtils.lerp(PLAYER_EYE_HEIGHT, hammerToGame(30), smoothT);
+      this.eyeHeight = eyeAboveFeet - this.currentHalfHeight;
+    } else {
+      this.eyeHeight = this.crouched ? this.crouchEyeOffset : this.standingEyeOffset;
+    }
     if (this.grounded) this.crouchJumpActive = false;
   }
 
@@ -543,6 +556,12 @@ export class PlayerController {
     this.hasHelmet = hasHelmet;
   }
 
+  syncAuthoritativeVitals(state: { health: number; armor: number; hasHelmet: boolean }): void {
+    this.health = Math.max(0, Math.min(this.maxHealth, state.health));
+    this.armor = Math.max(0, Math.min(this.maxArmor, state.armor));
+    this.hasHelmet = state.hasHelmet;
+  }
+
   getHealth(): number {
     return this.health;
   }
@@ -586,6 +605,7 @@ export class PlayerController {
     this.body.position.set(position.x, bodyY, position.z);
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
+    this.resetAirborneState();
     this.settleOnGroundBelow(2.0);
     this.body.wakeUp(); // Ensure physics body is active
     this.syncCameraToBody();
@@ -599,10 +619,21 @@ export class PlayerController {
     this.body.position.set(position.x, position.y - this.eyeHeight, position.z);
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
+    this.resetAirborneState();
     this.body.wakeUp();
     this.syncCameraToBody();
     this.grounded = this.canJump();
     this.updateLastSafeGroundPosition();
+  }
+
+  private resetAirborneState(): void {
+    this.groundStickSuppressTime = 0;
+    this.airborneTime = 0;
+    this.crouchJumpActive = false;
+    this.lastLandingSpeed = 0;
+    this.wasGrounded = false;
+    this.duckingInProgress = false;
+    this.duckTransitionElapsed = 0;
   }
 
   resetVelocity(): void {

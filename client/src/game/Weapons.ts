@@ -16,7 +16,7 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   }),
   usp: new Weapon({
     id: 'usp', name: 'USP .45', displayName: 'USP .45',
-    damage: 30, fireRate: 4.2, magazineSize: 12, reloadTime: 2.1, spread: 0.03,
+    damage: 34, fireRate: 4.2, magazineSize: 12, reloadTime: 2.1, spread: 0.03,
     projectileSpeed: 52, switchTime: 0.25, range: 50, reserveAmmo: 100,
     armorPenetration: 0.5, adsSpreadMultiplier: 0.44
   }),

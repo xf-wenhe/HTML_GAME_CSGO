@@ -18,12 +18,11 @@ export interface MovementParams {
   airControl: number;
 }
 
-// CS:GO Source engine 风格运动常数
-// 基于 CS1.6 标准值:
-// sv_accelerate = 5.5, sv_airaccelerate = 10, sv_friction = 5.2, sv_stopspeed = 100
-const GAME_SV_ACCELERATE = 5.5;
+// ReHLDS defaults: sv_accelerate 10, sv_airaccelerate 10,
+// sv_friction 4, sv_stopspeed 100.
+const GAME_SV_ACCELERATE = 10;
 const GAME_SV_AIRACCELERATE = 10;
-const GAME_SV_FRICTION = 5.2;
+const GAME_SV_FRICTION = 4;
 const GAME_SV_STOPSPEED = hammerToGame(100); // 1.0 game units
 
 export const CSGO_MOVEMENT: MovementParams = {
@@ -37,27 +36,30 @@ export const CSGO_MOVEMENT: MovementParams = {
   airControl: 0.16
 };
 
-// CS1.6 标准物理参数（与 Physics.ts 保持同步）
-// 物理公式：
-//   上升时间 t = v0 / g
-//   跳跃高度 h = v0² / (2g) = 0.5 * g * t²
-// 目标：h = 0.45, t = 0.38
-// => g = 2h/t² = 2*0.45/(0.38²) ≈ 6.23
-// => v0 = g*t = 6.23*0.38 ≈ 2.37
-export const CSGO_GRAVITY = 6.23;
-export const PLAYER_JUMP_FORCE = 2.37;
-export const PLAYER_CROUCH_JUMP_BONUS = hammerToGame(8); // 0.08
+export function resolveCs16TargetSpeed(
+  mode: 'run' | 'walk' | 'duck',
+  weaponMovementMultiplier: number
+): number {
+  const weaponMaxSpeed = CSGO_MOVEMENT.runSpeed * weaponMovementMultiplier;
+  if (mode === 'walk') return Math.min(CSGO_MOVEMENT.walkSpeed, weaponMaxSpeed);
+  if (mode === 'duck') return weaponMaxSpeed * 0.333;
+  return weaponMaxSpeed;
+}
 
-// CS1.6 摔落伤害参数
-// 安全下落高度：216 HU（不会受伤）
-// 从高度 h 下落的着陆速度：v = sqrt(2gh)
-// 转换为游戏单位：
-//   g = 7.06, h_safe = 2.16 (216 HU)
-//   v_safe = sqrt(2*7.06*2.16) ≈ 5.52 游戏单位/秒
-// 超过安全高度后：每增加 1 HU 造成约 1 点伤害
-export const FALL_DAMAGE_SAFE_SPEED = 5.52; // 安全着陆速度（游戏单位/秒）
-export const FALL_DAMAGE_PER_HU = 1.0; // 每 HU 额外高度的伤害
-export const FALL_DAMAGE_SPEED_PER_HU = 0.376; // 每 HU 高度对应的速度增量 (sqrt(2*7.06*0.01) ≈ 0.376)
+// GoldSrc uses sv_gravity 800 and a normal jump height of 45 HU.
+export const CSGO_GRAVITY = hammerToGame(800);
+export const PLAYER_JUMP_FORCE = Math.sqrt(2 * CSGO_GRAVITY * hammerToGame(45));
+export const PLAYER_CROUCH_JUMP_BONUS = 0;
+
+export const FALL_DAMAGE_SAFE_SPEED = hammerToGame(500);
+export const FALL_DAMAGE_FATAL_SPEED = hammerToGame(1100);
+const MULTIPLAYER_FALL_DAMAGE_SCALE = 1.25;
+
+export function calculateCs16FallDamage(landingSpeed: number): number {
+  if (landingSpeed <= FALL_DAMAGE_SAFE_SPEED) return 0;
+  const damagePerSpeed = 100 / (FALL_DAMAGE_FATAL_SPEED - FALL_DAMAGE_SAFE_SPEED);
+  return Math.floor((landingSpeed - FALL_DAMAGE_SAFE_SPEED) * damagePerSpeed * MULTIPLAYER_FALL_DAMAGE_SCALE);
+}
 
 export interface StepUpCheck {
   grounded: boolean;
@@ -113,6 +115,32 @@ export function accelerate(
 
   const accelSpeed = Math.min(acceleration * wishSpeed * dt, addSpeed);
   velocity.addScaledVector(wishDirection, accelSpeed);
+  return velocity;
+}
+
+export function airAccelerate(
+  velocity: THREE.Vector3,
+  wishDirection: THREE.Vector3,
+  wishSpeed: number,
+  acceleration: number,
+  dt: number
+): THREE.Vector3 {
+  if (wishDirection.lengthSq() === 0) return velocity;
+  const cappedWishSpeed = Math.min(wishSpeed, hammerToGame(30));
+  const currentSpeed = velocity.dot(wishDirection);
+  const addSpeed = cappedWishSpeed - currentSpeed;
+  if (addSpeed <= 0) return velocity;
+
+  const accelSpeed = Math.min(acceleration * wishSpeed * dt, addSpeed);
+  velocity.addScaledVector(wishDirection, accelSpeed);
+  return velocity;
+}
+
+export function limitCs16BunnyhopSpeed(velocity: THREE.Vector3, maxSpeed: number): THREE.Vector3 {
+  const maxScaledSpeed = maxSpeed * 1.2;
+  const speed = velocity.length();
+  if (maxScaledSpeed <= 0 || speed <= maxScaledSpeed) return velocity;
+  velocity.multiplyScalar((maxScaledSpeed / speed) * 0.8);
   return velocity;
 }
 

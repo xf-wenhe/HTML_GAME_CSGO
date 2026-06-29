@@ -26,7 +26,7 @@ export const CS16_WEAPON_DEFINITIONS: Record<string, Weapon> = {
     id: 'usp',
     name: 'USP .45',
     displayName: 'USP .45',
-    damage: 30,
+    damage: 34,
     fireRate: 5.5,
     magazineSize: 12,
     reloadTime: 2.0,

@@ -3,6 +3,13 @@ import { ASSETS, loadAsset } from './assets.js';
 import { Weapon } from './Weapon.js';
 import { WEAPON_DEFINITIONS } from './Weapons.js';
 import { getWeaponPresentation, resolveWeaponPresentationId, type ViewmodelPresentation } from './WeaponPresentation.js';
+import {
+  getCs16BurstTiming,
+  getCs16PrimaryFireCycleSeconds,
+  getCs16SilencerTiming,
+  isCs16ScopedWeapon
+} from '../../../shared/cs16WeaponTiming.js';
+import type { Cs16FireState } from '../../../shared/cs16Ballistics.js';
 
 export interface ShootResult {
   origin: THREE.Vector3;
@@ -13,6 +20,13 @@ export interface ShootResult {
   heavyMelee: boolean;
   spread: number;
   recoilOffset: { x: number; y: number };
+}
+
+interface QueuedShot {
+  weaponId: string;
+  dueAt: number;
+  spread: number;
+  damage?: number;
 }
 
 export type WeaponFeedbackEvent =
@@ -38,12 +52,15 @@ export class WeaponManager {
   private scopeLevel = 0;
   private pendingAutoRescopeLevel = 0;
   private pendingAutoRescopeAt = 0;
+  private nextScopeToggleAt = 0;
   private meleeSwing = 0;
   private feedbackEvents: WeaponFeedbackEvent[] = [];
   private shotCounter = 0;
   private cameraKickX = 0;
   private cameraKickY = 0;
+  private recoilDirection = -1;
   private crouching = false;
+  private queuedShots: QueuedShot[] = [];
 
   constructor() {
     Object.entries(WEAPON_DEFINITIONS).forEach(([id, weapon]) => {
@@ -82,6 +99,7 @@ export class WeaponManager {
 
   switchWeapon(weaponId: string): boolean {
     if (!this.weapons.has(weaponId) || weaponId === this.currentWeaponId) return this.weapons.has(weaponId);
+    this.getCurrentWeapon().cancelReload();
     this.currentWeaponId = weaponId;
     const weapon = this.getCurrentWeapon();
     const viewmodel = this.getViewmodelPresentation();
@@ -91,6 +109,7 @@ export class WeaponManager {
     this.aiming = false;
     this.scoped = false;
     this.scopeLevel = 0;
+    this.nextScopeToggleAt = 0;
     this.cancelAutoRescope();
     void this.applyWeaponModel();
     return true;
@@ -120,13 +139,17 @@ export class WeaponManager {
     this.syncScopedState();
   }
 
-  cycleScope(): void {
+  cycleScope(now: number = performance.now()): void {
     this.cancelAutoRescope();
-    if (!this.isSniperWeapon(this.currentWeaponId)) {
+    if (!this.isScopedWeapon(this.currentWeaponId)) {
       this.setAiming(false);
       return;
     }
-    this.scopeLevel = (this.scopeLevel + 1) % 3;
+    if (now < this.nextScopeToggleAt) return;
+    this.nextScopeToggleAt = now + 300;
+    this.scopeLevel = this.isScopedRifle(this.currentWeaponId)
+      ? (this.scopeLevel > 0 ? 0 : 1)
+      : (this.scopeLevel + 1) % 3;
     this.syncScopedState();
   }
 
@@ -138,11 +161,29 @@ export class WeaponManager {
     return this.scoped;
   }
 
+  isSilenced(): boolean {
+    return this.getCurrentWeapon().isSilenced();
+  }
+
+  isBurstMode(): boolean {
+    return this.getCurrentWeapon().isBurstMode();
+  }
+
+  secondaryAttack(now: number = performance.now()): boolean {
+    const weapon = this.getCurrentWeapon();
+    if (getCs16SilencerTiming(weapon.id)) return weapon.toggleSilencer(now);
+    if (getCs16BurstTiming(weapon.id)) return weapon.toggleBurstMode(now);
+    const previousLevel = this.scopeLevel;
+    this.cycleScope(now);
+    return previousLevel !== this.scopeLevel;
+  }
+
   getScopeLevel(): number {
     return this.scopeLevel;
   }
 
   getScopeFov(defaultFov = 82): number {
+    if (this.scopeLevel > 0 && this.isScopedRifle(this.currentWeaponId)) return 55;
     if (this.scopeLevel === 1) return 40;
     if (this.scopeLevel === 2) return 10;
     return defaultFov;
@@ -184,10 +225,37 @@ export class WeaponManager {
     return this.cameraKickY;
   }
 
-  shoot(camera: THREE.Camera, now: number = performance.now(), options: { heavyMelee?: boolean; isMoving?: boolean } = {}): ShootResult | null {
+  consumeCameraKick(): { pitch: number; yaw: number } {
+    const kick = { pitch: this.cameraKickY, yaw: this.cameraKickX };
+    this.cameraKickX = 0;
+    this.cameraKickY = 0;
+    return kick;
+  }
+
+  shoot(
+    camera: THREE.Camera,
+    now: number = performance.now(),
+    options: {
+      heavyMelee?: boolean;
+      isMoving?: boolean;
+      horizontalSpeed?: number;
+      isGrounded?: boolean;
+    } = {}
+  ): ShootResult | null {
     const weapon = this.getCurrentWeapon();
     if (this.isSwitching()) return null;
-    if (!weapon.shoot(now)) {
+    const fireCycle = getCs16PrimaryFireCycleSeconds(weapon.id, this.scoped);
+    const fireState: Cs16FireState = {
+      grounded: options.isGrounded ?? true,
+      crouched: this.crouching,
+      horizontalSpeed: options.horizontalSpeed ?? (options.isMoving ? 1.41 : 0),
+      aiming: this.aiming,
+      silenced: weapon.isSilenced(),
+      burstMode: weapon.isBurstMode()
+    };
+    const burstTiming = weapon.isBurstMode() ? getCs16BurstTiming(weapon.id) : undefined;
+    const resolvedFireCycle = burstTiming?.primaryCycleSeconds ?? fireCycle;
+    if (!weapon.shoot(now, resolvedFireCycle, fireState)) {
       if (weapon.currentAmmo === 0 && !weapon.getIsReloading()) {
         this.startReload(now);
         this.feedbackEvents.push({ type: 'empty', weaponId: weapon.id });
@@ -197,17 +265,27 @@ export class WeaponManager {
 
     const heavyMelee = Boolean(options.heavyMelee && weapon.isMelee);
     this.recoil = weapon.isMelee ? Math.min(this.recoil + (heavyMelee ? 0.15 : 0.09), 0.24) : Math.min(this.recoil + 0.08, 0.26);
-    const recoilOffset = weapon.getRecoilOffset();
-    const camKickBase = weapon.isMelee ? 0.015 : 0.006;
-    const camKickRand = weapon.isMelee ? 0.012 : 0.005;
-    const crouchReduction = this.crouching ? 0.65 : 1.0;
-    this.cameraKickX += (recoilOffset.x * 0.02 + Math.random() * camKickRand) * crouchReduction;
-    this.cameraKickY += (recoilOffset.y * 0.02 + camKickBase) * crouchReduction;
+    const cs16Kick = weapon.getLastCs16KickDegrees();
+    let recoilOffset = weapon.getRecoilOffset();
+    if (cs16Kick) {
+      this.cameraKickY += THREE.MathUtils.degToRad(cs16Kick.pitch);
+      this.cameraKickX += THREE.MathUtils.degToRad(cs16Kick.yawMagnitude * this.recoilDirection);
+      recoilOffset = { x: 0, y: 0 };
+      if (Math.floor(Math.random() * (cs16Kick.directionChangeChance + 1)) === 0) {
+        this.recoilDirection *= -1;
+      }
+    } else {
+      const camKickBase = weapon.isMelee ? 0.015 : 0.006;
+      const camKickRand = weapon.isMelee ? 0.012 : 0.005;
+      const crouchReduction = this.crouching ? 0.65 : 1.0;
+      this.cameraKickX += (recoilOffset.x * 0.02 + Math.random() * camKickRand) * crouchReduction;
+      this.cameraKickY += (recoilOffset.y * 0.02 + camKickBase) * crouchReduction;
+    }
     this.meleeSwing = weapon.isMelee ? 1 : this.meleeSwing;
     this.muzzleFlash.material.opacity = weapon.isMelee ? 0 : 0.95;
 
     // 【修复核心1】真实的 CSGO 弹道偏转算法
-    const spread = weapon.getEffectiveSpread(Boolean(options.isMoving), this.aiming);
+    const spread = weapon.getLastShotSpread(fireState);
 
     // 在局部的 2D 平面（也就是玩家屏幕中心点）上计算随机圆圈散布
     const angle = Math.random() * Math.PI * 2;
@@ -226,17 +304,44 @@ export class WeaponManager {
     const direction = localDirection.applyQuaternion(camera.quaternion);
 
     this.feedbackEvents.push({ type: 'shoot', weaponId: weapon.id });
+    if (burstTiming) {
+      const firstDelayMs = Math.round(burstTiming.firstDelaySeconds * 1000);
+      const followupDelayMs = Math.round(burstTiming.followupDelaySeconds * 1000);
+      const followupSpread = burstTiming.followupSpread ?? spread;
+      this.queuedShots = [
+        { weaponId: weapon.id, dueAt: now + firstDelayMs, spread: followupSpread, damage: burstTiming.followupDamage },
+        { weaponId: weapon.id, dueAt: now + firstDelayMs + followupDelayMs, spread: followupSpread, damage: burstTiming.followupDamage }
+      ];
+    }
 
     return {
       origin: camera.position.clone(),
       direction,
-      damage: heavyMelee ? Math.round(weapon.damage * 1.65) : weapon.damage,
+      damage: burstTiming?.primaryDamage ?? this.getWeaponDamage(weapon, heavyMelee),
       pellets: weapon.pellets,
       isMelee: weapon.isMelee,
       heavyMelee,
       spread,
       recoilOffset
     };
+  }
+
+  consumeQueuedShots(
+    camera: THREE.Camera,
+    now: number = performance.now(),
+    options: { isMoving?: boolean; horizontalSpeed?: number; isGrounded?: boolean } = {}
+  ): ShootResult[] {
+    const ready = this.queuedShots.filter(shot => shot.dueAt <= now);
+    this.queuedShots = this.queuedShots.filter(shot => shot.dueAt > now);
+    return ready.flatMap(shot => {
+      if (shot.weaponId !== this.currentWeaponId) return [];
+      const weapon = this.getCurrentWeapon();
+      if (weapon.currentAmmo <= 0 || weapon.getIsReloading()) return [];
+      weapon.currentAmmo--;
+      this.muzzleFlash.material.opacity = 0.95;
+      this.feedbackEvents.push({ type: 'shoot', weaponId: weapon.id });
+      return [this.createShotResult(camera, weapon, shot.spread, { x: 0, y: 0 }, false, shot.damage)];
+    });
   }
 
   startReload(now: number = performance.now()): void {
@@ -257,6 +362,45 @@ export class WeaponManager {
     this.pendingAutoRescopeAt = 0;
   }
 
+  private createShotResult(
+    camera: THREE.Camera,
+    weapon: Weapon,
+    spread: number,
+    recoilOffset: { x: number; y: number },
+    heavyMelee: boolean,
+    damageOverride?: number
+  ): ShootResult {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.random() * spread;
+    const spreadX = Math.cos(angle) * radius;
+    const spreadY = Math.sin(angle) * radius;
+    const localDirection = new THREE.Vector3(
+      spreadX + recoilOffset.x,
+      spreadY + (weapon.isMelee ? 0 : recoilOffset.y),
+      -1
+    ).normalize();
+    const direction = localDirection.applyQuaternion(camera.quaternion);
+    return {
+      origin: camera.position.clone(),
+      direction,
+      damage: damageOverride ?? this.getWeaponDamage(weapon, heavyMelee),
+      pellets: weapon.pellets,
+      isMelee: weapon.isMelee,
+      heavyMelee,
+      spread,
+      recoilOffset
+    };
+  }
+
+  private getWeaponDamage(weapon: Weapon, heavyMelee: boolean): number {
+    if (heavyMelee) return Math.round(weapon.damage * 1.65);
+    const silencerTiming = getCs16SilencerTiming(weapon.id);
+    if (silencerTiming) {
+      return weapon.isSilenced() ? silencerTiming.silencedDamage : silencerTiming.unsilencedDamage;
+    }
+    return weapon.damage;
+  }
+
   private updateAutoRescope(now: number): void {
     if (!this.pendingAutoRescopeLevel) return;
     const weapon = this.getCurrentWeapon();
@@ -272,7 +416,7 @@ export class WeaponManager {
   }
 
   private syncScopedState(): void {
-    this.scoped = this.scopeLevel > 0 && this.isSniperWeapon(this.currentWeaponId);
+    this.scoped = this.scopeLevel > 0 && this.isScopedWeapon(this.currentWeaponId);
     this.aiming = this.scoped;
     if (!this.scoped) this.scopeLevel = 0;
   }
@@ -290,8 +434,6 @@ export class WeaponManager {
     const viewmodel = this.getViewmodelPresentation();
     const recoilDecay = viewmodel?.recoil.recover ?? 0.9;
     this.recoil = Math.max(0, this.recoil - dt * recoilDecay);
-    this.cameraKickX = Math.max(0, this.cameraKickX - dt * recoilDecay * 1.8);
-    this.cameraKickY = Math.max(0, this.cameraKickY - dt * recoilDecay * 1.6);
     this.meleeSwing = Math.max(0, this.meleeSwing - dt * 5.8);
     this.switchProgress = Math.max(0, this.switchProgress - dt);
     const swayConfig = viewmodel?.sway;
@@ -426,6 +568,14 @@ export class WeaponManager {
       'scout', 'ssg08', 'awp', 'sniper', 'g3sg1', 'sg550', 'scar20', 'operator'
     ]);
     return sniperWeapons.has(weaponId);
+  }
+
+  private isScopedRifle(weaponId: string): boolean {
+    return weaponId === 'sg552' || weaponId === 'aug';
+  }
+
+  private isScopedWeapon(weaponId: string): boolean {
+    return this.isSniperWeapon(weaponId) || isCs16ScopedWeapon(weaponId);
   }
 
   private getViewmodelPresentation(): ViewmodelPresentation | null {

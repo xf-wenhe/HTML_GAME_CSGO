@@ -1,4 +1,6 @@
 import { MapId, Team, Vector3, WeaponBalance, WeaponId } from '../shared/types.js';
+import { getCs16WeaponMovementMultipliers } from '../shared/cs16Movement.js';
+import { getCs16PrimaryFireRate, getCs16ReloadSeconds } from '../shared/cs16WeaponTiming.js';
 
 export const WEAPON_BALANCE: Record<WeaponId, WeaponBalance> = {
   // Old aliases (keep for backward compat)
@@ -13,7 +15,7 @@ export const WEAPON_BALANCE: Record<WeaponId, WeaponBalance> = {
   // New weapons
   glock: { id: 'glock', name: 'Glock-18', price: 400, teams: ['attackers'], buyCategory: 'pistol', killReward: 300, damage: 28, fireRate: 5, magazineSize: 20, maxReserveAmmo: 120, reloadTime: 2.2, spread: 0.04, movementSpeedMultiplier: 1, armorPenetration: 0.47, headshotMultiplier: 3.5, range: 48, recoilKick: 0.8, moveInaccuracy: 0.05 },
   pistol: { id: 'pistol', name: 'Glock-18', price: 200, teams: 'both', buyCategory: 'pistol', killReward: 300, damage: 28, fireRate: 5, magazineSize: 20, maxReserveAmmo: 120, reloadTime: 2.2, spread: 0.04, movementSpeedMultiplier: 1, armorPenetration: 0.47, headshotMultiplier: 3.5, range: 48, recoilKick: 0.8, moveInaccuracy: 0.05 },
-  usp: { id: 'usp', name: 'USP .45', price: 500, teams: ['defenders'], buyCategory: 'pistol', killReward: 300, damage: 30, fireRate: 5.5, magazineSize: 12, maxReserveAmmo: 100, reloadTime: 2.0, spread: 0.06, movementSpeedMultiplier: 1, armorPenetration: 0.5, headshotMultiplier: 3.5, range: 52, recoilKick: 0.75, moveInaccuracy: 0.04 },
+  usp: { id: 'usp', name: 'USP .45', price: 500, teams: ['defenders'], buyCategory: 'pistol', killReward: 300, damage: 34, fireRate: 5.5, magazineSize: 12, maxReserveAmmo: 100, reloadTime: 2.0, spread: 0.06, movementSpeedMultiplier: 1, armorPenetration: 0.5, headshotMultiplier: 3.5, range: 52, recoilKick: 0.75, moveInaccuracy: 0.04 },
   usp_s: { id: 'usp_s', name: 'USP .45', price: 500, teams: ['defenders'], buyCategory: 'pistol', killReward: 300, damage: 30, fireRate: 5.5, magazineSize: 12, maxReserveAmmo: 100, reloadTime: 2.0, spread: 0.06, movementSpeedMultiplier: 1, armorPenetration: 0.5, headshotMultiplier: 3.5, range: 52, recoilKick: 0.75, moveInaccuracy: 0.04 },
   p250: { id: 'p250', name: 'P250', price: 300, teams: 'both', buyCategory: 'pistol', killReward: 300, damage: 38, fireRate: 4.5, magazineSize: 13, maxReserveAmmo: 26, reloadTime: 2.2, spread: 0.04, movementSpeedMultiplier: 1, armorPenetration: 0.52, headshotMultiplier: 3.5, range: 50, recoilKick: 0.8, moveInaccuracy: 0.05 },
   p228: { id: 'p228', name: 'P228', price: 600, teams: 'both', buyCategory: 'pistol', killReward: 300, damage: 38, fireRate: 4.5, magazineSize: 13, maxReserveAmmo: 52, reloadTime: 2.2, spread: 0.04, movementSpeedMultiplier: 1, armorPenetration: 0.52, headshotMultiplier: 3.5, range: 50, recoilKick: 0.8, moveInaccuracy: 0.05 },
@@ -64,6 +66,15 @@ export const WEAPON_BALANCE: Record<WeaponId, WeaponBalance> = {
   zeus: { id: 'zeus', name: 'Zeus x27', price: 200, teams: 'both', buyCategory: 'pistol', killReward: 0, damage: 500, fireRate: 0.2, magazineSize: 1, maxReserveAmmo: 0, reloadTime: 0, spread: 0.01, movementSpeedMultiplier: 0.96, armorPenetration: 1.0, headshotMultiplier: 1, range: 3.5, recoilKick: 0.3, moveInaccuracy: 0.02 },
   hegrenade: { id: 'hegrenade', name: 'HE Grenade', price: 300, teams: 'both', buyCategory: 'grenade', killReward: 300, damage: 100, fireRate: 0.2, magazineSize: 1, maxReserveAmmo: 0, reloadTime: 0, spread: 0, movementSpeedMultiplier: 0.98, armorPenetration: 1.0, headshotMultiplier: 1, range: 50, recoilKick: 0.5, moveInaccuracy: 0 }
 };
+
+for (const weapon of Object.values(WEAPON_BALANCE)) {
+  const movement = getCs16WeaponMovementMultipliers(weapon.id);
+  if (movement) weapon.movementSpeedMultiplier = movement.normal;
+  const fireRate = getCs16PrimaryFireRate(weapon.id);
+  if (fireRate) weapon.fireRate = fireRate;
+  const reloadTime = getCs16ReloadSeconds(weapon.id);
+  if (reloadTime) weapon.reloadTime = reloadTime;
+}
 
 export const CS16_DEFUSAL_WEAPON_IDS = new Set<WeaponId>([
   'glock', 'usp', 'p228', 'deagle', 'five_seven',

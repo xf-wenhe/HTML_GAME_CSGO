@@ -72,11 +72,22 @@ export interface PlayerSnapshot {
   weaponId: WeaponId;
   ownedWeapons?: WeaponId[];
   weaponAmmo?: Partial<Record<WeaponId, { ammo: number; reserveAmmo: number }>>;
+  weaponSilenced?: Partial<Record<WeaponId, boolean>>;
   ammo: number;
   reserveAmmo: number;
   isReloading?: boolean;
   reloadCompleteAt?: number;
+  reloadAttackUnlockAt?: number;
   nextFireAt?: number;
+  nextSecondaryAt?: number;
+  isScoped?: boolean;
+  isSilenced?: boolean;
+  isBurstMode?: boolean;
+  pendingBurstShots?: number;
+  nextBurstShotAt?: number;
+  burstOrigin?: Vector3;
+  burstDirection?: Vector3;
+  burstClientTime?: number;
   respawnAt?: number;
   grenades?: Partial<Record<GrenadeId, number>>;
   kills: number;
@@ -88,6 +99,15 @@ export interface PlayerSnapshot {
   disconnected?: boolean;
   lastProcessedSeq?: number;
   flashIntensity?: number;
+  flashEndsAt?: number;
+}
+
+export interface GrenadeSnapshot {
+  id: string;
+  type: GrenadeId;
+  throwerId: string;
+  position: Vector3;
+  exploded: boolean;
 }
 
 export interface BombState {
@@ -111,6 +131,7 @@ export interface MatchSnapshot {
   roundTimeRemaining: number;
   score: Record<Team, number>;
   players: PlayerSnapshot[];
+  grenades?: GrenadeSnapshot[];
   spectatorCount?: number;
   bomb?: BombState;
   killFeed: string[];

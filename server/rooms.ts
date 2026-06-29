@@ -22,6 +22,18 @@ import {
   WeaponBalance,
   WeaponId
 } from './types.js';
+import {
+  getCs16BurstTiming,
+  getCs16PrimaryFireCycleSeconds,
+  getCs16SilencerTiming,
+  getCs16ShotgunReloadTiming,
+  isCs16BurstWeapon,
+  isCs16SilencerWeapon,
+  isCs16ScopedWeapon,
+  PLAYER_INPUT_BUTTON_BURST,
+  PLAYER_INPUT_BUTTON_SCOPE,
+  PLAYER_INPUT_BUTTON_SILENCER
+} from '../shared/cs16WeaponTiming.js';
 import { randomUUID } from 'node:crypto';
 import { DEFAULT_ROOM_CONFIGS } from './config.js';
 import { CS16_DEFUSAL_WEAPON_IDS, MAP_CONFIGS, WEAPON_BALANCE } from './gameConfig.js';
@@ -65,12 +77,13 @@ const GRENADE_TIMERS: Record<GrenadeId, number> = {
 };
 
 const GRENADE_DAMAGE: Record<GrenadeId, { base: number; radius: number; falloff: number }> = {
-  he: { base: 65, radius: 7, falloff: 0.6 },
+  he: { base: WEAPON_BALANCE.hegrenade.damage, radius: 7, falloff: 0.6 },
   flashbang: { base: 0, radius: 18, falloff: 0 },
   smoke: { base: 0, radius: 6, falloff: 0 },
   incendiary: { base: 8, radius: 5, falloff: 0.3 },
   decoy: { base: 0, radius: 0, falloff: 0 }
 };
+const FLASH_MAX_DURATION_MS = 5000;
 
 interface PositionRecord {
   time: number;
@@ -85,6 +98,7 @@ interface ActiveGrenade {
   velocity: Vector3;
   thrownAt: number;
   exploded: boolean;
+  explodedAt?: number;
 }
 
 interface JoinPlayerOptions extends Partial<PlayerSnapshot> {
@@ -232,9 +246,13 @@ export class RoomManager {
       weaponId,
       ownedWeapons: defaultOwnedWeapons(weaponId),
       weaponAmmo: { [weaponId]: ammo },
+      weaponSilenced: {},
       ammo: ammo.ammo,
       reserveAmmo: ammo.reserveAmmo,
       isReloading: false,
+      isScoped: false,
+      isSilenced: false,
+      isBurstMode: false,
       grenades: {},
       kills: 0,
       deaths: 0,
@@ -376,6 +394,7 @@ export class RoomManager {
     }
     if (room.config.mode === 'defusal' && room.phase === 'buy') {
       player.rotation = cloneVector(input.rotation);
+      this.applyWeaponInputState(player, input.buttons, now());
       const seq = input.seq ?? (room.lastInputSeq.get(playerId) ?? 0) + 1;
       room.lastInputSeq.set(playerId, seq);
       room.lastActivityAt = now();
@@ -383,6 +402,7 @@ export class RoomManager {
     }
     player.position = cloneVector(input.position);
     player.rotation = cloneVector(input.rotation);
+    this.applyWeaponInputState(player, input.buttons, now());
     this.pickupDroppedBomb(room, player);
     const seq = input.seq ?? (room.lastInputSeq.get(playerId) ?? 0) + 1;
     room.lastInputSeq.set(playerId, seq);
@@ -403,10 +423,16 @@ export class RoomManager {
     if (usesCs16WeaponEconomy(room) && !CS16_DEFUSAL_WEAPON_IDS.has(weaponId)) return undefined;
     if (usesCs16WeaponEconomy(room) && !(player.ownedWeapons ?? []).includes(weaponId)) return undefined;
     saveCurrentWeaponAmmo(player);
+    this.saveCurrentWeaponMode(player);
     player.weaponId = weaponId;
     loadWeaponAmmo(player, weaponId);
+    player.isSilenced = Boolean(player.weaponSilenced?.[weaponId]);
+    player.isBurstMode = false;
+    this.clearBurstQueue(player);
     player.isReloading = false;
     player.reloadCompleteAt = undefined;
+    player.reloadAttackUnlockAt = undefined;
+    player.isScoped = false;
     return this.getSnapshot(room.id);
   }
 
@@ -463,8 +489,13 @@ export class RoomManager {
     player.weaponId = request.weaponId;
     player.ownedWeapons = Array.from(new Set([...(player.ownedWeapons ?? defaultOwnedWeapons(defaultWeaponForTeam(player.team))), request.weaponId]));
     resetWeaponAmmo(player, request.weaponId);
+    player.isSilenced = Boolean(player.weaponSilenced?.[request.weaponId]);
+    player.isBurstMode = false;
+    this.clearBurstQueue(player);
+    player.isScoped = false;
     player.isReloading = false;
     player.reloadCompleteAt = undefined;
+    player.reloadAttackUnlockAt = undefined;
     return this.getSnapshot(room.id);
   }
 
@@ -482,13 +513,43 @@ export class RoomManager {
       return undefined;
     }
     player.isReloading = true;
-    player.reloadCompleteAt = now() + Math.round(weapon.reloadTime * 1000);
+    player.isScoped = false;
+    const currentTime = now();
+    const shotgunReload = getCs16ShotgunReloadTiming(player.weaponId);
+    if (shotgunReload) {
+      player.reloadAttackUnlockAt = currentTime + Math.round(shotgunReload.startSeconds * 1000);
+      player.reloadCompleteAt = player.reloadAttackUnlockAt + Math.round(shotgunReload.shellSeconds * 1000);
+    } else {
+      player.reloadCompleteAt = currentTime + Math.round(weapon.reloadTime * 1000);
+    }
     room.lastActivityAt = now();
     return this.getSnapshot(room.id);
   }
 
   private finishReload(player: PlayerSnapshot): void {
     const weapon = WEAPON_BALANCE[player.weaponId];
+    const shotgunReload = getCs16ShotgunReloadTiming(player.weaponId);
+    if (shotgunReload) {
+      while (
+        player.isReloading &&
+        player.reloadCompleteAt !== undefined &&
+        player.ammo < weapon.magazineSize &&
+        player.reserveAmmo > 0
+      ) {
+        player.ammo++;
+        player.reserveAmmo--;
+        saveCurrentWeaponAmmo(player);
+        if (player.ammo >= weapon.magazineSize || player.reserveAmmo <= 0) {
+          player.isReloading = false;
+          player.reloadCompleteAt = undefined;
+          player.reloadAttackUnlockAt = undefined;
+          return;
+        }
+        player.reloadCompleteAt += Math.round(shotgunReload.shellSeconds * 1000);
+        if (player.reloadCompleteAt > now()) return;
+      }
+      return;
+    }
     const needed = weapon.magazineSize - player.ammo;
     const loaded = Math.min(needed, player.reserveAmmo);
     player.ammo += loaded;
@@ -496,6 +557,7 @@ export class RoomManager {
     saveCurrentWeaponAmmo(player);
     player.isReloading = false;
     player.reloadCompleteAt = undefined;
+    player.reloadAttackUnlockAt = undefined;
   }
 
   shoot(playerId: string, request: ShootRequest): MatchSnapshot | undefined {
@@ -513,11 +575,17 @@ export class RoomManager {
       this.recordSecurityEvent(room, `Rejected weapon mismatch from ${shooter.name}`);
       return this.getSnapshot(room.id);
     }
+    const shotgunReload = getCs16ShotgunReloadTiming(shooter.weaponId);
+    const shotgunCanInterruptReload =
+      Boolean(shotgunReload) &&
+      shooter.isReloading &&
+      shooter.ammo > 0 &&
+      currentTime >= (shooter.reloadAttackUnlockAt ?? Number.POSITIVE_INFINITY);
     if (
       !shooter.isAlive ||
       room.phase !== 'live' ||
       shooter.ammo <= 0 ||
-      shooter.isReloading ||
+      (shooter.isReloading && !shotgunCanInterruptReload) ||
       (shooter.nextFireAt !== undefined && currentTime < shooter.nextFireAt)
     ) {
       return undefined;
@@ -527,10 +595,32 @@ export class RoomManager {
       return this.getSnapshot(room.id);
     }
 
-    const weapon = WEAPON_BALANCE[shooter.weaponId];
+    const burstTiming = shooter.isBurstMode ? getCs16BurstTiming(shooter.weaponId) : undefined;
+    const silencerTiming = getCs16SilencerTiming(shooter.weaponId);
+    const baseWeapon = WEAPON_BALANCE[shooter.weaponId];
+    const weapon = silencerTiming
+      ? { ...baseWeapon, damage: shooter.isSilenced ? silencerTiming.silencedDamage : silencerTiming.unsilencedDamage }
+      : burstTiming?.primaryDamage !== undefined
+        ? { ...baseWeapon, damage: burstTiming.primaryDamage }
+      : baseWeapon;
+    if (shotgunCanInterruptReload) {
+      shooter.isReloading = false;
+      shooter.reloadCompleteAt = undefined;
+      shooter.reloadAttackUnlockAt = undefined;
+    }
+    const fireCycleSeconds = getCs16PrimaryFireCycleSeconds(shooter.weaponId, shooter.isScoped) ?? 1 / weapon.fireRate;
     shooter.ammo--;
     saveCurrentWeaponAmmo(shooter);
-    shooter.nextFireAt = currentTime + Math.round(1000 / weapon.fireRate);
+    shooter.nextFireAt = currentTime + Math.round((burstTiming?.primaryCycleSeconds ?? fireCycleSeconds) * 1000);
+    if (burstTiming) {
+      shooter.pendingBurstShots = Math.min(2, shooter.ammo);
+      shooter.nextBurstShotAt = shooter.pendingBurstShots > 0
+        ? currentTime + Math.round(burstTiming.firstDelaySeconds * 1000)
+        : undefined;
+      shooter.burstOrigin = cloneVector(request.origin);
+      shooter.burstDirection = cloneVector(request.direction);
+      shooter.burstClientTime = request.clientTime;
+    }
     const direction = normalize(request.direction);
 
     // Lag compensation: calculate shooter latency from client timestamp
@@ -742,8 +832,11 @@ export class RoomManager {
       if (room.config.mode !== 'defusal') resetWeaponAmmo(player, player.weaponId);
       player.isReloading = false;
       player.reloadCompleteAt = undefined;
+      player.reloadAttackUnlockAt = undefined;
       player.respawnAt = undefined;
       player.nextFireAt = undefined;
+      player.isScoped = false;
+      this.clearBurstQueue(player);
       player.disconnected = false;
       if (room.config.mode === 'defusal' && !room.bomb?.carrierId && !room.bomb?.position && room.bomb?.plantedAt === undefined && player.team === 'attackers') room.bomb = { carrierId: player.id };
     });
@@ -808,6 +901,10 @@ export class RoomManager {
     target.isAlive = false;
     target.isReloading = false;
     target.reloadCompleteAt = undefined;
+    target.reloadAttackUnlockAt = undefined;
+    target.isScoped = false;
+    this.clearBurstQueue(target);
+    this.clearBurstQueue(target);
     target.respawnAt = room.config.mode === 'tdm' ? serverTime + TDM_RESPAWN_DELAY_MS : undefined;
     if (room.config.mode === 'defusal') target.hasDefuseKit = false;
     if (room.bomb?.plantingPlayerId === target.id) this.clearBombPlant(room);
@@ -837,11 +934,16 @@ export class RoomManager {
 
   private processRoomTimers(room: MatchRoom, time: number): void {
     room.players.forEach(player => {
+      this.processBurstShots(room, player, time);
       if (player.isReloading && player.reloadCompleteAt !== undefined && time >= player.reloadCompleteAt) {
         this.finishReload(player);
       }
       if (!player.isAlive && player.respawnAt !== undefined && time >= player.respawnAt && room.config.mode === 'tdm') {
         this.respawnPlayer(room, player);
+      }
+      if (player.flashEndsAt !== undefined) {
+        player.flashIntensity = Math.max(0, Math.min(1, (player.flashEndsAt - time) / FLASH_MAX_DURATION_MS));
+        if (player.flashIntensity <= 0) player.flashEndsAt = undefined;
       }
     });
   }
@@ -952,8 +1054,11 @@ export class RoomManager {
     resetWeaponAmmo(player, player.weaponId);
     player.isReloading = false;
     player.reloadCompleteAt = undefined;
+    player.reloadAttackUnlockAt = undefined;
     player.respawnAt = undefined;
     player.nextFireAt = undefined;
+    player.isScoped = false;
+    this.clearBurstQueue(player);
   }
 
   private endRound(room: MatchRoom, winner: Team, reason: string): void {
@@ -971,6 +1076,121 @@ export class RoomManager {
   private canUseWeapon(team: Team, weaponId: WeaponId): boolean {
     const teams = WEAPON_BALANCE[weaponId].teams;
     return teams === 'both' || teams.includes(team);
+  }
+
+  private applyWeaponInputState(player: PlayerSnapshot, buttons = 0, time: number): void {
+    player.isScoped = isCs16ScopedWeapon(player.weaponId) && Boolean(buttons & PLAYER_INPUT_BUTTON_SCOPE);
+    const wantsBurst = isCs16BurstWeapon(player.weaponId) && Boolean(buttons & PLAYER_INPUT_BUTTON_BURST);
+    if (isCs16BurstWeapon(player.weaponId)) {
+      if (wantsBurst !== Boolean(player.isBurstMode) && time >= (player.nextSecondaryAt ?? 0)) {
+        player.isBurstMode = wantsBurst;
+        player.nextSecondaryAt = time + 300;
+      }
+    } else {
+      player.isBurstMode = false;
+      this.clearBurstQueue(player);
+    }
+    const silencerTiming = getCs16SilencerTiming(player.weaponId);
+    if (!silencerTiming) {
+      player.isSilenced = false;
+      return;
+    }
+
+    const wantsSilencer = Boolean(buttons & PLAYER_INPUT_BUTTON_SILENCER);
+    if (wantsSilencer === Boolean(player.isSilenced) || time < (player.nextSecondaryAt ?? 0)) return;
+    player.isSilenced = wantsSilencer;
+    player.weaponSilenced = { ...(player.weaponSilenced ?? {}), [player.weaponId]: wantsSilencer };
+    const adjustMs = Math.round(silencerTiming.adjustSeconds * 1000);
+    player.nextSecondaryAt = time + adjustMs;
+    player.nextFireAt = Math.max(player.nextFireAt ?? 0, time + adjustMs);
+  }
+
+  private saveCurrentWeaponMode(player: PlayerSnapshot): void {
+    if (!isCs16SilencerWeapon(player.weaponId)) return;
+    player.weaponSilenced = { ...(player.weaponSilenced ?? {}), [player.weaponId]: Boolean(player.isSilenced) };
+  }
+
+  private processBurstShots(room: MatchRoom, shooter: PlayerSnapshot, time: number): void {
+    while (
+      shooter.isAlive &&
+      isCs16BurstWeapon(shooter.weaponId) &&
+      (shooter.pendingBurstShots ?? 0) > 0 &&
+      shooter.nextBurstShotAt !== undefined &&
+      time >= shooter.nextBurstShotAt
+    ) {
+      if (shooter.ammo <= 0 || !shooter.burstOrigin || !shooter.burstDirection) {
+        this.clearBurstQueue(shooter);
+        return;
+      }
+      const burstTiming = getCs16BurstTiming(shooter.weaponId);
+      if (!burstTiming) {
+        this.clearBurstQueue(shooter);
+        return;
+      }
+      const shotTime = shooter.nextBurstShotAt;
+      const baseWeapon = WEAPON_BALANCE[shooter.weaponId];
+      const weapon = burstTiming.followupDamage !== undefined
+        ? { ...baseWeapon, damage: burstTiming.followupDamage }
+        : baseWeapon;
+      shooter.ammo--;
+      saveCurrentWeaponAmmo(shooter);
+      this.applyServerShot(
+        room,
+        shooter,
+        shooter.burstOrigin,
+        shooter.burstDirection,
+        weapon,
+        shotTime,
+        shooter.burstClientTime ?? 0
+      );
+      shooter.pendingBurstShots = Math.max(0, (shooter.pendingBurstShots ?? 0) - 1);
+      shooter.nextBurstShotAt = shooter.pendingBurstShots > 0
+        ? shotTime + Math.round(burstTiming.followupDelaySeconds * 1000)
+        : undefined;
+    }
+  }
+
+  private applyServerShot(
+    room: MatchRoom,
+    shooter: PlayerSnapshot,
+    origin: Vector3,
+    directionVector: Vector3,
+    weapon: WeaponBalance,
+    fireTime: number,
+    clientTime: number
+  ): void {
+    const direction = normalize(directionVector);
+    const shooterLatency = Math.min(clientTime > 0 ? fireTime - clientTime : 0, MAX_BACKTRACK_MS);
+    const backtrackTime = fireTime - shooterLatency;
+    let bestTarget: { player: PlayerSnapshot; region: HitRegion; distance: number } | undefined;
+
+    for (const target of room.players.values()) {
+      if (target.id === shooter.id || !target.isAlive) continue;
+      if (!room.config.friendlyFire && target.team === shooter.team) continue;
+      const targetPos = this.getBacktrackedPosition(room, target.id, backtrackTime) ?? target.position;
+      const hit = this.getPlayerRayHit(origin, direction, targetPos, weapon.range);
+      if (!hit) continue;
+      if (!bestTarget || hit.distance < bestTarget.distance) bestTarget = { player: target, ...hit };
+    }
+
+    room.lastHit = bestTarget
+      ? this.damagePlayer(room, shooter, bestTarget.player, weapon, bestTarget.region, fireTime)
+      : {
+          shooterId: shooter.id,
+          weaponId: shooter.weaponId,
+          damage: 0,
+          killed: false,
+          serverTime: fireTime
+        };
+    room.lastActivityAt = fireTime;
+  }
+
+  private clearBurstQueue(player: PlayerSnapshot): void {
+    player.pendingBurstShots = 0;
+    player.nextBurstShotAt = undefined;
+    player.burstOrigin = undefined;
+    player.burstDirection = undefined;
+    player.burstClientTime = undefined;
   }
 
   private isPlayerUsingBomb(room: MatchRoom, playerId: string): boolean {
@@ -1013,6 +1233,13 @@ export class RoomManager {
         position: player.position,
         rotation: player.rotation,
         lastProcessedSeq: room.lastInputSeq.get(player.id)
+      })),
+      grenades: room.activeGrenades.map(grenade => ({
+        id: grenade.id,
+        type: grenade.type,
+        throwerId: grenade.throwerId,
+        position: this.simulateGrenadePosition(grenade, now()),
+        exploded: grenade.exploded
       })),
       spectatorCount: room.spectators.size,
       // 简化 Bomb 对象的解构
@@ -1113,37 +1340,91 @@ export class RoomManager {
       const timer = GRENADE_TIMERS[grenade.type];
       if (elapsed >= timer) {
         grenade.exploded = true;
+        grenade.explodedAt = time;
         // Grenade detonation - apply damage to players in range
         const damageCfg = GRENADE_DAMAGE[grenade.type];
-        if (damageCfg.base <= 0) continue;
         const gpos = this.simulateGrenadePosition(grenade, time);
-        for (const player of room.players.values()) {
-          if (!player.isAlive || player.id === grenade.throwerId) continue;
-          const dist = distance(player.position, gpos);
-          if (dist > damageCfg.radius) continue;
-          const dmg = Math.round(damageCfg.base * (1 - dist / damageCfg.radius));
-          if (dmg <= 0) continue;
-          player.health = Math.max(0, player.health - dmg);
-          if (player.health <= 0) {
-            player.isAlive = false;
-            player.deaths++;
-            const thrower = room.players.get(grenade.throwerId);
-            if (thrower) thrower.kills++;
+        const thrower = room.players.get(grenade.throwerId);
+        if (damageCfg.base > 0) {
+          for (const player of room.players.values()) {
+            if (!player.isAlive) continue;
+            if (
+              player.id !== grenade.throwerId
+              && thrower
+              && !room.config.friendlyFire
+              && player.team === thrower.team
+            ) continue;
+            const dist = distance(player.position, gpos);
+            if (dist > damageCfg.radius) continue;
+            const dmg = Math.round(damageCfg.base * (1 - dist / damageCfg.radius));
+            if (dmg <= 0) continue;
+            this.applyGrenadeDamage(room, thrower, player, grenade.type, dmg, time);
           }
         }
         if (grenade.type === 'flashbang') {
           // Flashbang effect: apply to all players in range (server validated)
           for (const player of room.players.values()) {
-            if (!player.isAlive || player.id === grenade.throwerId) continue;
+            if (!player.isAlive) continue;
             const dist = distance(player.position, gpos);
             if (dist < GRENADE_DAMAGE.flashbang.radius) {
-              player.flashIntensity = Math.max(player.flashIntensity ?? 0, 1 - dist / GRENADE_DAMAGE.flashbang.radius);
+              const intensity = 1 - dist / GRENADE_DAMAGE.flashbang.radius;
+              player.flashIntensity = Math.max(player.flashIntensity ?? 0, intensity);
+              player.flashEndsAt = Math.max(player.flashEndsAt ?? time, time + intensity * FLASH_MAX_DURATION_MS);
             }
           }
         }
       }
     }
-    room.activeGrenades = room.activeGrenades.filter(g => !g.exploded || (time - g.thrownAt) < 10000);
+    room.activeGrenades = room.activeGrenades.filter(g => !g.exploded || time - (g.explodedAt ?? time) < 250);
+  }
+
+  private applyGrenadeDamage(
+    room: MatchRoom,
+    thrower: PlayerSnapshot | undefined,
+    target: PlayerSnapshot,
+    grenadeType: GrenadeId,
+    rawDamage: number,
+    time: number
+  ): void {
+    let healthDamage = rawDamage;
+    if (grenadeType === 'he' && target.armor > 0) {
+      const armorRatio = 0.5;
+      const armorBonus = 0.5;
+      healthDamage = rawDamage * armorRatio;
+      const armorDamage = (rawDamage - healthDamage) * armorBonus;
+      if (armorDamage > target.armor) {
+        healthDamage = rawDamage - target.armor / armorBonus;
+        target.armor = 0;
+      } else {
+        target.armor = Math.max(0, target.armor - armorDamage);
+      }
+    }
+
+    target.health = Math.max(0, target.health - Math.round(healthDamage));
+    if (target.health > 0) return;
+
+    target.isAlive = false;
+    target.isReloading = false;
+    target.reloadCompleteAt = undefined;
+    target.reloadAttackUnlockAt = undefined;
+    target.isScoped = false;
+    target.respawnAt = room.config.mode === 'tdm' ? time + TDM_RESPAWN_DELAY_MS : undefined;
+    if (room.config.mode === 'defusal') target.hasDefuseKit = false;
+    if (room.bomb?.plantingPlayerId === target.id) this.clearBombPlant(room);
+    if (room.bomb?.defusingPlayerId === target.id) this.clearBombDefuse(room);
+    this.dropBombFromCarrier(room, target);
+    target.deaths++;
+
+    if (!thrower || thrower.id === target.id) return;
+    thrower.kills++;
+    if (room.config.mode === 'defusal' || (room.config.mode === 'tdm' && usesCs16WeaponEconomy(room))) {
+      thrower.money = this.addMoney(thrower.money, WEAPON_BALANCE.hegrenade.killReward);
+    }
+    if (room.config.mode === 'tdm') room.score[thrower.team]++;
+    const message = `${sanitizeFeedPart(thrower.name)} [HE Grenade] ${sanitizeFeedPart(target.name)}`;
+    room.killFeed.unshift(message);
+    room.killFeed = room.killFeed.slice(0, 5);
+    this.recordEvent(room, 'kill', message, thrower.id);
   }
 
   private simulateGrenadePosition(grenade: ActiveGrenade, time: number): { x: number; y: number; z: number } {

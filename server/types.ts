@@ -3,6 +3,7 @@ export type {
   BombState,
   BuyRequest,
   GrenadeId,
+  GrenadeSnapshot,
   GrenadeThrowRequest,
   HitRegion,
   HitResult,

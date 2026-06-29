@@ -19,15 +19,15 @@ export const GAME_TO_HAMMER_UNIT_SCALE = 100;   // 1游戏单位 = 100 Hammer un
 
 // === 玩家相关尺寸（CSGO标准）===
 export const PLAYER_HEIGHT_HAMMER = 72;         // 站立高度 72 units (~1.83m)
-export const PLAYER_EYE_HEIGHT_HAMMER = 64;     // 眼睛高度 64 units (~1.63m)
+export const PLAYER_EYE_HEIGHT_HAMMER = 53;     // CS 1.6: 36 HU hull bottom + 17 HU view offset
 export const PLAYER_CROUCH_HEIGHT_HAMMER = 36;  // 蹲下高度 36 units (~0.91m)
 export const PLAYER_WIDTH_HAMMER = 32;          // 宽度 32 units (~0.81m)
 export const PLAYER_RADIUS_HAMMER = 16;         // 碰撞半径 16 units (~0.41m)
 
 // === 玩家移动速度（CSGO标准）===
 export const PLAYER_RUN_SPEED_HAMMER = 250;     // 跑步 ~250 units/秒 (~6.35m/s)
-export const PLAYER_WALK_SPEED_HAMMER = 110;    // 步行 ~110 units/秒 (~2.79m/s)
-export const PLAYER_CROUCH_SPEED_HAMMER = 85;   // 蹲下 ~85 units/秒 (~2.16m/s)
+export const PLAYER_WALK_SPEED_HAMMER = 120;    // 400 cl_forwardspeed * 0.3 cl_movespeedkey
+export const PLAYER_CROUCH_SPEED_HAMMER = PLAYER_RUN_SPEED_HAMMER * 0.333;
 export const PLAYER_JUMP_HEIGHT_HAMMER = 57;    // 跳跃高度 57 units (~1.45m)
 export const PLAYER_JUMP_TIME = 0.38;            // 跳跃到顶点时间 ~0.378s (v0/g = 3.02/8.0)
 

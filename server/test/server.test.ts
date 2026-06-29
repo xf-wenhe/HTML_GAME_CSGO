@@ -156,6 +156,279 @@ describe('Server', () => {
     expect(target.health).toBe(72);
   });
 
+  it('authoritatively applies the CS1.6 scoped SG552 fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'sg552';
+    shooter.ammo = 30;
+
+    rooms.applyInput('p1', {
+      position: shooter.position,
+      rotation: shooter.rotation,
+      buttons: 8
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p1').isScoped).toBe(true);
+
+    const shot = {
+      ...bodyShot,
+      weaponId: 'sg552' as const
+    };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').nextFireAt).toBe(1135);
+
+    vi.advanceTimersByTime(134);
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(29);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(28);
+  });
+
+  it('does not accept scoped input for a weapon without a scope', () => {
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+
+    rooms.applyInput('p1', {
+      position: shooter.position,
+      rotation: shooter.rotation,
+      buttons: 8
+    });
+
+    expect(snapshotPlayer(rooms, room.id, 'p1').isScoped).toBe(false);
+  });
+
+  it('uses ReGameDLL reload times for every magazine-fed CS1.6 weapon', () => {
+    const expectedReloadTimes: Partial<Record<WeaponId, number>> = {
+      glock: 2.2,
+      usp: 2.7,
+      p228: 2.7,
+      deagle: 2.2,
+      five_seven: 2.7,
+      mp5: 2.63,
+      tmp: 2.12,
+      p90: 3.4,
+      mac10: 3.15,
+      ump45: 3.5,
+      galil: 2.45,
+      famas: 3.3,
+      ak47: 2.45,
+      m4a1: 3.05,
+      sg552: 3,
+      aug: 3.3,
+      scout: 2,
+      awp: 2.5,
+      g3sg1: 3.5,
+      sg550: 3.35,
+      m249: 4.7
+    };
+
+    for (const [weaponId, reloadTime] of Object.entries(expectedReloadTimes)) {
+      expect(WEAPON_BALANCE[weaponId as WeaponId].reloadTime, weaponId).toBe(reloadTime);
+    }
+  });
+
+  it('reloads the M3 shell-by-shell and lets a loaded shell interrupt reloading', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'm3';
+    shooter.ammo = 0;
+    shooter.reserveAmmo = 3;
+
+    rooms.reload('p1');
+    vi.advanceTimersByTime(999);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 0,
+      reserveAmmo: 3,
+      isReloading: true
+    });
+
+    vi.advanceTimersByTime(1);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 1,
+      reserveAmmo: 2,
+      isReloading: true
+    });
+
+    rooms.shoot('p1', { ...bodyShot, weaponId: 'm3' });
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 0,
+      reserveAmmo: 2,
+      isReloading: false
+    });
+  });
+
+  it('authoritatively applies the M4A1 silencer state and two-second attack lock', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'm4a1';
+    shooter.ammo = 30;
+
+    rooms.applyInput('p1', {
+      position: shooter.position,
+      rotation: shooter.rotation,
+      buttons: 16
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      isSilenced: true,
+      nextFireAt: 3000,
+      nextSecondaryAt: 3000
+    });
+
+    const shot = { ...bodyShot, weaponId: 'm4a1' as const };
+    vi.advanceTimersByTime(1999);
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(30);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(29);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(67);
+  });
+
+  it('authoritatively applies the USP silencer state and three-second attack lock', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'usp';
+    shooter.ammo = 12;
+
+    const shot = { ...bodyShot, weaponId: 'usp' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(11);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(66);
+
+    vi.advanceTimersByTime(150);
+    rooms.applyInput('p1', {
+      position: shooter.position,
+      rotation: shooter.rotation,
+      buttons: 16
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      isSilenced: true,
+      nextFireAt: 4150,
+      nextSecondaryAt: 4150
+    });
+
+    vi.advanceTimersByTime(2999);
+    rooms.shoot('p1', { ...shot, clientTime: 4149 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(11);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 4150 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(10);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(36);
+  });
+
+  it('authoritatively fires the two delayed Glock burst rounds', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+
+    rooms.applyInput('p1', {
+      position: shooter.position,
+      rotation: shooter.rotation,
+      buttons: 32
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      isBurstMode: true,
+      nextSecondaryAt: 1300
+    });
+
+    rooms.shoot('p1', bodyShot);
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 19,
+      pendingBurstShots: 2,
+      nextBurstShotAt: 1100
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(72);
+
+    vi.advanceTimersByTime(99);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(19);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(72);
+
+    vi.advanceTimersByTime(1);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 18,
+      pendingBurstShots: 1,
+      nextBurstShotAt: 1200
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(44);
+
+    vi.advanceTimersByTime(100);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 17,
+      pendingBurstShots: 0,
+      nextBurstShotAt: undefined
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(16);
+  });
+
+  it('authoritatively fires FAMAS burst rounds at the CS1.6 cadence', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'famas';
+    shooter.ammo = 25;
+    shooter.reserveAmmo = 75;
+
+    rooms.applyInput('p1', {
+      position: shooter.position,
+      rotation: shooter.rotation,
+      buttons: 32
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      isBurstMode: true,
+      nextSecondaryAt: 1300
+    });
+
+    rooms.shoot('p1', { ...bodyShot, weaponId: 'famas', clientTime: 1000 });
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 24,
+      pendingBurstShots: 2,
+      nextBurstShotAt: 1050,
+      nextFireAt: 1550
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(66);
+
+    vi.advanceTimersByTime(49);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(24);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(66);
+
+    vi.advanceTimersByTime(1);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 23,
+      pendingBurstShots: 1,
+      nextBurstShotAt: 1150
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(36);
+
+    vi.advanceTimersByTime(100);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'p1')).toMatchObject({
+      ammo: 22,
+      pendingBurstShots: 0,
+      nextBurstShotAt: undefined
+    });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(6);
+  });
+
   it('reload consumes reserve ammo only after the weapon reload time', () => {
     vi.useFakeTimers();
     const { rooms, room } = createLiveDuel();
@@ -385,6 +658,97 @@ describe('Server', () => {
     expect(internalRoom.activeGrenades).toHaveLength(1);
     expect(internalRoom.activeGrenades[0].type).toBe('he');
     expect(he.players.find(candidate => candidate.id === 'attacker')?.grenades?.he).toBe(0);
+    expect(he.grenades).toEqual([
+      expect.objectContaining({
+        type: 'he',
+        throwerId: 'attacker',
+        exploded: false,
+        position: expect.objectContaining({ x: expect.any(Number), y: expect.any(Number), z: expect.any(Number) })
+      })
+    ]);
+  });
+
+  it('applies CS 1.6 HE self-damage while respecting disabled friendly fire', () => {
+    vi.useFakeTimers();
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({
+      mode: 'tdm',
+      maxPlayers: 3,
+      mapId: 'dust2',
+      warmupSeconds: 1,
+      friendlyFire: false
+    });
+    rooms.addPlayerToRoom(room.id, 'thrower', { name: 'Thrower', preferredTeam: 'attackers' });
+    rooms.addPlayerToRoom(room.id, 'teammate', { name: 'Teammate', preferredTeam: 'attackers' });
+    rooms.addPlayerToRoom(room.id, 'enemy', { name: 'Enemy', preferredTeam: 'defenders' });
+    rooms.setReady('thrower', true);
+    rooms.setReady('teammate', true);
+    rooms.setReady('enemy', true);
+
+    const internalRoom = rooms.getRoom(room.id)!;
+    internalRoom.players.get('thrower')!.grenades = { he: 1 };
+    internalRoom.players.get('thrower')!.armor = 100;
+    for (const playerId of ['thrower', 'teammate', 'enemy']) {
+      rooms.applyInput(playerId, {
+        position: { x: 0, y: 1.4, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 }
+      });
+    }
+
+    rooms.handleGrenadeThrow('thrower', {
+      type: 'he',
+      origin: { x: 0, y: 1.7, z: 0 },
+      velocity: { x: 0, y: 16.2, z: 0 }
+    });
+    vi.advanceTimersByTime(1800);
+    rooms.tick();
+
+    expect(snapshotPlayer(rooms, room.id, 'thrower').health).toBe(50);
+    expect(snapshotPlayer(rooms, room.id, 'thrower').armor).toBe(75);
+    expect(snapshotPlayer(rooms, room.id, 'teammate').health).toBe(100);
+    expect(snapshotPlayer(rooms, room.id, 'enemy').health).toBe(0);
+    expect(snapshotPlayer(rooms, room.id, 'enemy').respawnAt).toBeDefined();
+    expect(snapshotPlayer(rooms, room.id, 'thrower').kills).toBe(1);
+    expect(rooms.getSnapshot(room.id)!.score.attackers).toBe(1);
+  });
+
+  it('allows multiplayer flash self-effects and decays them back to zero', () => {
+    vi.useFakeTimers();
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({
+      mode: 'tdm',
+      maxPlayers: 2,
+      mapId: 'dust2',
+      warmupSeconds: 1
+    });
+    rooms.addPlayerToRoom(room.id, 'thrower', { name: 'Thrower', preferredTeam: 'attackers' });
+    rooms.addPlayerToRoom(room.id, 'enemy', { name: 'Enemy', preferredTeam: 'defenders' });
+    rooms.setReady('thrower', true);
+    rooms.setReady('enemy', true);
+
+    rooms.getRoom(room.id)!.players.get('thrower')!.grenades = { flashbang: 1 };
+    for (const playerId of ['thrower', 'enemy']) {
+      rooms.applyInput(playerId, {
+        position: { x: 0, y: 1.4, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 }
+      });
+    }
+
+    expect(rooms.handleGrenadeThrow('thrower', {
+      type: 'flashbang',
+      origin: { x: 0, y: 1.7, z: 0 },
+      velocity: { x: 0, y: 11.7, z: 0 }
+    })).toBeDefined();
+    vi.advanceTimersByTime(1301);
+    rooms.tick();
+
+    expect(snapshotPlayer(rooms, room.id, 'thrower').flashIntensity ?? 0).toBeGreaterThan(0);
+    expect(snapshotPlayer(rooms, room.id, 'enemy').flashIntensity ?? 0).toBeGreaterThan(0);
+
+    vi.advanceTimersByTime(5000);
+    rooms.tick();
+    expect(snapshotPlayer(rooms, room.id, 'thrower').flashIntensity).toBe(0);
+    expect(snapshotPlayer(rooms, room.id, 'enemy').flashIntensity).toBe(0);
   });
 
   it('only reduces headshot damage with armor when the target has a helmet', () => {

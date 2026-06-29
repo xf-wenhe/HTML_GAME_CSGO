@@ -37,7 +37,7 @@ import { RadioMenu } from './ui/RadioMenu.js';
 import { CrosshairEditor, type CrosshairSettings } from './ui/CrosshairEditor.js';
 import { MULTIPLAYER_MAPS } from './game/config/maps.js';
 import { Cs16BotMatch } from './game/Cs16BotMatch.js';
-import { canCs16WeaponScope, getCs16BuyableWeaponIdsForTeam } from './game/Cs16Weapons.js';
+import { getCs16BuyableWeaponIdsForTeam } from './game/Cs16Weapons.js';
 import { getDust2BotRoute } from './game/Dust2BotRoutes.js';
 import './ui/style.css';
 
@@ -1131,7 +1131,15 @@ function gameLoop(now: number) {
     if (player) {
       weaponManager.setCrouching(player.isCrouched());
       if (hasGameplayFocus()) {
-        player.addRecoilKick(weaponManager.getCameraKickY(), weaponManager.getCameraKickX());
+        const recoilKick = weaponManager.consumeCameraKick();
+        player.addRecoilKick(recoilKick.pitch, recoilKick.yaw);
+      }
+      if (!usingGrenade && !isSpectating && canShoot(inputMode) && hasGameplayFocus() && botMatchCanShoot && isMultiplayerDefusalLive() && !isLocalBombActionActive()) {
+        weaponManager.consumeQueuedShots(scene.getCamera(), now, {
+          isMoving: player.isMoving(),
+          horizontalSpeed: player.getHorizontalSpeed(),
+          isGrounded: player.isGrounded()
+        }).forEach(result => handleWeaponShotResult(result, now, false));
       }
     }
     weaponManager.consumeFeedbackEvents().forEach(event => {
@@ -1146,7 +1154,7 @@ function gameLoop(now: number) {
     const playerPos = player?.getPosition() || new THREE.Vector3(0, 0, 0);
     updateRadarPanel();
     sendHeldBombAction(now);
-    updateWeaponAimState();
+    updateWeaponAimState(now);
     updateAimFov(dt);
     nearbyDrop = player ? droppedWeapons.update(playerPos) : null;
     if (nearbyDrop) {
@@ -1220,12 +1228,19 @@ function gameLoop(now: number) {
 
     const currentWeapon = weaponManager.getCurrentWeapon();
     updateCurrentWeaponHud();
-    hud.updateCrosshair(currentWeapon.getEffectiveSpread(player?.isMoving() ?? false, weaponManager.isAiming()));
+    hud.updateCrosshair(player
+      ? currentWeapon.getCs16Spread({
+          grounded: player.isGrounded(),
+          crouched: player.isCrouched(),
+          horizontalSpeed: player.getHorizontalSpeed(),
+          aiming: weaponManager.isAiming()
+        })
+      : currentWeapon.getEffectiveSpread(false, weaponManager.isAiming()));
     syncWeaponHud();
 
     const lookDir = scene.getCamera().getWorldDirection(new THREE.Vector3());
     const grenadeResult = grenades.update(dt, playerPos, lookDir);
-    if (grenadeResult.damage > 0 && player) {
+    if (currentMode !== 'multiplayer' && grenadeResult.damage > 0 && player) {
       player.takeDamage(grenadeResult.damage, 'chest', 0.15);
       hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
       hud.showDamage();
@@ -1248,6 +1263,7 @@ function gameLoop(now: number) {
             clientTime: now
           }});
         }
+        restoreWeaponAfterGrenadeThrow();
       } else {
         hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
       }
@@ -1279,63 +1295,19 @@ function gameLoop(now: number) {
               clientTime: now
             }});
           }
+          restoreWeaponAfterGrenadeThrow();
         } else {
           hud.showNotification(`${grenades.getSelectedLabel()}已用完`);
         }
         syncWeaponHud();
       } else {
         input.consumeTransientKey('MouseLeft');
-        const result = weaponManager.shoot(scene.getCamera(), now, { isMoving: player.isMoving() });
-      if (result) {
-        // Weapon fire feedback - screen shake
-        scene.triggerWeaponFireFeedback();
-
-        if (currentMode === 'multiplayer') {
-          network.send({
-            type: 'shoot',
-            request: {
-              origin: vectorToPlain(result.origin),
-              direction: vectorToPlain(result.direction),
-              weaponId: currentMultiplayerWeaponId(),
-              clientTime: now
-            }
-          });
-        }
-        const hitscanResult: RaycastResult & { damage: number } = result.isMelee
-          ? { hit: false, damage: 0 }
-          : projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
-
-        if (hitscanResult.hit) {
-          scene.triggerHitMarker();
-        }
-
-        applyLocalWeaponHit(result);
-
-        if (!result.isMelee) {
-          const weaponRange = weaponManager.getCurrentWeapon().range;
-          const enemyTarget = findClosestRayTarget(result.origin, result.direction, weaponRange);
-          if (enemyTarget) {
-            const hitPoint = result.origin.clone().add(result.direction.clone().multiplyScalar(enemyTarget.distance));
-            const hitNormal = hitscanResult.hit ? hitscanResult.normal! : new THREE.Vector3(0, 1, 0);
-            impactDecalManager.spawn(hitPoint, hitNormal, 'concrete');
-            if (weaponManager.shouldSpawnTracer()) {
-              tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitPoint);
-            }
-          } else if (hitscanResult.hit) {
-            impactDecalManager.spawn(hitscanResult.point!, hitscanResult.normal!, 'concrete');
-            if (weaponManager.shouldSpawnTracer()) {
-              tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitscanResult.point!);
-            }
-          }
-        }
-        if (!result.isMelee) {
-          const ejectPos = weaponManager.getEjectPosition();
-          shellCasingManager.spawn(ejectPos, result.direction, weaponManager.getCurrentWeaponId());
-        }
-        if (weaponManager.startScopedShotRecovery(now)) {
-          hud.setScoped(false);
-        }
-      }
+        const result = weaponManager.shoot(scene.getCamera(), now, {
+          isMoving: player.isMoving(),
+          horizontalSpeed: player.getHorizontalSpeed(),
+          isGrounded: player.isGrounded()
+        });
+      if (result) handleWeaponShotResult(result, now);
       }
     }
 
@@ -1698,6 +1670,7 @@ function applyMatchSnapshot(snapshot: MatchSnapshot): void {
   playBombAudioCues(previousBombAudioSnapshot, snapshot);
   previousBombAudioSnapshot = snapshot;
   currentSnapshot = snapshot;
+  grenades.syncAuthoritativeGrenades(snapshot.grenades ?? [], localPlayerId);
   hud.updateRoomPlayers(snapshot.players.length, snapshot.config.maxPlayers);
   remotePlayers.update(snapshot, localPlayerId);
   hud.updateMatch(snapshot, localPlayerId, {
@@ -1709,12 +1682,22 @@ function applyMatchSnapshot(snapshot: MatchSnapshot): void {
   if (localSnap?.lastProcessedSeq !== undefined) {
     prediction.acknowledge(localSnap.lastProcessedSeq);
   }
-  if (localSnap) syncLocalLoadoutFromSnapshot(localSnap);
+  if (localSnap) {
+    const previousHealth = player?.getHealth() ?? localSnap.health;
+    player?.syncAuthoritativeVitals({
+      health: localSnap.health,
+      armor: localSnap.armor,
+      hasHelmet: localSnap.hasHelmet === true
+    });
+    if (player) {
+      hud.updateHealth(player.getHealth(), player.getMaxHealth(), player.getArmor());
+      if (localSnap.health < previousHealth) hud.showDamage();
+    }
+    syncLocalLoadoutFromSnapshot(localSnap);
+  }
   // Handle server-authoritative flash effect
   const flashIntensity = localSnap?.flashIntensity ?? 0;
-  if (flashIntensity > 0 && hud) {
-    hud.setFlashOverlay(flashIntensity);
-  }
+  hud.setFlashOverlay(flashIntensity);
   if (snapshot.phase === 'matchEnd' && snapshot.summary) {
     hud.showMatchSummary(snapshot, localPlayerId);
     setInputMode('gameOver');
@@ -1764,7 +1747,7 @@ function updateAimFov(dt: number): void {
   camera.updateProjectionMatrix();
 }
 
-function updateWeaponAimState(): void {
+function updateWeaponAimState(now: number): void {
   const canUseWeapon = canShoot(inputMode) && hasGameplayFocus() && (!soloBotMatch || soloBotMatch.canPlayerShoot()) && isMultiplayerDefusalLive() && !isLocalBombActionActive() && !usingGrenade && !weaponManager.getCurrentWeapon().isMelee;
   if (!canUseWeapon) {
     weaponManager.setAiming(false);
@@ -1773,8 +1756,14 @@ function updateWeaponAimState(): void {
   }
   if (input.isKeyPressed('MouseRight')) {
     input.setKeyPressed('MouseRight', false);
-    if (!soloBotMatch || canCs16WeaponScope(weaponManager.getCurrentWeaponId())) {
-      weaponManager.cycleScope();
+    const wasScoped = weaponManager.isScoped();
+    const wasSilenced = weaponManager.isSilenced();
+    weaponManager.secondaryAttack(now);
+    if (
+      currentMode === 'multiplayer' &&
+      (wasScoped !== weaponManager.isScoped() || wasSilenced !== weaponManager.isSilenced())
+    ) {
+      lastNetworkInputAt = 0;
     }
   }
   syncScopeHud();
@@ -1789,6 +1778,59 @@ function syncPlayerWeaponMovementSpeed(): void {
   const weapon = weaponManager.getCurrentWeapon();
   player.setMovementSpeedMultiplier(weaponManager.isScoped() ? weapon.scopedMovementSpeedMultiplier : weapon.movementSpeedMultiplier);
   player.setLookSensitivityMultiplier(weaponManager.getScopeLookSensitivityMultiplier(82));
+}
+
+function handleWeaponShotResult(result: ShootResult, shotTime: number, sendNetwork = true): void {
+  scene.triggerWeaponFireFeedback();
+
+  if (sendNetwork && currentMode === 'multiplayer') {
+    network.send({
+      type: 'shoot',
+      request: {
+        origin: vectorToPlain(result.origin),
+        direction: vectorToPlain(result.direction),
+        weaponId: currentMultiplayerWeaponId(),
+        clientTime: shotTime
+      }
+    });
+  }
+
+  const hitscanResult: RaycastResult & { damage: number } = result.isMelee
+    ? { hit: false, damage: 0 }
+    : projectileSystem.fireHitscan(result.origin, result.direction, result.damage);
+
+  if (hitscanResult.hit) {
+    scene.triggerHitMarker();
+  }
+
+  applyLocalWeaponHit(result);
+
+  if (!result.isMelee) {
+    const weaponRange = weaponManager.getCurrentWeapon().range;
+    const enemyTarget = findClosestRayTarget(result.origin, result.direction, weaponRange);
+    if (enemyTarget) {
+      const hitPoint = result.origin.clone().add(result.direction.clone().multiplyScalar(enemyTarget.distance));
+      const hitNormal = hitscanResult.hit ? hitscanResult.normal! : new THREE.Vector3(0, 1, 0);
+      impactDecalManager.spawn(hitPoint, hitNormal, 'concrete');
+      if (weaponManager.shouldSpawnTracer()) {
+        tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitPoint);
+      }
+    } else if (hitscanResult.hit) {
+      impactDecalManager.spawn(hitscanResult.point!, hitscanResult.normal!, 'concrete');
+      if (weaponManager.shouldSpawnTracer()) {
+        tracerSystem.spawn(weaponManager.getMuzzleWorldPosition(), hitscanResult.point!);
+      }
+    }
+  }
+
+  if (!result.isMelee) {
+    const ejectPos = weaponManager.getEjectPosition();
+    shellCasingManager.spawn(ejectPos, result.direction, weaponManager.getCurrentWeaponId());
+  }
+
+  if (weaponManager.startScopedShotRecovery(shotTime)) {
+    hud.setScoped(false);
+  }
 }
 
 function applyLocalWeaponHit(result: ShootResult): void {
@@ -1819,7 +1861,11 @@ function applyLocalWeaponHit(result: ShootResult): void {
     const pelletDirection = shots === 1 ? result.direction : spreadDirection(result.direction, weapon.spread * 0.75);
     const target = findClosestRayTarget(result.origin, pelletDirection, weapon.range);
     if (!target) continue;
-    const damage = calculateDamage(weapon.getDamageProfile(), target.region, 0).healthDamage;
+    const damage = calculateDamage(
+      { ...weapon.getDamageProfile(), baseDamage: result.damage },
+      target.region,
+      0
+    ).healthDamage;
     target.enemy.takeDamage(damage, target.region);
     lastHitRegion = target.region;
     scene.triggerHitMarker();
@@ -2326,6 +2372,25 @@ function selectGrenadeSlot(): void {
   syncWeaponHud();
 }
 
+function restoreWeaponAfterGrenadeThrow(): void {
+  let target = previousSlot;
+  if (
+    target === 'grenade'
+    || (target === 'primary' && !equippedPrimary)
+    || (target === 'pistol' && !equippedPistol)
+  ) {
+    target = equippedPrimary ? 'primary' : equippedPistol ? 'pistol' : 'knife';
+  }
+
+  usingGrenade = false;
+  activeSlot = target;
+  previousSlot = grenades.hasAnyGrenade() ? 'grenade' : target;
+  weaponManager.switchWeapon(
+    target === 'primary' ? equippedPrimary : target === 'pistol' ? equippedPistol : 'knife'
+  );
+  updateCurrentWeaponHud();
+}
+
 function multiplayerGrenadeToLocal(grenadeId: string): 'he' | 'flash' | 'smoke' | 'incendiary' | 'decoy' {
   return grenadeId === 'flashbang' ? 'flash' : grenadeId as 'he' | 'smoke' | 'incendiary' | 'decoy';
 }
@@ -2477,6 +2542,9 @@ function getInputButtons(): number {
   if (input.isKeyPressed('Space')) buttons |= 1;
   if (input.isKeyPressed('ControlLeft') || input.isKeyPressed('ControlRight')) buttons |= 2;
   if (input.isKeyPressed('ShiftLeft') || input.isKeyPressed('ShiftRight')) buttons |= 4;
+  if (weaponManager.isScoped()) buttons |= 8;
+  if (weaponManager.isSilenced()) buttons |= 16;
+  if (weaponManager.isBurstMode()) buttons |= 32;
   return buttons;
 }
 

@@ -192,15 +192,28 @@ class Dust2TestSuite {
       (window).__debugAllowPointerLockBypassForTests?.();
     });
 
-    const initialPos = await this.page.evaluate(() => (window).__debugPlayerPosition?.());    this.check(!!initialPos, '可以获取玩家位置');
+    const initialPos = await this.page.evaluate(() => (window).__debugPlayerPosition?.());
+    this.check(!!initialPos, '可以获取玩家位置');
     const initialState = await this.getDebugState();
     const expectFrozen = this.currentMode === 'defusal' && initialState?.matchMode === 'defusal' && initialState?.matchPhase === 'buy';
 
     await this.page.keyboard.down('KeyW');
-    await this.page.waitForTimeout(500);
+    if (initialPos && !expectFrozen) {
+      await this.page.waitForFunction(
+        start => {
+          const current = (window).__debugPlayerPosition?.();
+          return current && (Math.abs(current.z - start.z) > 0.1 || Math.abs(current.x - start.x) > 0.1);
+        },
+        initialPos,
+        { timeout: 1500 }
+      ).catch(() => undefined);
+    } else {
+      await this.page.waitForTimeout(500);
+    }
     await this.page.keyboard.up('KeyW');
 
-    const afterMove = await this.page.evaluate(() => (window).__debugPlayerPosition?.());    if (initialPos && afterMove) {
+    const afterMove = await this.page.evaluate(() => (window).__debugPlayerPosition?.());
+    if (initialPos && afterMove) {
       const moved = Math.abs(afterMove.z - initialPos.z) > 0.1 || Math.abs(afterMove.x - initialPos.x) > 0.1;
       if (expectFrozen) {
         this.check(!moved && initialState?.canMove === false, '爆破购买阶段冻结移动');
@@ -210,21 +223,46 @@ class Dust2TestSuite {
       this.check(moved, 'W 键可以移动');
     }
 
-    await this.page.keyboard.press('Space');
-    await this.page.waitForTimeout(200);
+    const settledBeforeJump = await this.page.waitForFunction(
+      () => (window).__debugInputState?.().grounded === true,
+      { timeout: 2000 }
+    ).then(() => true).catch(() => false);
+    this.check(settledBeforeJump, '跳跃前玩家已稳定站在地面');
 
+    await this.page.keyboard.down('Space');
+    await this.page.waitForTimeout(100);
     const jumpState = await this.getDebugState();
+    await this.page.keyboard.up('Space');
     console.log(`跳跃状态: grounded=${jumpState?.grounded}, airborneTime=${jumpState?.airborneTime}`);
-    this.check(true, '跳跃机制已测试（跳过断言）');
+    this.check(
+      jumpState?.grounded === false && (jumpState?.airborneTime ?? 0) > 0.05,
+      '跳跃后确实离地并进入滞空状态'
+    );
 
-    await this.page.waitForTimeout(800);
+    await this.page.waitForFunction(
+      () => {
+        const state = (window).__debugInputState?.();
+        return state?.grounded === true && state?.airborneTime === 0;
+      },
+      { timeout: 1600 }
+    ).catch(() => undefined);
     const landState = await this.getDebugState();
-    this.check(landState?.grounded === true, '跳跃后落地');
+    this.check(landState?.grounded === true && landState?.airborneTime === 0, '跳跃后落地且滞空状态清零');
 
     await this.page.keyboard.down('ControlLeft');
-    await this.page.waitForTimeout(200);
+    await this.page.waitForFunction(
+      () => (window).__debugInputState?.().crouched === true,
+      { timeout: 1200 }
+    ).catch(() => undefined);
     const crouchState = await this.getDebugState();
     this.check(crouchState?.crouched === true, 'Ctrl 键可以蹲下');
+    this.check(Math.abs((crouchState?.collisionHeight ?? 0) - 0.5) < 0.01, '蹲伏使用 CS1.6 的 50HU 碰撞高度');
+    this.check(
+      typeof landState?.playerPosition?.y === 'number'
+        && typeof crouchState?.playerPosition?.y === 'number'
+        && crouchState.playerPosition.y < landState.playerPosition.y - 0.2,
+      '蹲伏视点降至 CS1.6 高度'
+    );
     await this.page.keyboard.up('ControlLeft');
     await this.page.waitForTimeout(200);
 
@@ -355,6 +393,25 @@ class Dust2TestSuite {
         && grenadeState?.grenadeInventory?.he === 1
         && grenadeHud.weaponName?.includes('高爆'),
       'TDM 多人快照不会打断已切出的 HE'
+    );
+
+    await this.page.evaluate(() => window.__debugAllowPointerLockBypassForTests?.());
+    await this.page.mouse.click(640, 360);
+    await this.waitForState(async () => {
+      const state = await this.getDebugState();
+      return state?.grenadeInventory?.he === 0;
+    }, 3000);
+    const afterGrenadeThrow = await this.getDebugState();
+    const afterGrenadeThrowHud = await this.page.evaluate(() => ({
+      weaponName: document.querySelector('.weapon-name')?.textContent?.trim(),
+    }));
+    const expectedPistol = afterGrenadeThrow?.localTeam === 'defenders' ? 'usp' : 'glock';
+    this.check(
+      afterGrenadeThrow?.activeSlot === 'pistol'
+        && afterGrenadeThrow?.weaponId === expectedPistol
+        && afterGrenadeThrow?.grenadeInventory?.he === 0
+        && !afterGrenadeThrowHud.weaponName?.includes('高爆'),
+      'CS1.6 投出手雷后自动切回先前手枪'
     );
 
     const originalPosition = state.playerPosition;

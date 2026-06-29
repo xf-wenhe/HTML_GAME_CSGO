@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { GrenadeSnapshot } from './types.js';
 
 export type GrenadeId = 'he' | 'flash' | 'smoke' | 'incendiary' | 'decoy';
 
@@ -33,6 +34,12 @@ interface FlashBurst {
   life: number;
   intensity: number;
   flashOrigin: THREE.Vector3;
+}
+
+interface AuthoritativeGrenade {
+  type: GrenadeId;
+  mesh?: THREE.Mesh;
+  exploded: boolean;
 }
 
 const GRENADE_LABELS: Record<GrenadeId, string> = {
@@ -123,6 +130,7 @@ export class GrenadeSystem {
   private effects: THREE.Object3D[] = [];
   private smokeParticles: SmokeParticle[] = [];
   private flashBursts: FlashBurst[] = [];
+  private authoritativeGrenades = new Map<string, AuthoritativeGrenade>();
   private lastFlashIntensity = 0;
   private smTexture = getSmokeTexture();
   private flTexture = getFlashTexture();
@@ -182,12 +190,7 @@ export class GrenadeSystem {
 
     const power = mode === 'light' ? 0.45 : 1;
     const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.11, 16, 12),
-      new THREE.MeshStandardMaterial({ color: GRENADE_COLORS[this.selected], roughness: 0.55, metalness: 0.25 })
-    );
-    // 【修复】防止手雷自己挡住自己的射线检测
-    mesh.userData.raycastIgnore = true;
+    const mesh = this.createGrenadeMesh(this.selected);
     
     mesh.position.copy(camera.position).add(direction.clone().multiplyScalar(0.75));
     mesh.castShadow = true;
@@ -205,6 +208,42 @@ export class GrenadeSystem {
       exploded: false
     });
     return { success: true, origin: camera.position.clone(), velocity };
+  }
+
+  syncAuthoritativeGrenades(grenades: GrenadeSnapshot[], localPlayerId?: string): void {
+    const visibleIds = new Set<string>();
+
+    for (const grenade of grenades) {
+      if (grenade.throwerId === localPlayerId) continue;
+      visibleIds.add(grenade.id);
+      const type = grenade.type === 'flashbang' ? 'flash' : grenade.type;
+      const position = new THREE.Vector3(grenade.position.x, grenade.position.y, grenade.position.z);
+      let tracked = this.authoritativeGrenades.get(grenade.id);
+
+      if (!tracked) {
+        tracked = { type, exploded: false };
+        if (!grenade.exploded) {
+          tracked.mesh = this.createGrenadeMesh(type);
+          tracked.mesh.userData.authoritativeGrenadeId = grenade.id;
+          this.scene.add(tracked.mesh);
+        }
+        this.authoritativeGrenades.set(grenade.id, tracked);
+      }
+
+      tracked.mesh?.position.copy(position);
+      if (grenade.exploded && !tracked.exploded) {
+        if (tracked.mesh) this.scene.remove(tracked.mesh);
+        tracked.mesh = undefined;
+        tracked.exploded = true;
+        this.createDetonationEffect(tracked.type, position);
+      }
+    }
+
+    for (const [id, tracked] of this.authoritativeGrenades) {
+      if (visibleIds.has(id)) continue;
+      if (tracked.mesh) this.scene.remove(tracked.mesh);
+      this.authoritativeGrenades.delete(id);
+    }
   }
 
   update(dt: number, playerPosition: THREE.Vector3, playerDirection?: THREE.Vector3): { damage: number; flash: number } {
@@ -354,6 +393,35 @@ export class GrenadeSystem {
     });
 
     return { damage, flash: this.lastFlashIntensity };
+  }
+
+  private createGrenadeMesh(type: GrenadeId): THREE.Mesh {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.11, 16, 12),
+      new THREE.MeshStandardMaterial({ color: GRENADE_COLORS[type], roughness: 0.55, metalness: 0.25 })
+    );
+    mesh.userData.raycastIgnore = true;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+  }
+
+  private createDetonationEffect(type: GrenadeId, position: THREE.Vector3): void {
+    switch (type) {
+      case 'he':
+      case 'decoy':
+        this.createExplosionEffect(position);
+        break;
+      case 'flash':
+        this.createFlashEffect(position);
+        break;
+      case 'smoke':
+        this.createSmokeEffect(position);
+        break;
+      case 'incendiary':
+        this.createFireEffect(position);
+        break;
+    }
   }
 
   // 【修复】放大了所有投掷物特效的尺寸

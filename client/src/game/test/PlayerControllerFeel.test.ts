@@ -134,6 +134,20 @@ describe('PlayerController CS1.6 feel', () => {
     expect(player.getRotation().yaw).toBeCloseTo(-0.01, 5);
   });
 
+  it('accepts server-authoritative health, armor, and helmet state', () => {
+    const { player } = createController();
+
+    (player as any).syncAuthoritativeVitals?.({
+      health: 37,
+      armor: 52,
+      hasHelmet: true
+    });
+
+    expect(player.getHealth()).toBe(37);
+    expect(player.getArmor()).toBe(52);
+    expect(player.getHasHelmet()).toBe(true);
+  });
+
   it('uses a quick CS1.6-style jump arc and lands cleanly', () => {
     const { physics, input, player } = createController();
     input.setKeyPressed('Space', true);
@@ -146,12 +160,73 @@ describe('PlayerController CS1.6 feel', () => {
     }
 
     const apex = Math.max(...y);
-    const landedFrame = y.findIndex((value, index) => index > 10 && Math.abs(value - 0.64) < 0.01 && grounded[index]);
-    expect(apex - 0.64).toBeGreaterThan(0.40);
-    expect(apex - 0.64).toBeLessThan(0.50);
+    const landedFrame = y.findIndex((value, index) => index > 10 && Math.abs(value - 0.53) < 0.01 && grounded[index]);
+    expect(apex - 0.53).toBeGreaterThan(0.40);
+    expect(apex - 0.53).toBeLessThan(0.50);
     expect(landedFrame).toBeGreaterThan(30);
     expect(landedFrame).toBeLessThan(85);
-    expect(y.at(-1)).toBeCloseTo(0.64, 2);
+    expect(y.at(-1)).toBeCloseTo(0.53, 2);
+  });
+
+  it('applies CS 1.6 multiplayer damage after a high-speed fall', () => {
+    const { physics, player } = createController();
+    player.setPosition(new THREE.Vector3(0, 4.64, 0));
+
+    for (let i = 0; i < 240 && !player.isGrounded(); i++) tick(player, physics);
+
+    expect(player.isGrounded()).toBe(true);
+    expect(player.getHealth()).toBeLessThan(100);
+  });
+
+  it('clears airborne state when multiplayer or recovery logic repositions the player', () => {
+    const { physics, input, player } = createController();
+    input.setKeyPressed('Space', true);
+    for (let i = 0; i < 20; i++) tick(player, physics);
+    expect(player.getAirborneTime()).toBeGreaterThan(0);
+
+    player.setPosition(new THREE.Vector3(0, 0.53, 0));
+
+    expect(player.isGrounded()).toBe(true);
+    expect(player.getAirborneTime()).toBe(0);
+    expect(player.isCrouchJumping()).toBe(false);
+  });
+
+  it('uses the CS 1.6 standing and duck hull with a 30 HU crouched eye height', () => {
+    const { physics, input, player } = createController();
+    expect(player.getCollisionHeight()).toBeCloseTo(0.72, 5);
+    expect(player.getPosition().y).toBeCloseTo(0.53, 2);
+
+    input.setKeyPressed('ControlLeft', true);
+    for (let i = 0; i < 50; i++) tick(player, physics);
+
+    expect(player.isCrouched()).toBe(true);
+    expect(player.getCollisionHeight()).toBeCloseTo(0.5, 5);
+    expect(player.getPosition().y).toBeCloseTo(0.3, 2);
+  });
+
+  it('takes 0.4 seconds to finish a grounded CS 1.6 duck transition', () => {
+    const { physics, input, player } = createController();
+    input.setKeyPressed('ControlLeft', true);
+
+    for (let i = 0; i < 20; i++) tick(player, physics);
+    expect(player.getCollisionHeight()).toBeCloseTo(0.72, 5);
+    expect(player.getPosition().y).toBeLessThan(0.53);
+    expect(player.getPosition().y).toBeGreaterThan(0.3);
+
+    for (let i = 0; i < 21; i++) tick(player, physics);
+    expect(player.isCrouched()).toBe(true);
+    expect(player.getCollisionHeight()).toBeCloseTo(0.5, 5);
+    expect(player.getPosition().y).toBeCloseTo(0.3, 2);
+  });
+
+  it('uses normal GoldSrc acceleration while ducking instead of an artificial boost', () => {
+    const { physics, input, player } = createController();
+    input.setKeyPressed('ControlLeft', true);
+    input.setKeyPressed('KeyW', true);
+
+    tick(player, physics);
+
+    expect(player.getHorizontalSpeed()).toBeCloseTo(CSGO_MOVEMENT.crouchSpeed * CSGO_MOVEMENT.groundAcceleration * 0.01, 4);
   });
 
   it('lands with feet still stuck to the ground after jump and crouch cycles', () => {
@@ -170,7 +245,7 @@ describe('PlayerController CS1.6 feel', () => {
     expect(player.isGrounded()).toBe(true);
     expect(player.getFootGroundDistanceForDebug()).not.toBeNull();
     expect(Math.abs(player.getFootGroundDistanceForDebug() ?? 1)).toBeLessThan(0.03);
-    expect(player.getPosition().y).toBeCloseTo(0.64, 2);
+    expect(player.getPosition().y).toBeCloseTo(0.53, 2);
   });
 
   it('does not snap to ground or hover after walking off a high ledge', () => {
