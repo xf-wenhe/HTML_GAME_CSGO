@@ -10,6 +10,7 @@ import { ProjectileSystem, RaycastResult } from './game/ProjectileSystem.js';
 import { ImpactDecalManager } from './game/ImpactDecal.js';
 import { TracerSystem } from './game/TracerSystem.js';
 import { NetworkManager } from './network/NetworkManager.js';
+import { buildShootRequest } from './network/ShootRequestBuilder.js';
 import { captureMultiplayerLaunchIntent } from './network/MultiplayerLaunchIntent.js';
 import { EnemyManager } from './game/EnemyManager.js';
 import { Enemy } from './game/Enemy.js';
@@ -90,6 +91,8 @@ declare global {
       lockFailureReason: string | null;
       matchMode: MatchMode | null;
       matchPhase: string | null;
+      roundTimeRemaining: number | null;
+      buyTimeActive: boolean | null;
       canMove: boolean;
       canShoot: boolean;
       activePanel: string;
@@ -138,6 +141,31 @@ declare global {
     __debugSetPlayerYaw?: (yaw: number) => boolean;
     __debugSetKeyPressed?: (key: string, pressed: boolean) => void;
     __debugSetMouseDelta?: (x: number, y: number) => void;
+    __debugRunDust2MovementProbe?: (probe: {
+      start: { x: number; y: number; z: number };
+      target: { x: number; y: number; z: number };
+      maxFrames?: number;
+      jumpFrame?: number;
+      reachDistance?: number;
+      dt?: number;
+    }) => {
+      ok: boolean;
+      error?: string;
+      reached?: boolean;
+      grounded?: boolean;
+      startDistance?: number;
+      finalDistance?: number;
+      progress?: number;
+      maxAbsFootDistance?: number;
+      finalFootDistance?: number | null;
+      maxCameraEyeDistance?: number;
+      finalCameraEyeDistance?: number;
+      airborneFrames?: number;
+      stuckFrames?: number;
+      minY?: number;
+      maxY?: number;
+      finalPosition?: { x: number; y: number; z: number };
+    };
   }
 }
 
@@ -553,8 +581,6 @@ function startGame(mode: 'solo' | 'multiplayer'): void {
     enemyManager.preloadEnemies(5);
     // 初始化 CS1.6 Bot Match
     soloBotMatch = new Cs16BotMatch({
-      freezeSeconds: 5,
-      roundSeconds: 115,
       roundEndSeconds: 4,
       botCount: 5,
       playerTeam: effectiveSoloTeam ?? 'attackers',
@@ -1273,7 +1299,7 @@ function gameLoop(now: number) {
     if (!isSpectating && canShoot(inputMode) && hasGameplayFocus() && botMatchCanShoot && isMultiplayerDefusalLive() && !isLocalBombActionActive() && !usingGrenade && input.isKeyPressed('MouseRight') && weaponManager.getCurrentWeapon().isMelee && player) {
       input.setKeyPressed('MouseRight', false);
       const result = weaponManager.shoot(scene.getCamera(), now, { heavyMelee: true });
-      if (result) applyLocalWeaponHit(result);
+      if (result) handleWeaponShotResult(result, now);
     }
 
     const wantsPrimaryFire = input.isKeyPressed('MouseLeft');
@@ -1593,8 +1619,8 @@ function resumeGame(): void {
 function openBuyMenu(): void {
   if (!gameRunning) return;
   const soloBuyBlockedReason = soloBotMatch ? getSoloBotBuyDisabledReason() : undefined;
-  const multiplayerBuyBlockedReason = currentMode === 'multiplayer' && currentSnapshot?.config.mode === 'defusal' && currentSnapshot.phase !== 'buy'
-    ? '只能在购买阶段购买'
+  const multiplayerBuyBlockedReason = currentMode === 'multiplayer' && currentSnapshot?.config.mode === 'defusal' && currentSnapshot.buyTimeActive === false
+    ? '购买时间已结束'
     : currentMode === 'multiplayer' && currentSnapshot?.config.mapId === 'dust2' && !isPlayerInBuyZone()
       ? '必须站在出生买区内购买'
     : undefined;
@@ -1786,12 +1812,7 @@ function handleWeaponShotResult(result: ShootResult, shotTime: number, sendNetwo
   if (sendNetwork && currentMode === 'multiplayer') {
     network.send({
       type: 'shoot',
-      request: {
-        origin: vectorToPlain(result.origin),
-        direction: vectorToPlain(result.direction),
-        weaponId: currentMultiplayerWeaponId(),
-        clientTime: shotTime
-      }
+      request: buildShootRequest(result, currentMultiplayerWeaponId(), shotTime)
     });
   }
 
@@ -1803,7 +1824,7 @@ function handleWeaponShotResult(result: ShootResult, shotTime: number, sendNetwo
     scene.triggerHitMarker();
   }
 
-  applyLocalWeaponHit(result);
+  applyLocalWeaponHit(result, shotTime);
 
   if (!result.isMelee) {
     const weaponRange = weaponManager.getCurrentWeapon().range;
@@ -1833,10 +1854,11 @@ function handleWeaponShotResult(result: ShootResult, shotTime: number, sendNetwo
   }
 }
 
-function applyLocalWeaponHit(result: ShootResult): void {
+function applyLocalWeaponHit(result: ShootResult, shotTime: number): void {
   const weapon = weaponManager.getCurrentWeapon();
   if (result.isMelee) {
-    const target = findMeleeTarget(result.origin, result.direction, weapon.range);
+    const target = findMeleeTarget(result.origin, result.direction, result.range);
+    weaponManager.applyLocalMeleeResult(result, shotTime, Boolean(target));
     if (!target) return;
     const damage = calculateDamage(
       { ...weapon.getDamageProfile(), baseDamage: result.damage },
@@ -2141,6 +2163,8 @@ window.__debugInputState = () => ({
   lockFailureReason,
   matchMode: currentSnapshot?.config.mode ?? null,
   matchPhase: currentSnapshot?.phase ?? soloBotMatch?.getStats().phase ?? null,
+  roundTimeRemaining: currentSnapshot?.roundTimeRemaining ?? null,
+  buyTimeActive: currentSnapshot?.buyTimeActive ?? null,
   canMove: canMove(inputMode) && (!soloBotMatch || soloBotMatch.canPlayerMove()) && !isMultiplayerDefusalFreezeTime(),
   canShoot: canShoot(inputMode) && hasGameplayFocus() && (!soloBotMatch || soloBotMatch.canPlayerShoot()) && isMultiplayerDefusalLive(),
   activePanel: hud.isBuyMenuOpen() ? 'buyMenu' : isScoreboardSurfaceOpen() ? 'scoreboard' : inputMode === 'paused' ? 'pause' : lockFailureReason ? 'pointerLockGuide' : 'none',
@@ -2194,6 +2218,98 @@ if (allowDebugPointerLockBypass) {
   };
   window.__debugSetMouseDelta = (x: number, y: number) => {
     input.setMouseDelta(x, y);
+  };
+  window.__debugRunDust2MovementProbe = (probe) => {
+    if (!player) return { ok: false, error: 'player is not initialized' };
+    if (scene.getCurrentArena().name !== 'Dust2') return { ok: false, error: 'current arena is not Dust2' };
+
+    const dt = Math.max(1 / 120, Math.min(1 / 30, probe.dt ?? 1 / 60));
+    const maxFrames = Math.max(1, Math.min(1800, probe.maxFrames ?? 900));
+    const reachDistance = Math.max(0.1, probe.reachDistance ?? 0.42);
+    const yawTo = (from: { x: number; z: number }, to: { x: number; z: number }) =>
+      Math.atan2(-(to.x - from.x), -(to.z - from.z));
+    const clearProbeKeys = () => {
+      input.setKeyPressed('KeyW', false);
+      input.setKeyPressed('Space', false);
+    };
+
+    clearProbeKeys();
+    player.setEyePositionForDebug(new THREE.Vector3(probe.start.x, probe.start.y, probe.start.z));
+    player.setRotation(0, yawTo(probe.start, probe.target));
+    player.resetVelocity();
+    player.stickToGroundIfSupported();
+    player.syncCameraToBody();
+
+    let reached = false;
+    let maxAbsFootDistance = 0;
+    let maxCameraEyeDistance = 0;
+    let airborneFrames = 0;
+    let stuckFrames = 0;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let previousDistance = Infinity;
+    let startDistance = Math.hypot(probe.target.x - player.getPosition().x, probe.target.z - player.getPosition().z);
+    let finalDistance = startDistance;
+
+    input.setKeyPressed('KeyW', true);
+    for (let frame = 0; frame < maxFrames; frame += 1) {
+      const position = player.getPosition();
+      const distance = Math.hypot(probe.target.x - position.x, probe.target.z - position.z);
+      finalDistance = distance;
+      if (distance <= reachDistance) {
+        reached = true;
+        break;
+      }
+
+      player.setRotation(player.getRotation().pitch, yawTo(position, probe.target));
+      if (probe.jumpFrame === frame) input.setKeyPressed('Space', true);
+      if (probe.jumpFrame !== undefined && frame === probe.jumpFrame + 2) input.setKeyPressed('Space', false);
+
+      player.update(dt);
+      physics.step(dt);
+      player.stickToGroundIfSupported();
+      player.syncCameraToBody();
+
+      const nextPosition = player.getPosition();
+      maxCameraEyeDistance = Math.max(maxCameraEyeDistance, scene.getCamera().position.distanceTo(nextPosition));
+      const footDistance = player.getFootGroundDistanceForDebug();
+      if (footDistance !== null) maxAbsFootDistance = Math.max(maxAbsFootDistance, Math.abs(footDistance));
+      if (!player.isGrounded()) airborneFrames += 1;
+      minY = Math.min(minY, nextPosition.y);
+      maxY = Math.max(maxY, nextPosition.y);
+
+      const nextDistance = Math.hypot(probe.target.x - nextPosition.x, probe.target.z - nextPosition.z);
+      finalDistance = nextDistance;
+      stuckFrames = Math.abs(previousDistance - nextDistance) < 0.0005 ? stuckFrames + 1 : 0;
+      previousDistance = nextDistance;
+      if (stuckFrames > 120 || nextPosition.y < -7) break;
+    }
+    clearProbeKeys();
+
+    for (let settle = 0; settle < 8; settle += 1) {
+      physics.step(dt);
+      player.stickToGroundIfSupported();
+      player.syncCameraToBody();
+      maxCameraEyeDistance = Math.max(maxCameraEyeDistance, scene.getCamera().position.distanceTo(player.getPosition()));
+    }
+
+    return {
+      ok: true,
+      reached,
+      grounded: player.isGrounded(),
+      startDistance,
+      finalDistance,
+      progress: startDistance - finalDistance,
+      maxAbsFootDistance,
+      finalFootDistance: player.getFootGroundDistanceForDebug(),
+      maxCameraEyeDistance,
+      finalCameraEyeDistance: scene.getCamera().position.distanceTo(player.getPosition()),
+      airborneFrames,
+      stuckFrames,
+      minY: Number.isFinite(minY) ? minY : player.getPosition().y,
+      maxY: Number.isFinite(maxY) ? maxY : player.getPosition().y,
+      finalPosition: vectorToPlain(player.getPosition()),
+    };
   };
 }
 

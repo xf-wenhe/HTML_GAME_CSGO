@@ -94,6 +94,7 @@ export interface PlayerSnapshot {
   deaths: number;
   assists: number;
   ping: number;
+  isBot?: boolean;
   isAlive: boolean;
   isReady: boolean;
   disconnected?: boolean;
@@ -129,6 +130,7 @@ export interface MatchSnapshot {
   serverTime: number;
   round: number;
   roundTimeRemaining: number;
+  buyTimeActive?: boolean;
   score: Record<Team, number>;
   players: PlayerSnapshot[];
   grenades?: GrenadeSnapshot[];
@@ -172,6 +174,7 @@ export interface ShootRequest {
   direction: Vector3;
   weaponId: WeaponId;
   clientTime: number;
+  heavyMelee?: boolean;
 }
 
 export interface BuyRequest {

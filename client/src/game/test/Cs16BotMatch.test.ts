@@ -4,6 +4,23 @@ import { Cs16BotMatch } from '../Cs16BotMatch.js';
 import { canCs16WeaponScope, isCs16Weapon } from '../Cs16Weapons.js';
 
 describe('Cs16BotMatch', () => {
+  it('uses CS1.6 default freeze and round timers', () => {
+    const match = new Cs16BotMatch();
+
+    expect(match.update(0, false).shouldRestartRound).toBe(true);
+    expect(match.getStats().phase).toBe('freezeTime');
+    expect(match.getStats().freezeRemaining).toBe(6);
+    expect(match.getStats().roundTimeRemaining).toBe(300);
+
+    match.update(5.5, false);
+    expect(match.getStats().phase).toBe('freezeTime');
+    expect(match.canPlayerMove()).toBe(false);
+
+    match.update(0.6, false);
+    expect(match.getStats().phase).toBe('live');
+    expect(match.getStats().roundTimeRemaining).toBe(300);
+  });
+
   it('runs freeze time, live, round end, and restart phases', () => {
     const match = new Cs16BotMatch({ freezeSeconds: 1, roundEndSeconds: 1, botCount: 2 });
 

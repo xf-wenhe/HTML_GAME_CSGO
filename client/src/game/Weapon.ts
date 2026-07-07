@@ -193,6 +193,8 @@ export class Weapon {
       this.cs16Accuracy = getCs16AccuracyAfterShot(this.id, this.cs16ShotsFired) ?? this.cs16Accuracy;
       this.lastCs16Kick = getCs16KickDegrees(this.id, this.cs16ShotsFired, fireState);
       this.cs16DecreaseShotsAt = now + 400;
+    } else {
+      this.lastCs16Kick = getCs16KickDegrees(this.id, 1, fireState);
     }
     // 【修复】每次射击将浮点恢复转正，确保连续点射时后坐力正确叠加
     this.lastShotIndex = Math.min(this.recoilPattern.length - 1, Math.max(0, Math.floor(this.lastShotIndex)) + 1);
@@ -200,6 +202,11 @@ export class Weapon {
     this.lastShotTime = now;
     this.lastUpdateTime = now;
     return true;
+  }
+
+  applyShotRecovery(now: number, firedCycleSeconds: number, recoveryCycleSeconds: number): void {
+    const recoveryDeltaMs = Math.max(0, firedCycleSeconds - recoveryCycleSeconds) * 1000;
+    this.lastShotTime = now - recoveryDeltaMs;
   }
 
   startReload(now: number = performance.now()): void {

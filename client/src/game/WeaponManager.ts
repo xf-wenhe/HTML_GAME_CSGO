@@ -5,6 +5,9 @@ import { WEAPON_DEFINITIONS } from './Weapons.js';
 import { getWeaponPresentation, resolveWeaponPresentationId, type ViewmodelPresentation } from './WeaponPresentation.js';
 import {
   getCs16BurstTiming,
+  getCs16KnifeAttackCycleSeconds,
+  getCs16KnifeAttackLockSeconds,
+  getCs16KnifeAttackRangeUnits,
   getCs16PrimaryFireCycleSeconds,
   getCs16SilencerTiming,
   isCs16ScopedWeapon
@@ -18,6 +21,7 @@ export interface ShootResult {
   pellets: number;
   isMelee: boolean;
   heavyMelee: boolean;
+  range: number;
   spread: number;
   recoilOffset: { x: number; y: number };
 }
@@ -61,6 +65,8 @@ export class WeaponManager {
   private recoilDirection = -1;
   private crouching = false;
   private queuedShots: QueuedShot[] = [];
+  private knifePrimaryLockedUntil = 0;
+  private knifeSecondaryLockedUntil = 0;
 
   constructor() {
     Object.entries(WEAPON_DEFINITIONS).forEach(([id, weapon]) => {
@@ -110,6 +116,8 @@ export class WeaponManager {
     this.scoped = false;
     this.scopeLevel = 0;
     this.nextScopeToggleAt = 0;
+    this.knifePrimaryLockedUntil = 0;
+    this.knifeSecondaryLockedUntil = 0;
     this.cancelAutoRescope();
     void this.applyWeaponModel();
     return true;
@@ -244,7 +252,14 @@ export class WeaponManager {
   ): ShootResult | null {
     const weapon = this.getCurrentWeapon();
     if (this.isSwitching()) return null;
-    const fireCycle = getCs16PrimaryFireCycleSeconds(weapon.id, this.scoped);
+    const heavyMelee = Boolean(options.heavyMelee && weapon.isMelee);
+    if (weapon.id === 'knife') {
+      const lockedUntil = heavyMelee ? this.knifeSecondaryLockedUntil : this.knifePrimaryLockedUntil;
+      if (now < lockedUntil) return null;
+    }
+    const fireCycle = weapon.id === 'knife'
+      ? 0
+      : getCs16PrimaryFireCycleSeconds(weapon.id, this.scoped);
     const fireState: Cs16FireState = {
       grounded: options.isGrounded ?? true,
       crouched: this.crouching,
@@ -262,8 +277,10 @@ export class WeaponManager {
       }
       return null;
     }
+    if (weapon.id === 'knife') {
+      this.applyKnifeAttackLocks(now, getCs16KnifeAttackLockSeconds(heavyMelee, true));
+    }
 
-    const heavyMelee = Boolean(options.heavyMelee && weapon.isMelee);
     this.recoil = weapon.isMelee ? Math.min(this.recoil + (heavyMelee ? 0.15 : 0.09), 0.24) : Math.min(this.recoil + 0.08, 0.26);
     const cs16Kick = weapon.getLastCs16KickDegrees();
     let recoilOffset = weapon.getRecoilOffset();
@@ -321,9 +338,24 @@ export class WeaponManager {
       pellets: weapon.pellets,
       isMelee: weapon.isMelee,
       heavyMelee,
+      range: weapon.id === 'knife' ? getCs16KnifeAttackRangeUnits(heavyMelee) : weapon.range,
       spread,
       recoilOffset
     };
+  }
+
+  applyLocalMeleeResult(result: ShootResult, shotTime: number, hit: boolean): void {
+    const weapon = this.getCurrentWeapon();
+    if (!result.isMelee || weapon.id !== 'knife') return;
+    const firedCycleSeconds = getCs16KnifeAttackCycleSeconds(result.heavyMelee, true);
+    const recoveryCycleSeconds = getCs16KnifeAttackCycleSeconds(result.heavyMelee, hit);
+    weapon.applyShotRecovery(shotTime, firedCycleSeconds, recoveryCycleSeconds);
+    this.applyKnifeAttackLocks(shotTime, getCs16KnifeAttackLockSeconds(result.heavyMelee, hit));
+  }
+
+  private applyKnifeAttackLocks(shotTime: number, locks: { primary: number; secondary: number }): void {
+    this.knifePrimaryLockedUntil = shotTime + Math.round(locks.primary * 1000);
+    this.knifeSecondaryLockedUntil = shotTime + Math.round(locks.secondary * 1000);
   }
 
   consumeQueuedShots(
@@ -387,12 +419,14 @@ export class WeaponManager {
       pellets: weapon.pellets,
       isMelee: weapon.isMelee,
       heavyMelee,
+      range: weapon.id === 'knife' ? getCs16KnifeAttackRangeUnits(heavyMelee) : weapon.range,
       spread,
       recoilOffset
     };
   }
 
   private getWeaponDamage(weapon: Weapon, heavyMelee: boolean): number {
+    if (weapon.id === 'knife') return heavyMelee ? 65 : 15;
     if (heavyMelee) return Math.round(weapon.damage * 1.65);
     const silencerTiming = getCs16SilencerTiming(weapon.id);
     if (silencerTiming) {
@@ -541,7 +575,7 @@ export class WeaponManager {
     if (cs16SliceId) return cs16SliceId;
 
     // CS 1.6 weapons first
-    if (['glock', 'usp', 'p228', 'deagle', 'five_seven'].includes(weaponId)) return weaponId;
+    if (['glock', 'usp', 'p228', 'deagle', 'five_seven', 'dual_berettas'].includes(weaponId)) return weaponId;
     if (['mp5', 'tmp', 'p90', 'mac10', 'ump45'].includes(weaponId)) return weaponId;
     if (['m3', 'xm1014'].includes(weaponId)) return weaponId;
     if (['ak47', 'm4a1', 'sg552', 'aug', 'galil', 'famas'].includes(weaponId)) return weaponId;
@@ -549,7 +583,7 @@ export class WeaponManager {
     if (['m249', 'hegrenade'].includes(weaponId)) return weaponId;
 
     // CS:GO weapons for compatibility
-    if (['usp_s', 'p250', 'dual_berettas', 'r8', 'cz75', 'tec9', 'p2000', 'sidearm'].includes(weaponId)) return 'pistol';
+    if (['usp_s', 'p250', 'r8', 'cz75', 'tec9', 'p2000', 'sidearm'].includes(weaponId)) return 'pistol';
     if (['heavy_pistol'].includes(weaponId)) return 'deagle';
     if (['m4a1s', 'm4a4', 'sentinel'].includes(weaponId)) return 'm4a1';
     if (['vandal'].includes(weaponId)) return 'ak47';

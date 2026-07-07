@@ -82,8 +82,8 @@ export class Cs16BotMatch {
   private onRoundEndCallback: ((reason: Exclude<Cs16RoundEndReason, null>, winner: Team, stats: Cs16BotMatchStats) => void) | null = null;
 
   constructor(options: Cs16BotMatchOptions = {}) {
-    this.freezeSeconds = options.freezeSeconds ?? 5;  // CS1.6标准冻结时间5秒
-    this.roundSeconds = options.roundSeconds ?? 115;
+    this.freezeSeconds = options.freezeSeconds ?? 6;
+    this.roundSeconds = options.roundSeconds ?? 300;
     this.roundEndSeconds = options.roundEndSeconds ?? 4;
     this.botCount = options.botCount ?? 5;
     this.playerTeam = options.playerTeam ?? 'attackers';

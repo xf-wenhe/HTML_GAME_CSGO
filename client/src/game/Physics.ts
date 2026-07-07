@@ -12,6 +12,11 @@ export interface PhysicsBodyUserData {
 
 export type NamedBody = CANNON.Body & { userData?: PhysicsBodyUserData };
 
+export interface WalkableBoxHit {
+  topY: number;
+  body: NamedBody;
+}
+
 export class Physics {
   private world: CANNON.World;
   private bodies: CANNON.Body[] = [];
@@ -92,6 +97,13 @@ export class Physics {
     }
     const namedBody = body as NamedBody;
     namedBody.userData = { ...(namedBody.userData ?? {}), ...userData, name, kind: userData.kind ?? 'box' };
+    if (
+      userData.sourceBacked === true
+      && userData.walkable === true
+      && (userData.collisionKind === 'floor' || userData.collisionKind === 'ramp')
+    ) {
+      body.collisionResponse = false;
+    }
     this.addBody(body);
     return body;
   }
@@ -131,6 +143,49 @@ export class Physics {
     return bestTop;
   }
 
+  findWalkableBoxBelow(x: number, z: number, bottomY: number, maxDistance: number, padding = 0): WalkableBoxHit | null {
+    let best: WalkableBoxHit | null = null;
+    this.bodies.forEach(body => {
+      if (body.mass !== 0) return;
+      const namedBody = body as NamedBody;
+      const userData = namedBody.userData;
+      if (userData?.walkable !== true) return;
+      if (userData.collisionKind === 'boundary' || userData.collisionKind === 'wall') return;
+      const shape = body.shapes[0];
+      if (!(shape instanceof CANNON.Box)) return;
+      if (!isIdentityQuaternion(body.quaternion)) return;
+      const half = shape.halfExtents;
+      if (x < body.position.x - half.x - padding || x > body.position.x + half.x + padding) return;
+      if (z < body.position.z - half.z - padding || z > body.position.z + half.z + padding) return;
+      const topY = body.position.y + half.y;
+      const distance = bottomY - topY;
+      if (distance < -0.08 || distance > maxDistance) return;
+      if (!best || topY > best.topY) best = { topY, body: namedBody };
+    });
+    return best;
+  }
+
+  findWalkableBoxTopInRange(x: number, z: number, minY: number, maxY: number, padding = 0): WalkableBoxHit | null {
+    let best: WalkableBoxHit | null = null;
+    this.bodies.forEach(body => {
+      if (body.mass !== 0) return;
+      const namedBody = body as NamedBody;
+      const userData = namedBody.userData;
+      if (userData?.walkable !== true) return;
+      if (userData.collisionKind === 'boundary' || userData.collisionKind === 'wall') return;
+      const shape = body.shapes[0];
+      if (!(shape instanceof CANNON.Box)) return;
+      if (!isIdentityQuaternion(body.quaternion)) return;
+      const half = shape.halfExtents;
+      if (x < body.position.x - half.x - padding || x > body.position.x + half.x + padding) return;
+      if (z < body.position.z - half.z - padding || z > body.position.z + half.z + padding) return;
+      const topY = body.position.y + half.y;
+      if (topY < minY || topY > maxY) return;
+      if (!best || topY > best.topY) best = { topY, body: namedBody };
+    });
+    return best;
+  }
+
   step(dt: number = 0.016): void {
     this.world.step(this.fixedTimeStep, Math.min(dt, 0.05), this.maxSubSteps);
   }
@@ -142,4 +197,11 @@ export class Physics {
     this.bodies = [];
     this.groundBody = null;
   }
+}
+
+function isIdentityQuaternion(quaternion: CANNON.Quaternion): boolean {
+  return Math.abs(quaternion.x) < 0.000001
+    && Math.abs(quaternion.y) < 0.000001
+    && Math.abs(quaternion.z) < 0.000001
+    && Math.abs(quaternion.w - 1) < 0.000001;
 }

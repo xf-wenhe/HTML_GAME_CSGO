@@ -17,7 +17,7 @@ function createController() {
   };
   const input = new InputManager(undefined, 'linux');
   const player = new PlayerController(scene as any, physics, input, new THREE.Vector3(0, 0.64, 0));
-  return { physics, input, player };
+  return { camera, physics, input, player };
 }
 
 function createPlatformController() {
@@ -61,11 +61,100 @@ function createUntaggedPlatformController() {
   return { physics, player };
 }
 
+function createStepController() {
+  const physics = new Physics();
+  physics.setGlobalGroundEnabled(false);
+  const camera = new THREE.PerspectiveCamera();
+  const scene = {
+    getCamera: () => camera,
+    getCurrentArena: () => ({ name: 'Dust2', source: { sourceBacked: true }, bounds: { width: 20, depth: 20, centerZ: 0 } }),
+    getFeedbackEffects: () => ({ landHard: () => undefined }),
+  };
+  physics.addStaticBox(
+    new CANNON.Vec3(0, -0.06, 0.35),
+    new CANNON.Vec3(0.8, 0.06, 0.8),
+    undefined,
+    'dust2-source-floor-lower',
+    { walkable: true, collisionKind: 'floor', sourceBacked: true }
+  );
+  physics.addStaticBox(
+    new CANNON.Vec3(0, 0.18, -0.55),
+    new CANNON.Vec3(0.8, 0.06, 0.42),
+    undefined,
+    'dust2-source-ramp-step',
+    { walkable: true, collisionKind: 'ramp', sourceBacked: true }
+  );
+  const input = new InputManager(undefined, 'linux');
+  const player = new PlayerController(scene as any, physics, input, new THREE.Vector3(0, 0.53, 0.45));
+  return { physics, input, player };
+}
+
+function createSteppedSourceController(direction: 'up' | 'down') {
+  const physics = new Physics();
+  physics.setGlobalGroundEnabled(false);
+  const camera = new THREE.PerspectiveCamera();
+  const scene = {
+    getCamera: () => camera,
+    getCurrentArena: () => ({ name: 'Dust2', source: { sourceBacked: true }, bounds: { width: 20, depth: 20, centerZ: 0 } }),
+    getFeedbackEffects: () => ({ landHard: () => undefined }),
+  };
+  const tops = direction === 'up' ? [0, 0.16, 0.32, 0.48] : [0.48, 0.32, 0.16, 0];
+  tops.forEach((top, index) => {
+    physics.addStaticBox(
+      new CANNON.Vec3(0, top - 0.06, 0.45 - index * 0.48),
+      new CANNON.Vec3(0.8, 0.06, 0.24),
+      undefined,
+      `dust2-source-ramp-step-${index}`,
+      { walkable: true, collisionKind: 'ramp', sourceBacked: true }
+    );
+  });
+  physics.addStaticBox(
+    new CANNON.Vec3(0, tops[tops.length - 1] - 0.06, -1.6),
+    new CANNON.Vec3(0.8, 0.06, 0.7),
+    undefined,
+    'dust2-source-ramp-top-platform',
+    { walkable: true, collisionKind: 'floor', sourceBacked: true }
+  );
+  const input = new InputManager(undefined, 'linux');
+  const player = new PlayerController(scene as any, physics, input, new THREE.Vector3(0, tops[0] + 0.53, 0.45));
+  return { camera, physics, input, player };
+}
+
+function createSourceBoundsController() {
+  const physics = new Physics();
+  physics.setGlobalGroundEnabled(false);
+  const camera = new THREE.PerspectiveCamera();
+  const arena = { name: 'Dust2', source: { sourceBacked: true }, bounds: { width: 8, depth: 8, centerZ: 0 } };
+  const scene = {
+    getCamera: () => camera,
+    getCurrentArena: () => arena,
+    getFeedbackEffects: () => ({ landHard: () => undefined }),
+  };
+  physics.addStaticBox(
+    new CANNON.Vec3(0, -0.06, 0),
+    new CANNON.Vec3(2, 0.06, 2),
+    undefined,
+    'dust2-source-safe-floor',
+    { walkable: true, collisionKind: 'floor', sourceBacked: true }
+  );
+  const input = new InputManager(undefined, 'linux');
+  const player = new PlayerController(scene as any, physics, input, new THREE.Vector3(0, 0.53, 0));
+  return { camera, physics, player };
+}
+
 function tick(player: PlayerController, physics: Physics, dt = 1 / 100): THREE.Vector3 {
   player.update(dt);
   physics.step(dt);
+  player.stickToGroundIfSupported();
   player.syncCameraToBody();
   return player.getPosition();
+}
+
+function expectCameraAtPlayerEye(camera: THREE.PerspectiveCamera, player: PlayerController): void {
+  const position = player.getPosition();
+  expect(camera.position.x).toBeCloseTo(position.x, 5);
+  expect(camera.position.y).toBeCloseTo(position.y, 5);
+  expect(camera.position.z).toBeCloseTo(position.z, 5);
 }
 
 describe('PlayerController CS1.6 feel', () => {
@@ -168,6 +257,22 @@ describe('PlayerController CS1.6 feel', () => {
     expect(y.at(-1)).toBeCloseTo(0.53, 2);
   });
 
+  it('clears airborne time when ground snapping completes a landing', () => {
+    const { physics, input, player } = createController();
+    input.setKeyPressed('Space', true);
+
+    let sawAirborne = false;
+    for (let i = 0; i < 120; i++) {
+      tick(player, physics);
+      sawAirborne ||= player.getAirborneTime() > 0;
+      if (sawAirborne && player.isGrounded()) break;
+    }
+
+    expect(sawAirborne).toBe(true);
+    expect(player.isGrounded()).toBe(true);
+    expect(player.getAirborneTime()).toBe(0);
+  });
+
   it('applies CS 1.6 multiplayer damage after a high-speed fall', () => {
     const { physics, player } = createController();
     player.setPosition(new THREE.Vector3(0, 4.64, 0));
@@ -263,6 +368,117 @@ describe('PlayerController CS1.6 feel', () => {
     expect(leftGround).toBe(true);
     expect(lowestY).toBeLessThan(0.2);
     expect(player.getFootGroundDistanceForDebug()).toBeNull();
+  });
+
+  it('steps smoothly onto Dust2 ramp proxy slabs and stays grounded', () => {
+    const { physics, input, player } = createStepController();
+    input.setKeyPressed('KeyW', true);
+
+    let highestY = player.getPosition().y;
+    for (let i = 0; i < 55; i++) {
+      const position = tick(player, physics);
+      highestY = Math.max(highestY, position.y);
+    }
+
+    expect(player.isGrounded()).toBe(true);
+    expect(player.getPosition().z).toBeLessThan(-0.25);
+    expect(highestY).toBeGreaterThan(0.68);
+    expect(player.getFootGroundDistanceForDebug()).not.toBeNull();
+    expect(Math.abs(player.getFootGroundDistanceForDebug() ?? 1)).toBeLessThan(0.04);
+  });
+
+  it('walks up continuous Dust2 source-backed height cells without side-wall blocking', () => {
+    const { physics, input, player } = createSteppedSourceController('up');
+    input.setKeyPressed('KeyW', true);
+
+    for (let i = 0; i < 75; i++) tick(player, physics);
+
+    expect(player.isGrounded()).toBe(true);
+    expect(player.getPosition().z).toBeLessThan(-0.85);
+    expect(player.getPosition().y).toBeGreaterThan(0.9);
+    expect(Math.abs(player.getFootGroundDistanceForDebug() ?? 1)).toBeLessThan(0.04);
+  });
+
+  it('walks down continuous Dust2 source-backed height cells without falling through', () => {
+    const { physics, input, player } = createSteppedSourceController('down');
+    input.setKeyPressed('KeyW', true);
+
+    for (let i = 0; i < 75; i++) tick(player, physics);
+
+    expect(player.isGrounded()).toBe(true);
+    expect(player.getPosition().z).toBeLessThan(-0.85);
+    expect(player.getPosition().y).toBeLessThan(0.7);
+    expect(Math.abs(player.getFootGroundDistanceForDebug() ?? 1)).toBeLessThan(0.04);
+  });
+
+  it('lands back on source-backed walkable floors whose collision response is disabled', () => {
+    const physics = new Physics();
+    physics.setGlobalGroundEnabled(false);
+    const camera = new THREE.PerspectiveCamera();
+    const scene = {
+      getCamera: () => camera,
+      getCurrentArena: () => ({ name: 'Dust2', source: { sourceBacked: true }, bounds: { width: 20, depth: 20, centerZ: 0 } }),
+      getFeedbackEffects: () => ({ landHard: () => undefined }),
+    };
+    physics.addStaticBox(
+      new CANNON.Vec3(0, -0.06, 0),
+      new CANNON.Vec3(2, 0.06, 2),
+      undefined,
+      'dust2-source-floor-non-responsive',
+      { walkable: true, collisionKind: 'floor', sourceBacked: true }
+    );
+    const input = new InputManager(undefined, 'linux');
+    const player = new PlayerController(scene as any, physics, input, new THREE.Vector3(0, 0.53, 0));
+
+    input.setKeyPressed('Space', true);
+    let becameAirborne = false;
+    for (let i = 0; i < 140; i++) {
+      tick(player, physics);
+      if (!player.isGrounded()) becameAirborne = true;
+    }
+
+    expect(becameAirborne).toBe(true);
+    expect(player.isGrounded()).toBe(true);
+    expect(Math.abs(player.getPosition().y - 0.53)).toBeLessThan(0.02);
+    expect(Math.abs(player.getFootGroundDistanceForDebug() ?? 1)).toBeLessThan(0.04);
+  });
+
+  it('recovers to the last safe Dust2 source position after crossing map bounds', () => {
+    const { camera, physics, player } = createSourceBoundsController();
+
+    for (let i = 0; i < 5; i++) tick(player, physics);
+    player.setEyePositionForDebug(new THREE.Vector3(7.2, 0.53, 0));
+
+    tick(player, physics);
+
+    expect(player.getPosition().x).toBeCloseTo(0, 2);
+    expect(player.getPosition().z).toBeCloseTo(0, 2);
+    expect(player.isGrounded()).toBe(true);
+    expectCameraAtPlayerEye(camera, player);
+  });
+
+  it('keeps the first-person camera glued to the player eye through Dust2 height changes', () => {
+    const { camera, physics, input, player } = createSteppedSourceController('up');
+    input.setKeyPressed('KeyW', true);
+
+    for (let i = 0; i < 80; i++) {
+      input.setMouseDelta(0.004, -0.002);
+      tick(player, physics);
+      expectCameraAtPlayerEye(camera, player);
+    }
+
+    input.setKeyPressed('KeyW', false);
+    input.setKeyPressed('Space', true);
+    let airborneFrames = 0;
+    for (let i = 0; i < 220; i++) {
+      tick(player, physics);
+      if (!player.isGrounded()) airborneFrames += 1;
+      expectCameraAtPlayerEye(camera, player);
+    }
+
+    expect(airborneFrames).toBeGreaterThan(0);
+    expect(player.isGrounded()).toBe(true);
+    expect(Math.abs(player.getFootGroundDistanceForDebug() ?? 1)).toBeLessThan(0.04);
   });
 
   it('does not treat untagged physics bodies as valid ground', () => {

@@ -11,6 +11,7 @@ export const CS16_WEAPON_MOVEMENT: Record<string, Cs16WeaponMovement> = {
   p228: { normalHu: 250, scopedHu: 250 },
   deagle: { normalHu: 250, scopedHu: 250 },
   five_seven: { normalHu: 250, scopedHu: 250 },
+  dual_berettas: { normalHu: 250, scopedHu: 250 },
   mp5: { normalHu: 250, scopedHu: 250 },
   tmp: { normalHu: 250, scopedHu: 250 },
   p90: { normalHu: 245, scopedHu: 245 },

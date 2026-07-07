@@ -4,7 +4,7 @@ import { WEAPON_DEFINITIONS } from '../Weapons.js';
 import { getCs16WeaponMovementMultipliers } from '../../../../shared/cs16Movement.js';
 
 export const CS16_MULTIPLAYER_WEAPON_IDS = [
-  'glock', 'usp', 'p228', 'deagle', 'five_seven',
+  'glock', 'usp', 'p228', 'deagle', 'dual_berettas', 'five_seven',
   'mp5', 'tmp', 'p90', 'mac10', 'ump45',
   'm3', 'xm1014',
   'galil', 'famas', 'ak47', 'm4a1', 'sg552', 'aug',

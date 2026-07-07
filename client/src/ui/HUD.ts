@@ -48,6 +48,7 @@ const BUY_MENU_CATEGORIES: BuyMenuCategory[] = [
       cs16BuyItem('usp', 'CT 默认手枪 / 12 发', 'pistol'),
       cs16BuyItem('p228', 'P228 / 精准备用', 'pistol'),
       cs16BuyItem('deagle', 'Desert Eagle / 高伤害', 'pistol-heavy'),
+      cs16BuyItem('dual_berettas', 'T Dual Elites / 30 发', 'pistol'),
       cs16BuyItem('five_seven', 'CT Five-SeveN / 穿甲手枪', 'pistol'),
     ]
   },

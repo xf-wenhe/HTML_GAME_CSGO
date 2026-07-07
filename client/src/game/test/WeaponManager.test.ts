@@ -174,6 +174,84 @@ describe('WeaponManager', () => {
     expect(noScopeSpread).toBeGreaterThan(scopedSpread * 100);
   });
 
+  it('uses the ReGameDLL AWP spread, cycle, and kick', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    const standingScoped = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: true };
+    const standingUnscoped = { ...standingScoped, aiming: false };
+    manager.switchWeapon('awp');
+    manager.update(500, 1);
+    const awp = manager.getCurrentWeapon();
+
+    expect(awp.getCs16Spread(standingScoped)).toBeCloseTo(0.001, 7);
+    expect(awp.getCs16Spread(standingUnscoped)).toBeCloseTo(0.081, 7);
+    expect(awp.getCs16Spread({ ...standingScoped, crouched: true })).toBeCloseTo(0, 7);
+    expect(awp.getCs16Spread({ ...standingScoped, horizontalSpeed: 11 })).toBeCloseTo(0.1, 7);
+    expect(awp.getCs16Spread({ ...standingScoped, horizontalSpeed: 141 })).toBeCloseTo(0.25, 7);
+    expect(awp.getCs16Spread({ ...standingScoped, grounded: false })).toBeCloseTo(0.85, 7);
+
+    manager.cycleScope(1500);
+    const first = manager.shoot(camera, 1500, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(115);
+    expect(first?.spread).toBeCloseTo(0.001, 7);
+    const firstKick = manager.consumeCameraKick();
+    expect(firstKick.pitch).toBeCloseTo(THREE.MathUtils.degToRad(2), 7);
+    expect(firstKick.yaw).toBe(0);
+    expect(manager.shoot(camera, 2949, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 2950, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL Scout damage, scoped spread, cycle, and kick', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    const standingScoped = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: true };
+    const standingUnscoped = { ...standingScoped, aiming: false };
+    manager.switchWeapon('scout');
+    manager.update(500, 1);
+    const scout = manager.getCurrentWeapon();
+
+    expect(scout.damage).toBe(75);
+    expect(scout.getCs16Spread(standingScoped)).toBeCloseTo(0.007, 7);
+    expect(scout.getCs16Spread(standingUnscoped)).toBeCloseTo(0.032, 7);
+    expect(scout.getCs16Spread({ ...standingScoped, crouched: true })).toBeCloseTo(0, 7);
+    expect(scout.getCs16Spread({ ...standingScoped, horizontalSpeed: 171 })).toBeCloseTo(0.075, 7);
+    expect(scout.getCs16Spread({ ...standingScoped, grounded: false })).toBeCloseTo(0.2, 7);
+
+    manager.cycleScope(1500);
+    const first = manager.shoot(camera, 1500, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(75);
+    expect(first?.spread).toBeCloseTo(0.007, 7);
+    const firstKick = manager.consumeCameraKick();
+    expect(firstKick.pitch).toBeCloseTo(THREE.MathUtils.degToRad(2), 7);
+    expect(firstKick.yaw).toBe(0);
+    expect(manager.shoot(camera, 2749, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 2750, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses ReGameDLL semi-auto sniper damage, magazines, and scoped spread', () => {
+    const manager = new WeaponManager();
+    const scopedStanding = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: true };
+    const unscopedStanding = { ...scopedStanding, aiming: false };
+
+    manager.switchWeapon('g3sg1');
+    manager.update(500, 1);
+    const g3sg1 = manager.getCurrentWeapon();
+    expect(g3sg1.damage).toBe(80);
+    expect(g3sg1.magazineSize).toBe(20);
+    expect(g3sg1.getCs16Spread(scopedStanding)).toBeCloseTo(0.0011, 7);
+    expect(g3sg1.getCs16Spread(unscopedStanding)).toBeCloseTo(0.0016, 7);
+    expect(g3sg1.getCs16Spread({ ...scopedStanding, horizontalSpeed: 1 })).toBeCloseTo(0.003, 7);
+
+    manager.switchWeapon('sg550');
+    manager.update(1000, 1);
+    const sg550 = manager.getCurrentWeapon();
+    expect(sg550.damage).toBe(70);
+    expect(sg550.magazineSize).toBe(30);
+    expect(sg550.getCs16Spread(scopedStanding)).toBeCloseTo(0.005, 7);
+    expect(sg550.getCs16Spread(unscopedStanding)).toBeCloseTo(0.03, 7);
+    expect(sg550.getCs16Spread({ ...scopedStanding, horizontalSpeed: 1 })).toBeCloseTo(0.15, 7);
+  });
+
   it('keeps the knife as ammo-free melee with short range', () => {
     const manager = new WeaponManager();
 
@@ -184,6 +262,106 @@ describe('WeaponManager', () => {
     expect(knife.ammoConsumed).toBe(false);
     expect(knife.currentReserveAmmo).toBe(0);
     expect(knife.range).toBeLessThan(3);
+  });
+
+  it('uses ReGameDLL knife slash and stab damage', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    manager.switchWeapon('knife');
+    manager.update(500, 1);
+
+    const slash = manager.shoot(camera, 1000);
+    expect(slash?.damage).toBe(15);
+    expect(slash?.heavyMelee).toBe(false);
+
+    const stabManager = new WeaponManager();
+    stabManager.switchWeapon('knife');
+    stabManager.update(500, 1);
+    const stab = stabManager.shoot(camera, 1500, { heavyMelee: true });
+    expect(stab?.damage).toBe(65);
+    expect(stab?.heavyMelee).toBe(true);
+  });
+
+  it('exposes the shorter ReGameDLL knife stab reach on shot results', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const slashManager = new WeaponManager();
+    slashManager.switchWeapon('knife');
+    slashManager.update(500, 1);
+
+    const slash = slashManager.shoot(camera, 1000);
+    expect(slash?.range).toBe(2.4);
+
+    const stabManager = new WeaponManager();
+    stabManager.switchWeapon('knife');
+    stabManager.update(500, 1);
+
+    const stab = stabManager.shoot(camera, 1500, { heavyMelee: true });
+    expect(stab?.range).toBe(1.6);
+  });
+
+  it('uses ReGameDLL knife slash and stab attack timing', () => {
+    const slashManager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    slashManager.switchWeapon('knife');
+    slashManager.update(500, 1);
+
+    expect(slashManager.shoot(camera, 1000)).not.toBeNull();
+    expect(slashManager.shoot(camera, 1399)).toBeNull();
+    expect(slashManager.shoot(camera, 1400)).not.toBeNull();
+
+    const stabManager = new WeaponManager();
+    stabManager.switchWeapon('knife');
+    stabManager.update(500, 1);
+
+    expect(stabManager.shoot(camera, 1500, { heavyMelee: true })).not.toBeNull();
+    expect(stabManager.shoot(camera, 2599, { heavyMelee: true })).toBeNull();
+    expect(stabManager.shoot(camera, 2600, { heavyMelee: true })).not.toBeNull();
+  });
+
+  it('uses CS1.6 independent knife primary and secondary attack locks', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const slashManager = new WeaponManager();
+    slashManager.switchWeapon('knife');
+    slashManager.update(500, 1);
+
+    const slash = slashManager.shoot(camera, 1000);
+    expect(slash).not.toBeNull();
+    slashManager.applyLocalMeleeResult(slash!, 1000, true);
+    expect(slashManager.shoot(camera, 1499, { heavyMelee: true })).toBeNull();
+    expect(slashManager.shoot(camera, 1500, { heavyMelee: true })).not.toBeNull();
+
+    const stabManager = new WeaponManager();
+    stabManager.switchWeapon('knife');
+    stabManager.update(500, 1);
+
+    const stab = stabManager.shoot(camera, 1000, { heavyMelee: true });
+    expect(stab).not.toBeNull();
+    stabManager.applyLocalMeleeResult(stab!, 1000, true);
+    expect(stabManager.shoot(camera, 2099)).toBeNull();
+    expect(stabManager.shoot(camera, 2100)).not.toBeNull();
+  });
+
+  it('uses ReGameDLL knife miss recovery after local melee misses', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const slashManager = new WeaponManager();
+    slashManager.switchWeapon('knife');
+    slashManager.update(500, 1);
+
+    const slash = slashManager.shoot(camera, 1000);
+    expect(slash).not.toBeNull();
+    slashManager.applyLocalMeleeResult(slash!, 1000, false);
+    expect(slashManager.shoot(camera, 1349)).toBeNull();
+    expect(slashManager.shoot(camera, 1350)).not.toBeNull();
+
+    const stabManager = new WeaponManager();
+    stabManager.switchWeapon('knife');
+    stabManager.update(500, 1);
+
+    const stab = stabManager.shoot(camera, 1500, { heavyMelee: true });
+    expect(stab).not.toBeNull();
+    stabManager.applyLocalMeleeResult(stab!, 1500, false);
+    expect(stabManager.shoot(camera, 2499, { heavyMelee: true })).toBeNull();
+    expect(stabManager.shoot(camera, 2500, { heavyMelee: true })).not.toBeNull();
   });
 
   it('adds moving inaccuracy and exposes shot feedback events', () => {
@@ -320,6 +498,7 @@ describe('WeaponManager', () => {
       p228: 2.7,
       deagle: 2.2,
       five_seven: 2.7,
+      dual_berettas: 4.5,
       mp5: 2.63,
       tmp: 2.12,
       p90: 3.4,
@@ -368,6 +547,18 @@ describe('WeaponManager', () => {
     expect(weapon.getIsReloading()).toBe(false);
   });
 
+  it('uses ReGameDLL M3 buckshot damage and pellet count', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    manager.switchWeapon('m3');
+    manager.update(500, 1);
+
+    const shot = manager.shoot(camera, 1000);
+
+    expect(shot?.damage).toBe(20);
+    expect(shot?.pellets).toBe(9);
+  });
+
   it('uses the XM1014 0.55 second start and 0.30 second per-shell timing', () => {
     const manager = new WeaponManager();
     manager.switchWeapon('xm1014');
@@ -383,6 +574,18 @@ describe('WeaponManager', () => {
     expect(weapon.currentAmmo).toBe(1);
     manager.update(2150, 0.016);
     expect(weapon.currentAmmo).toBe(2);
+  });
+
+  it('uses ReGameDLL XM1014 buckshot damage and pellet count', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    manager.switchWeapon('xm1014');
+    manager.update(500, 1);
+
+    const shot = manager.shoot(camera, 1000);
+
+    expect(shot?.damage).toBe(20);
+    expect(shot?.pellets).toBe(6);
   });
 
   it('cancels an in-progress reload when the weapon is holstered', () => {
@@ -496,6 +699,253 @@ describe('WeaponManager', () => {
     const movingFamas = movingManager.getCurrentWeapon();
     movingFamas.shoot(1000, undefined, moving);
     expect(movingFamas.getLastCs16KickDegrees()).toMatchObject({ pitch: 1, yawMagnitude: 0.45 });
+  });
+
+  it('uses the ReGameDLL Galil accuracy and KickBack formulas', () => {
+    const manager = new WeaponManager();
+    manager.switchWeapon('galil');
+    const galil = manager.getCurrentWeapon();
+    const standing = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: false };
+
+    expect(galil.getCs16Spread(standing)).toBeCloseTo(0.0375 * 0.2, 7);
+    expect(galil.getCs16Spread({ ...standing, horizontalSpeed: 1.41 })).toBeCloseTo(0.04 + 0.07 * 0.2, 7);
+    expect(galil.getCs16Spread({ ...standing, grounded: false })).toBeCloseTo(0.04 + 0.3 * 0.2, 7);
+
+    galil.shoot(1000, undefined, standing);
+    expect(galil.getLastCs16KickDegrees()).toMatchObject({ pitch: 0.65, yawMagnitude: 0.35 });
+    expect(galil.getCs16Spread(standing)).toBeCloseTo(0.0375 * (1 / 200 + 0.35), 7);
+  });
+
+  it('uses the ReGameDLL scoped-rifle accuracy and KickBack formulas for SG552 and AUG', () => {
+    const standing = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: false };
+    const moving = { ...standing, horizontalSpeed: 160 };
+
+    const sgManager = new WeaponManager();
+    sgManager.switchWeapon('sg552');
+    const sg552 = sgManager.getCurrentWeapon();
+    expect(sg552.getCs16Spread(standing)).toBeCloseTo(0.004, 7);
+    expect(sg552.getCs16Spread({ ...standing, horizontalSpeed: 141 })).toBeCloseTo(0.035 + 0.075 * 0.2, 7);
+    sg552.shoot(1000, undefined, standing);
+    expect(sg552.getLastCs16KickDegrees()).toMatchObject({ pitch: 0.625, yawMagnitude: 0.375 });
+    expect(sg552.getCs16Spread(standing)).toBeCloseTo(0.02 * (1 / 220 + 0.3), 7);
+
+    const augManager = new WeaponManager();
+    augManager.switchWeapon('aug');
+    const aug = augManager.getCurrentWeapon();
+    expect(aug.getCs16Spread(standing)).toBeCloseTo(0.004, 7);
+    expect(aug.getCs16Spread({ ...standing, horizontalSpeed: 141 })).toBeCloseTo(0.035 + 0.07 * 0.2, 7);
+    aug.shoot(1000, undefined, moving);
+    expect(aug.getLastCs16KickDegrees()).toMatchObject({ pitch: 1, yawMagnitude: 0.45 });
+    expect(aug.getCs16Spread(standing)).toBeCloseTo(0.02 * (1 / 215 + 0.3), 7);
+  });
+
+  it('uses the ReGameDLL MP5N damage, accuracy, cycle, and KickBack', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    const standing = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: false };
+    manager.switchWeapon('mp5');
+    manager.update(500, 1);
+    const mp5 = manager.getCurrentWeapon();
+
+    expect(mp5.getCs16Spread(standing)).toBeCloseTo(0, 7);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(26);
+    expect(first?.spread).toBeCloseTo(0, 7);
+
+    const firstKick = mp5.getLastCs16KickDegrees();
+    expect(firstKick).toMatchObject({ pitch: 0.25, yawMagnitude: 0.175 });
+    expect(mp5.getCs16Spread(standing)).toBeCloseTo(0.04 * (1 / 220.1 + 0.45), 7);
+    expect(mp5.getCs16Spread({ ...standing, grounded: false })).toBeCloseTo(0.2 * (1 / 220.1 + 0.45), 7);
+    expect(manager.shoot(camera, 1074, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1075, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL P90 damage, accuracy, cycle, and KickBack', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    const standing = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: false };
+    manager.switchWeapon('p90');
+    manager.update(500, 1);
+    const p90 = manager.getCurrentWeapon();
+
+    expect(p90.damage).toBe(21);
+    expect(p90.getCs16Spread(standing)).toBeCloseTo(0.045 * 0.2, 7);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(21);
+    expect(first?.spread).toBeCloseTo(0.045 * 0.2, 7);
+
+    const firstKick = p90.getLastCs16KickDegrees();
+    expect(firstKick).toMatchObject({ pitch: 0.3, yawMagnitude: 0.225 });
+    expect(p90.getCs16Spread(standing)).toBeCloseTo(0.045 * (1 / 175 + 0.45), 7);
+    expect(p90.getCs16Spread({ ...standing, horizontalSpeed: 171 })).toBeCloseTo(0.115 * (1 / 175 + 0.45), 7);
+    expect(p90.getCs16Spread({ ...standing, grounded: false })).toBeCloseTo(0.3 * (1 / 175 + 0.45), 7);
+    expect(manager.shoot(camera, 1065, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1066, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL UMP45 damage, accuracy, cycle, and KickBack', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    const standing = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: false };
+    manager.switchWeapon('ump45');
+    manager.update(500, 1);
+    const ump45 = manager.getCurrentWeapon();
+
+    expect(ump45.damage).toBe(30);
+    expect(ump45.getCs16Spread(standing)).toBeCloseTo(0, 7);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(30);
+    expect(first?.spread).toBeCloseTo(0, 7);
+
+    const firstKick = ump45.getLastCs16KickDegrees();
+    expect(firstKick).toMatchObject({ pitch: 0.275, yawMagnitude: 0.2 });
+    expect(ump45.getCs16Spread(standing)).toBeCloseTo(0.04 * (1 / 210 + 0.5), 7);
+    expect(ump45.getCs16Spread({ ...standing, grounded: false })).toBeCloseTo(0.24 * (1 / 210 + 0.5), 7);
+    expect(manager.shoot(camera, 1099, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1100, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL MAC-10 damage, accuracy, cycle, and KickBack', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    const standing = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: false };
+    manager.switchWeapon('mac10');
+    manager.update(500, 1);
+    const mac10 = manager.getCurrentWeapon();
+
+    expect(mac10.damage).toBe(29);
+    expect(mac10.getCs16Spread(standing)).toBeCloseTo(0.03 * 0.15, 7);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(29);
+    expect(first?.spread).toBeCloseTo(0.03 * 0.15, 7);
+
+    const firstKick = mac10.getLastCs16KickDegrees();
+    expect(firstKick).toMatchObject({ pitch: 0.775, yawMagnitude: 0.425 });
+    expect(mac10.getCs16Spread(standing)).toBeCloseTo(0.03 * (1 / 200 + 0.6), 7);
+    expect(mac10.getCs16Spread({ ...standing, grounded: false })).toBeCloseTo(0.375 * (1 / 200 + 0.6), 7);
+    expect(manager.shoot(camera, 1069, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1070, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL TMP damage, accuracy, cycle, and KickBack', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    const standing = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: false };
+    manager.switchWeapon('tmp');
+    manager.update(500, 1);
+    const tmp = manager.getCurrentWeapon();
+
+    expect(tmp.damage).toBe(20);
+    expect(tmp.getCs16Spread(standing)).toBeCloseTo(0.03 * 0.2, 7);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(20);
+    expect(first?.spread).toBeCloseTo(0.03 * 0.2, 7);
+
+    const firstKick = tmp.getLastCs16KickDegrees();
+    expect(firstKick).toMatchObject({ pitch: 0.725, yawMagnitude: 0.375 });
+    expect(tmp.getCs16Spread(standing)).toBeCloseTo(0.03 * (1 / 200 + 0.55), 7);
+    expect(tmp.getCs16Spread({ ...standing, grounded: false })).toBeCloseTo(0.25 * (1 / 200 + 0.55), 7);
+    expect(manager.shoot(camera, 1069, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1070, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL M249 accuracy, cycle, and KickBack', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    const standing = { grounded: true, crouched: false, horizontalSpeed: 0, aiming: false };
+    manager.switchWeapon('m249');
+    manager.update(500, 1);
+    const m249 = manager.getCurrentWeapon();
+
+    expect(m249.damage).toBe(32);
+    expect(m249.getCs16Spread(standing)).toBeCloseTo(0.006, 7);
+    expect(m249.getCs16Spread({ ...standing, horizontalSpeed: 141 })).toBeCloseTo(0.064, 7);
+    expect(m249.getCs16Spread({ ...standing, grounded: false })).toBeCloseTo(0.145, 7);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(32);
+    expect(first?.spread).toBeCloseTo(0.006, 7);
+    const firstKick = manager.consumeCameraKick();
+    expect(firstKick.pitch).toBeCloseTo(THREE.MathUtils.degToRad(0.8), 7);
+    expect(Math.abs(firstKick.yaw)).toBeCloseTo(THREE.MathUtils.degToRad(0.35), 7);
+    expect(manager.shoot(camera, 1099, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1100, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL Desert Eagle damage, spread, cycle, and kick', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    manager.switchWeapon('deagle');
+    manager.update(500, 1);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(54);
+    expect(first?.spread).toBeCloseTo(0.13 * (1 - 0.9), 7);
+
+    const firstKick = manager.consumeCameraKick();
+    expect(firstKick.pitch).toBeCloseTo(THREE.MathUtils.degToRad(2), 7);
+    expect(firstKick.yaw).toBe(0);
+    expect(manager.shoot(camera, 1224, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1225, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL P228 damage, spread, cycle, and kick', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    manager.switchWeapon('p228');
+    manager.update(500, 1);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(32);
+    expect(first?.spread).toBeCloseTo(0.15 * (1 - 0.9), 7);
+
+    const firstKick = manager.consumeCameraKick();
+    expect(firstKick.pitch).toBeCloseTo(THREE.MathUtils.degToRad(2), 7);
+    expect(firstKick.yaw).toBe(0);
+    expect(manager.shoot(camera, 1199, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1200, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL Five-SeveN damage, spread, cycle, and kick', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    manager.switchWeapon('five_seven');
+    manager.update(500, 1);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(20);
+    expect(first?.spread).toBeCloseTo(0.15 * (1 - 0.92), 7);
+
+    const firstKick = manager.consumeCameraKick();
+    expect(firstKick.pitch).toBeCloseTo(THREE.MathUtils.degToRad(2), 7);
+    expect(firstKick.yaw).toBe(0);
+    expect(manager.shoot(camera, 1199, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1200, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
+  });
+
+  it('uses the ReGameDLL Dual Elites damage, spread, cycle, and kick', () => {
+    const manager = new WeaponManager();
+    const camera = new THREE.PerspectiveCamera();
+    expect(manager.switchWeapon('dual_berettas')).toBe(true);
+    manager.update(500, 1);
+    expect(manager.getCurrentWeaponId()).toBe('dual_berettas');
+    expect(manager.getCurrentWeapon().magazineSize).toBe(30);
+    expect(manager.getCurrentWeapon().reloadTime).toBe(4.5);
+
+    const first = manager.shoot(camera, 1000, { horizontalSpeed: 0, isGrounded: true });
+    expect(first?.damage).toBe(36);
+    expect(first?.spread).toBeCloseTo(0.1 * (1 - 0.88), 7);
+
+    const firstKick = manager.consumeCameraKick();
+    expect(firstKick.pitch).toBeCloseTo(THREE.MathUtils.degToRad(2), 7);
+    expect(firstKick.yaw).toBe(0);
+    expect(manager.shoot(camera, 1199, { horizontalSpeed: 0, isGrounded: true })).toBeNull();
+    expect(manager.shoot(camera, 1200, { horizontalSpeed: 0, isGrounded: true })).not.toBeNull();
   });
 
   it('attaches and detaches the M4A1 silencer with the CS1.6 two-second attack lock', () => {

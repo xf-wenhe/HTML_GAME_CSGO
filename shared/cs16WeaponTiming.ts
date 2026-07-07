@@ -1,9 +1,10 @@
 export const CS16_PRIMARY_FIRE_CYCLE_SECONDS: Record<string, number> = {
   glock: 0.15,
   usp: 0.15,
-  p228: 0.15,
+  p228: 0.2,
   deagle: 0.225,
-  five_seven: 0.15,
+  five_seven: 0.2,
+  dual_berettas: 0.2,
   mp5: 0.075,
   tmp: 0.07,
   p90: 0.066,
@@ -35,6 +36,7 @@ export const CS16_RELOAD_SECONDS: Record<string, number> = {
   p228: 2.7,
   deagle: 2.2,
   five_seven: 2.7,
+  dual_berettas: 4.5,
   mp5: 2.63,
   tmp: 2.12,
   p90: 3.4,
@@ -88,6 +90,19 @@ export const CS16_SILENCER_TIMING: Record<string, Cs16SilencerTiming> = {
   usp: { adjustSeconds: 3, unsilencedDamage: 34, silencedDamage: 30 }
 };
 
+export const CS16_KNIFE_ATTACK_CYCLE_SECONDS = {
+  slash: 0.4,
+  slashMiss: 0.35,
+  slashSecondary: 0.5,
+  stab: 1.1,
+  stabMiss: 1.0
+} as const;
+
+export const CS16_KNIFE_ATTACK_RANGE_UNITS = {
+  slash: 2.4,
+  stab: 1.6
+} as const;
+
 export const CS16_SCOPED_WEAPON_IDS = new Set([
   'sg552',
   'aug',
@@ -107,6 +122,28 @@ export function getCs16PrimaryFireCycleSeconds(weaponId: string, scoped = false)
     if (scopedCycle) return scopedCycle;
   }
   return CS16_PRIMARY_FIRE_CYCLE_SECONDS[weaponId];
+}
+
+export function getCs16KnifeAttackCycleSeconds(heavyMelee = false, hit = true): number {
+  if (heavyMelee) {
+    return hit ? CS16_KNIFE_ATTACK_CYCLE_SECONDS.stab : CS16_KNIFE_ATTACK_CYCLE_SECONDS.stabMiss;
+  }
+  return hit ? CS16_KNIFE_ATTACK_CYCLE_SECONDS.slash : CS16_KNIFE_ATTACK_CYCLE_SECONDS.slashMiss;
+}
+
+export function getCs16KnifeAttackLockSeconds(heavyMelee = false, hit = true): { primary: number; secondary: number } {
+  if (heavyMelee) {
+    const cycle = getCs16KnifeAttackCycleSeconds(true, hit);
+    return { primary: cycle, secondary: cycle };
+  }
+  return {
+    primary: getCs16KnifeAttackCycleSeconds(false, hit),
+    secondary: CS16_KNIFE_ATTACK_CYCLE_SECONDS.slashSecondary
+  };
+}
+
+export function getCs16KnifeAttackRangeUnits(heavyMelee = false): number {
+  return heavyMelee ? CS16_KNIFE_ATTACK_RANGE_UNITS.stab : CS16_KNIFE_ATTACK_RANGE_UNITS.slash;
 }
 
 export function getCs16PrimaryFireRate(weaponId: string): number | undefined {

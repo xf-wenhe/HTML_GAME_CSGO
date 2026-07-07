@@ -39,6 +39,7 @@ const expectedCs16DefusalWeaponEconomy: Array<[WeaponId, number]> = [
   ['usp', 500],
   ['p228', 600],
   ['deagle', 650],
+  ['dual_berettas', 800],
   ['five_seven', 750],
   ['mp5', 1500],
   ['tmp', 1250],
@@ -153,7 +154,7 @@ describe('Server', () => {
     const shooter = snapshotPlayer(rooms, room.id, 'p1');
     const target = snapshotPlayer(rooms, room.id, 'p2');
     expect(shooter.ammo).toBe(afterFirst.ammo);
-    expect(target.health).toBe(72);
+    expect(target.health).toBe(75);
   });
 
   it('authoritatively applies the CS1.6 scoped SG552 fire cycle', () => {
@@ -207,6 +208,7 @@ describe('Server', () => {
       p228: 2.7,
       deagle: 2.2,
       five_seven: 2.7,
+      dual_berettas: 4.5,
       mp5: 2.63,
       tmp: 2.12,
       p90: 3.4,
@@ -262,6 +264,179 @@ describe('Server', () => {
       reserveAmmo: 2,
       isReloading: false
     });
+  });
+
+  it('authoritatively applies the CS1.6 M3 buckshot damage', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'm3';
+    shooter.ammo = 8;
+
+    rooms.shoot('p1', { ...bodyShot, weaponId: 'm3' as const, clientTime: 1000 });
+
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(80);
+  });
+
+  it('authoritatively applies the CS1.6 XM1014 buckshot damage', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'xm1014';
+    shooter.ammo = 7;
+
+    rooms.shoot('p1', { ...bodyShot, weaponId: 'xm1014' as const, clientTime: 1000 });
+
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(80);
+  });
+
+  it('authoritatively applies CS1.6 knife slash and stab damage', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'knife';
+    shooter.ammo = 1;
+    rooms.applyInput('p2', { position: { x: 0, y: 1.7, z: -1.5 }, rotation: { x: 0, y: Math.PI, z: 0 } });
+
+    rooms.shoot('p1', { ...bodyShot, weaponId: 'knife' as const, clientTime: 1000 });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(85);
+
+    vi.advanceTimersByTime(600);
+    shooter.ammo = 1;
+    rooms.shoot('p1', { ...bodyShot, weaponId: 'knife' as const, clientTime: 1600, heavyMelee: true });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(20);
+  });
+
+  it('authoritatively applies CS1.6 knife slash and stab attack timing', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'knife';
+    shooter.ammo = 1;
+    rooms.applyInput('p2', { position: { x: 0, y: 1.7, z: -1.5 }, rotation: { x: 0, y: Math.PI, z: 0 } });
+
+    const slash = { ...bodyShot, weaponId: 'knife' as const, clientTime: 1000 };
+    rooms.shoot('p1', slash);
+    expect(snapshotPlayer(rooms, room.id, 'p1').nextFireAt).toBe(1400);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(85);
+
+    vi.advanceTimersByTime(399);
+    rooms.shoot('p1', { ...slash, clientTime: 1399 });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(85);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...slash, clientTime: 1400 });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(70);
+
+    vi.setSystemTime(3000);
+    const fresh = rooms.getRoom(room.id)!.players.get('p2')!;
+    fresh.health = 100;
+    shooter.nextFireAt = undefined;
+
+    const stab = { ...slash, clientTime: 3000, heavyMelee: true };
+    rooms.shoot('p1', stab);
+    expect(snapshotPlayer(rooms, room.id, 'p1').nextFireAt).toBe(4100);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(35);
+
+    vi.advanceTimersByTime(1099);
+    rooms.shoot('p1', { ...stab, clientTime: 4099 });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(35);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...stab, clientTime: 4100 });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(0);
+  });
+
+  it('uses CS1.6 knife miss recovery timing', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'knife';
+
+    const slash = { ...bodyShot, weaponId: 'knife' as const, clientTime: 1000 };
+    rooms.shoot('p1', slash);
+    expect(snapshotPlayer(rooms, room.id, 'p1').nextFireAt).toBe(1350);
+    expect(rooms.getSnapshot(room.id)?.lastHit?.damage).toBe(0);
+
+    vi.setSystemTime(3000);
+    shooter.nextFireAt = undefined;
+
+    rooms.shoot('p1', { ...slash, clientTime: 3000, heavyMelee: true });
+    expect(snapshotPlayer(rooms, room.id, 'p1').nextFireAt).toBe(4000);
+    expect(rooms.getSnapshot(room.id)?.lastHit?.damage).toBe(0);
+  });
+
+  it('authoritatively uses CS1.6 independent knife primary and secondary locks', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'knife';
+    rooms.applyInput('p2', { position: { x: 0, y: 1.7, z: -1.5 }, rotation: { x: 0, y: Math.PI, z: 0 } });
+
+    const slash = { ...bodyShot, weaponId: 'knife' as const, clientTime: 1000 };
+    rooms.shoot('p1', slash);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(85);
+
+    vi.setSystemTime(1499);
+    rooms.shoot('p1', { ...slash, clientTime: 1499, heavyMelee: true });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(85);
+
+    vi.setSystemTime(1500);
+    rooms.shoot('p1', { ...slash, clientTime: 1500, heavyMelee: true });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(20);
+
+    vi.setSystemTime(2599);
+    rooms.shoot('p1', { ...slash, clientTime: 2599 });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(20);
+
+    vi.setSystemTime(2600);
+    rooms.shoot('p1', { ...slash, clientTime: 2600 });
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(5);
+  });
+
+  it('authoritatively applies the CS1.6 knife backstab multiplier', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'knife';
+    rooms.applyInput('p2', { position: { x: 0, y: 1.7, z: -1.5 }, rotation: { x: 0, y: 0, z: 0 } });
+
+    rooms.shoot('p1', { ...bodyShot, weaponId: 'knife' as const, clientTime: 1000, heavyMelee: true });
+
+    const target = snapshotPlayer(rooms, room.id, 'p2');
+    expect(target.health).toBe(0);
+    expect(target.isAlive).toBe(false);
+    expect(rooms.getSnapshot(room.id)?.lastHit?.damage).toBe(195);
+  });
+
+  it('uses the shorter CS1.6 knife stab reach than slash reach', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'knife';
+    rooms.applyInput('p2', { position: { x: 0, y: 1.7, z: -2.1 }, rotation: { x: 0, y: Math.PI, z: 0 } });
+
+    const slash = { ...bodyShot, weaponId: 'knife' as const, clientTime: 1000 };
+    rooms.shoot('p1', slash);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(85);
+
+    vi.setSystemTime(3000);
+    const target = rooms.getRoom(room.id)!.players.get('p2')!;
+    target.health = 100;
+    shooter.nextFireAt = undefined;
+
+    rooms.shoot('p1', { ...slash, clientTime: 3000, heavyMelee: true });
+
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(100);
+    expect(rooms.getSnapshot(room.id)?.lastHit?.damage).toBe(0);
   });
 
   it('authoritatively applies the M4A1 silencer state and two-second attack lock', () => {
@@ -329,6 +504,196 @@ describe('Server', () => {
     expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(36);
   });
 
+  it('authoritatively applies the CS1.6 Desert Eagle damage and fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'deagle';
+    shooter.ammo = 7;
+
+    const shot = { ...bodyShot, weaponId: 'deagle' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(6);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(46);
+
+    vi.advanceTimersByTime(224);
+    rooms.shoot('p1', { ...shot, clientTime: 1224 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(6);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 1225 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(5);
+  });
+
+  it('authoritatively applies the CS1.6 P228 damage and fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'p228';
+    shooter.ammo = 13;
+
+    const shot = { ...bodyShot, weaponId: 'p228' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(12);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(68);
+
+    vi.advanceTimersByTime(199);
+    rooms.shoot('p1', { ...shot, clientTime: 1199 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(12);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 1200 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(11);
+  });
+
+  it('authoritatively applies the CS1.6 Five-SeveN damage and fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'five_seven';
+    shooter.ammo = 20;
+
+    const shot = { ...bodyShot, weaponId: 'five_seven' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(19);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(80);
+
+    vi.advanceTimersByTime(199);
+    rooms.shoot('p1', { ...shot, clientTime: 1199 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(19);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 1200 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(18);
+  });
+
+  it('authoritatively applies the CS1.6 Dual Elites damage and fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'dual_berettas';
+    shooter.ammo = 30;
+
+    const shot = { ...bodyShot, weaponId: 'dual_berettas' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(29);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(64);
+
+    vi.advanceTimersByTime(199);
+    rooms.shoot('p1', { ...shot, clientTime: 1199 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(29);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 1200 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(28);
+  });
+
+  it('authoritatively applies the CS1.6 MP5N damage and fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'mp5';
+    shooter.ammo = 30;
+
+    const shot = { ...bodyShot, weaponId: 'mp5' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(29);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(74);
+
+    vi.advanceTimersByTime(74);
+    rooms.shoot('p1', { ...shot, clientTime: 1074 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(29);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 1075 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(28);
+  });
+
+  it('authoritatively applies the CS1.6 P90 damage and fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'p90';
+    shooter.ammo = 50;
+
+    const shot = { ...bodyShot, weaponId: 'p90' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(49);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(79);
+
+    vi.advanceTimersByTime(65);
+    rooms.shoot('p1', { ...shot, clientTime: 1065 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(49);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 1066 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(48);
+  });
+
+  it('authoritatively applies the CS1.6 UMP45 damage and fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'ump45';
+    shooter.ammo = 25;
+
+    const shot = { ...bodyShot, weaponId: 'ump45' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(24);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(70);
+
+    vi.advanceTimersByTime(99);
+    rooms.shoot('p1', { ...shot, clientTime: 1099 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(24);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 1100 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(23);
+  });
+
+  it('authoritatively applies the CS1.6 Scout damage and fire cycle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'scout';
+    shooter.ammo = 10;
+
+    const shot = { ...bodyShot, weaponId: 'scout' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(9);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(25);
+
+    vi.advanceTimersByTime(1249);
+    rooms.shoot('p1', { ...shot, clientTime: 2249 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(9);
+
+    vi.advanceTimersByTime(1);
+    rooms.shoot('p1', { ...shot, clientTime: 2250 });
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(8);
+  });
+
+  it('authoritatively applies the CS1.6 SG550 damage and magazine size', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const { rooms, room } = createLiveDuel();
+    const shooter = rooms.getRoom(room.id)!.players.get('p1')!;
+    shooter.weaponId = 'sg550';
+    shooter.ammo = WEAPON_BALANCE.sg550.magazineSize;
+
+    const shot = { ...bodyShot, weaponId: 'sg550' as const, clientTime: 1000 };
+    rooms.shoot('p1', shot);
+    expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(29);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(30);
+  });
+
   it('authoritatively fires the two delayed Glock burst rounds', () => {
     vi.useFakeTimers();
     vi.setSystemTime(1000);
@@ -351,12 +716,12 @@ describe('Server', () => {
       pendingBurstShots: 2,
       nextBurstShotAt: 1100
     });
-    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(72);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(75);
 
     vi.advanceTimersByTime(99);
     rooms.tick();
     expect(snapshotPlayer(rooms, room.id, 'p1').ammo).toBe(19);
-    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(72);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(75);
 
     vi.advanceTimersByTime(1);
     rooms.tick();
@@ -365,7 +730,7 @@ describe('Server', () => {
       pendingBurstShots: 1,
       nextBurstShotAt: 1200
     });
-    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(44);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(50);
 
     vi.advanceTimersByTime(100);
     rooms.tick();
@@ -374,7 +739,7 @@ describe('Server', () => {
       pendingBurstShots: 0,
       nextBurstShotAt: undefined
     });
-    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(16);
+    expect(snapshotPlayer(rooms, room.id, 'p2').health).toBe(25);
   });
 
   it('authoritatively fires FAMAS burst rounds at the CS1.6 cadence', () => {
@@ -535,10 +900,12 @@ describe('Server', () => {
     expect(WEAPON_BALANCE.awp.magazineSize).toBe(10);
     expect(WEAPON_BALANCE.awp.reloadTime).toBe(2.5);
     expect(WEAPON_BALANCE.awp.movementSpeedMultiplier).toBe(0.84);
+    expect(WEAPON_BALANCE.sg550.damage).toBe(70);
+    expect(WEAPON_BALANCE.sg550.magazineSize).toBe(30);
     expect(WEAPON_BALANCE.knife.movementSpeedMultiplier).toBe(1);
   });
 
-  it('charges CS 1.6 prices for MP5 and P228 in defusal buy phase', () => {
+  it('charges CS 1.6 prices for MP5, Elite, and P228 in defusal buy phase', () => {
     const rooms = new RoomManager();
     const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 2, startingMoney: 1500 });
     rooms.addPlayerToRoom(room.id, 'attacker', 'Alpha');
@@ -551,6 +918,16 @@ describe('Server', () => {
     expect(attacker.money).toBe(0);
 
     const internalRoom = rooms.getRoom(room.id)!;
+    internalRoom.players.get('attacker')!.money = 800;
+    const eliteBought = rooms.buyWeapon('attacker', { weaponId: 'dual_berettas' })!;
+    const eliteAttacker = eliteBought.players.find(player => player.id === 'attacker')!;
+    expect(eliteAttacker.weaponId).toBe('dual_berettas');
+    expect(eliteAttacker.ownedWeapons).toContain('dual_berettas');
+    expect(eliteAttacker.money).toBe(0);
+
+    internalRoom.players.get('defender')!.money = 800;
+    expect(rooms.buyWeapon('defender', { weaponId: 'dual_berettas' })).toBeUndefined();
+
     internalRoom.players.get('defender')!.money = 600;
     const p228Bought = rooms.buyWeapon('defender', { weaponId: 'p228' })!;
     const defender = p228Bought.players.find(player => player.id === 'defender')!;
@@ -757,7 +1134,7 @@ describe('Server', () => {
     duel.rooms.getRoom(duel.room.id)!.players.get('p2')!.armor = 100;
     duel.rooms.shoot('p1', pistolHeadShot);
     let target = snapshotPlayer(duel.rooms, duel.room.id, 'p2');
-    expect(target.health).toBe(2);
+    expect(target.health).toBe(12);
     expect(target.armor).toBe(100);
 
     duel = createLiveDuel('defusal');
@@ -766,8 +1143,8 @@ describe('Server', () => {
     helmetedTarget.hasHelmet = true;
     duel.rooms.shoot('p1', pistolHeadShot);
     target = snapshotPlayer(duel.rooms, duel.room.id, 'p2');
-    expect(target.health).toBe(36);
-    expect(target.armor).toBe(48);
+    expect(target.health).toBe(43);
+    expect(target.armor).toBe(53);
   });
 
   it('freezes defusal player movement during buy phase but still accepts look direction', () => {
@@ -796,6 +1173,56 @@ describe('Server', () => {
     attacker = snapshotPlayer(rooms, room.id, 'attacker');
     expect(attacker.position.x).toBeCloseTo(spawn.x + 5);
     expect(attacker.position.z).toBeCloseTo(spawn.z + 5);
+  });
+
+  it('uses CS1.6 six-second defusal freeze time', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 2 });
+
+    const snapshot = rooms.getSnapshot(room.id)!;
+
+    expect(snapshot.phase).toBe('buy');
+    expect(snapshot.roundTimeRemaining).toBe(6);
+  });
+
+  it('uses CS1.6 five-minute defusal live round time', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 2 });
+    rooms.addPlayerToRoom(room.id, 'attacker', 'Alpha');
+    rooms.addPlayerToRoom(room.id, 'defender', 'Bravo');
+
+    vi.advanceTimersByTime(6000);
+    rooms.tick();
+    const snapshot = rooms.getSnapshot(room.id)!;
+
+    expect(snapshot.phase).toBe('live');
+    expect(snapshot.roundTimeRemaining).toBe(300);
+  });
+
+  it('keeps CS1.6 buy time open after freeze while players stay in the buy zone', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    const rooms = new RoomManager();
+    const room = rooms.createRoom({ mode: 'defusal', maxPlayers: 2, startingMoney: 10_000 });
+    rooms.addPlayerToRoom(room.id, 'attacker', 'Alpha');
+    rooms.addPlayerToRoom(room.id, 'defender', 'Bravo');
+
+    vi.advanceTimersByTime(6000);
+    rooms.tick();
+    expect(rooms.getSnapshot(room.id)?.phase).toBe('live');
+    expect(rooms.getSnapshot(room.id)?.buyTimeActive).toBe(true);
+
+    const boughtAwp = rooms.buyWeapon('attacker', { weaponId: 'awp' });
+    expect(boughtAwp?.players.find(player => player.id === 'attacker')?.weaponId).toBe('awp');
+
+    vi.advanceTimersByTime(84_001);
+    rooms.tick();
+    expect(rooms.getSnapshot(room.id)?.buyTimeActive).toBe(false);
+    expect(rooms.buyWeapon('attacker', { armor: true })).toBeUndefined();
   });
 
   it('allows two opposing players to damage, kill, and respawn against each other', () => {
@@ -1012,6 +1439,7 @@ describe('Server', () => {
     planted = holdPlant(100);
     expect(planted.bomb?.site).toBe('A');
     expect(planted.bomb?.plantedAt).toBeDefined();
+    expect(planted.roundTimeRemaining).toBe(45);
 
     rooms.applyInput('defender', { position: { x: -24, y: 1.7, z: -27 }, rotation: { x: 0, y: 0, z: 0 } });
     const holdDefuse = (durationMs: number) => {

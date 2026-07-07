@@ -84,7 +84,7 @@ export function createDust2MeshResourceFromMap(parsedMap, { name = 'dust2-goldsr
 
 export function createCollisionProxy(mesh, name = 'dust2-collision-proxy') {
   const bounds = computeMeshBounds(mesh.positions);
-  const { floors, ramps } = buildWalkableProxy(mesh, `${name}-floor`, `${name}-ramp`);
+  const { floors, ramps } = buildWalkableProxy(mesh, `${name}-floor`, `${name}-ramp`, bounds);
   return {
     name,
     bounds,
@@ -94,11 +94,11 @@ export function createCollisionProxy(mesh, name = 'dust2-collision-proxy') {
   };
 }
 
-function buildWalkableProxy(mesh, floorNamePrefix, rampNamePrefix) {
-  const cellSize = 0.96;
-  const yStep = 0.16;
+function buildWalkableProxy(mesh, floorNamePrefix, rampNamePrefix, bounds) {
+  const floorCellSize = 0.48;
+  const floorYStep = 0.16;
   const thickness = 0.12;
-  const occupied = new Map();
+  const floorCells = new Map();
   const ramps = [];
 
   for (let i = 0; i < mesh.indices.length; i += 3) {
@@ -107,37 +107,50 @@ function buildWalkableProxy(mesh, floorNamePrefix, rampNamePrefix) {
     const c = mesh.positions[mesh.indices[i + 2]];
     if (!a || !b || !c) continue;
 
-    const normal = triangleNormal(a, b, c);
-    if (!normal || normal.y < 0.55) continue;
+    const rawNormal = triangleNormal(a, b, c);
+    if (!rawNormal || Math.abs(rawNormal.y) < 0.55) continue;
+    const normal = rawNormal.y < 0
+      ? { x: -rawNormal.x, y: -rawNormal.y, z: -rawNormal.z }
+      : rawNormal;
 
     if (normal.y < 0.92) {
       ramps.push(createRampProxy(ramps.length, rampNamePrefix, a, b, c, normal));
       continue;
     }
 
-    const minX = Math.min(a.x, b.x, c.x);
-    const maxX = Math.max(a.x, b.x, c.x);
-    const minZ = Math.min(a.z, b.z, c.z);
-    const maxZ = Math.max(a.z, b.z, c.z);
-    const surfaceY = (a.y + b.y + c.y) / 3;
-    const yKey = Math.round(surfaceY / yStep);
-    const x0 = Math.floor(minX / cellSize);
-    const x1 = Math.ceil(maxX / cellSize);
-    const z0 = Math.floor(minZ / cellSize);
-    const z1 = Math.ceil(maxZ / cellSize);
-
-    for (let z = z0; z <= z1; z += 1) {
-      for (let x = x0; x <= x1; x += 1) {
-        const centerX = (x + 0.5) * cellSize;
-        const centerZ = (z + 0.5) * cellSize;
-        if (!pointInTriangle2D(centerX, centerZ, a, b, c)) continue;
-        occupied.set(`${yKey}:${z}:${x}`, { x, z, y: yKey * yStep });
-      }
-    }
+    rasterizeWalkableTriangle(floorCells, a, b, c, normal, floorCellSize, floorYStep);
   }
 
+  const floors = mergeWalkableCells(floorCells, floorNamePrefix, floorCellSize, thickness, 'floor', bounds);
+  return { floors, ramps };
+}
+
+function rasterizeWalkableTriangle(cells, a, b, c, normal, cellSize, yStep) {
+  const minX = Math.min(a.x, b.x, c.x);
+  const maxX = Math.max(a.x, b.x, c.x);
+  const minZ = Math.min(a.z, b.z, c.z);
+  const maxZ = Math.max(a.z, b.z, c.z);
+  const x0 = Math.floor(minX / cellSize);
+  const x1 = Math.ceil(maxX / cellSize);
+  const z0 = Math.floor(minZ / cellSize);
+  const z1 = Math.ceil(maxZ / cellSize);
+
+  for (let z = z0; z <= z1; z += 1) {
+    for (let x = x0; x <= x1; x += 1) {
+      const centerX = (x + 0.5) * cellSize;
+      const centerZ = (z + 0.5) * cellSize;
+      if (!pointInTriangle2D(centerX, centerZ, a, b, c)) continue;
+      const surfaceY = planeYAtXZ(centerX, centerZ, a, normal);
+      if (!Number.isFinite(surfaceY)) continue;
+      const yKey = Math.round(surfaceY / yStep);
+      cells.set(`${yKey}:${z}:${x}`, { x, z, y: yKey * yStep });
+    }
+  }
+}
+
+function mergeWalkableCells(cells, namePrefix, cellSize, thickness, collisionKind, bounds) {
   const rows = new Map();
-  for (const cell of occupied.values()) {
+  for (const cell of cells.values()) {
     const key = `${cell.y}:${cell.z}`;
     const row = rows.get(key) ?? { y: cell.y, z: cell.z, xs: [] };
     row.xs.push(cell.x);
@@ -151,13 +164,21 @@ function buildWalkableProxy(mesh, floorNamePrefix, rampNamePrefix) {
     let prev = xs[0];
     const flush = () => {
       if (start === undefined || prev === undefined) return;
-      const cells = prev - start + 1;
+      const rawMinX = start * cellSize;
+      const rawMaxX = (prev + 1) * cellSize;
+      const rawMinZ = row.z * cellSize;
+      const rawMaxZ = (row.z + 1) * cellSize;
+      const minX = Math.max(rawMinX, bounds.mins[0]);
+      const maxX = Math.min(rawMaxX, bounds.maxs[0]);
+      const minZ = Math.max(rawMinZ, bounds.mins[2]);
+      const maxZ = Math.min(rawMaxZ, bounds.maxs[2]);
+      if (maxX - minX < 0.18 || maxZ - minZ < 0.18) return;
       boxes.push({
-        name: `${floorNamePrefix}-${boxes.length}`,
-        position: [(start + cells / 2) * cellSize, row.y - thickness / 2, (row.z + 0.5) * cellSize],
-        size: [cells * cellSize, thickness, cellSize],
+        name: `${namePrefix}-${boxes.length}`,
+        position: [(minX + maxX) / 2, row.y - thickness / 2, (minZ + maxZ) / 2],
+        size: [maxX - minX, thickness, maxZ - minZ],
         walkable: true,
-        collisionKind: 'floor',
+        collisionKind,
       });
     };
 
@@ -174,7 +195,7 @@ function buildWalkableProxy(mesh, floorNamePrefix, rampNamePrefix) {
     flush();
   }
 
-  return { floors: boxes, ramps };
+  return boxes;
 }
 
 function createRampProxy(index, namePrefix, a, b, c, normal) {
@@ -192,6 +213,31 @@ function createRampProxy(index, namePrefix, a, b, c, normal) {
     collisionKind: 'ramp',
     normal: [normal.x, normal.y, normal.z],
   };
+}
+
+function planeYAtXZ(x, z, point, normal) {
+  if (Math.abs(normal.y) <= 0.000001) return NaN;
+  return point.y - (normal.x * (x - point.x) + normal.z * (z - point.z)) / normal.y;
+}
+
+function cellTouchesTriangle2D(cellX, cellZ, cellSize, a, b, c) {
+  const minX = cellX * cellSize;
+  const maxX = minX + cellSize;
+  const minZ = cellZ * cellSize;
+  const maxZ = minZ + cellSize;
+  const centerX = minX + cellSize / 2;
+  const centerZ = minZ + cellSize / 2;
+  const samples = [
+    [centerX, centerZ],
+    [minX, minZ],
+    [maxX, minZ],
+    [minX, maxZ],
+    [maxX, maxZ],
+  ];
+  if (samples.some(([x, z]) => pointInTriangle2D(x, z, a, b, c))) return true;
+  return [a, b, c].some(point =>
+    point.x >= minX && point.x <= maxX && point.z >= minZ && point.z <= maxZ
+  );
 }
 
 function pointInTriangle2D(x, z, a, b, c) {

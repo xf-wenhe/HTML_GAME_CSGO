@@ -54,7 +54,7 @@ export class PlayerController {
   private readonly duckTransitionDuration = 0.4;
   private eyeHeight = this.standingEyeOffset;
   private currentHalfHeight = this.standingHalfHeight;
-  private readonly maxStepHeight = 0.18;
+  private readonly maxStepHeight = 0.24;
   private readonly maxStepDownHeight = 2.0;
   private readonly groundedProbeDistance = 0.14;
   private readonly groundProbeRadius = 0.16;
@@ -157,13 +157,26 @@ export class PlayerController {
 
   stickToGroundIfSupported(maxDistance = 2.0): void {
     if (this.groundStickSuppressTime > 0) return;
-    if (!this.grounded) return;
-    const ground = this.probeGround(maxDistance);
+    if (!this.grounded && this.body.velocity.y > 0.05) return;
+    const wasGrounded = this.grounded;
+    const ground = this.grounded
+      ? this.probeGround(Math.min(maxDistance, this.snapDownDistance))
+      : this.probeGround(this.groundedProbeDistance) ?? this.probeGround(this.snapDownDistance);
     if (!ground) {
+      this.grounded = false;
+      this.preventSourceVoidEscape();
+      return;
+    }
+    if (!this.grounded && ground.distance > this.groundedProbeDistance && ground.body.userData?.sourceBacked !== true) {
       this.grounded = false;
       return;
     }
     this.alignBodyToGround(ground);
+    this.grounded = true;
+    if (!wasGrounded) {
+      this.airborneTime = 0;
+      this.crouchJumpActive = false;
+    }
   }
 
   private updateLookRotation(): void {
@@ -181,7 +194,11 @@ export class PlayerController {
   }
 
   private applyMovement(wishDirection: THREE.Vector3, dt: number): void {
-    const ground = this.groundStickSuppressTime <= 0 ? this.probeGround(this.groundedProbeDistance) : null;
+    const fallingProbeDistance = this.body.velocity.y < 0
+      ? Math.min(this.snapDownDistance, this.groundedProbeDistance + Math.abs(this.body.velocity.y) * dt + 0.08)
+      : this.groundedProbeDistance;
+    const canProbeGround = this.groundStickSuppressTime <= 0 && (this.grounded || this.body.velocity.y <= 0.05);
+    const ground = canProbeGround ? this.probeGround(fallingProbeDistance) : null;
     this.grounded = ground !== null;
     if (ground && this.body.velocity.y <= 0) {
       this.alignBodyToGround(ground);
@@ -247,9 +264,27 @@ export class PlayerController {
     for (const probeDistance of probeDistances) {
       const probeX = this.body.position.x + direction.x * probeDistance;
       const probeZ = this.body.position.z + direction.z * probeDistance;
-      // Start ray slightly below step height to avoid hitting player's own collider
-      const from = new CANNON.Vec3(probeX, groundY + this.maxStepHeight - 0.001, probeZ);
-      const to = new CANNON.Vec3(probeX, groundY + 0.01, probeZ);
+      const surface = this.physics.findWalkableBoxTopInRange(
+        probeX,
+        probeZ,
+        groundY + 0.01,
+        groundY + this.maxStepHeight + 0.06,
+        0.03
+      );
+      if (surface) {
+        const obstacleHeight = surface.topY - groundY;
+        const surfaceName = surface.body.userData?.name;
+        if (!canStepUpObstacle({ grounded: this.grounded, obstacleHeight, maxStepHeight: this.maxStepHeight, horizontalSpeed, surfaceName })) continue;
+        const targetY = surface.topY + this.currentHalfHeight + 0.01;
+        if (!this.hasClearance(probeX, surface.topY, probeZ, currentFullHeight)) continue;
+
+        this.body.position.y = Math.max(this.body.position.y, targetY);
+        if (this.body.velocity.y < 0) this.body.velocity.y = 0;
+        return;
+      }
+
+      const from = new CANNON.Vec3(probeX, groundY + this.maxStepHeight + 0.06, probeZ);
+      const to = new CANNON.Vec3(probeX, groundY - 0.02, probeZ);
       const ray = new CANNON.Ray(from, to);
       const result = new CANNON.RaycastResult();
 
@@ -391,8 +426,22 @@ export class PlayerController {
     let best: GroundProbeResult | null = null;
 
     for (const offset of offsets) {
-      const rayStart = new CANNON.Vec3(this.body.position.x + offset.x, bottomY + 0.04, this.body.position.z + offset.z);
-      const rayEnd = new CANNON.Vec3(this.body.position.x + offset.x, bottomY - maxDistance, this.body.position.z + offset.z);
+      const probeX = this.body.position.x + offset.x;
+      const probeZ = this.body.position.z + offset.z;
+      const boxHit = this.physics.findWalkableBoxBelow(probeX, probeZ, bottomY, maxDistance, 0.02);
+      if (boxHit) {
+        const distance = bottomY - boxHit.topY;
+        const hit: GroundProbeResult = {
+          hitY: boxHit.topY,
+          normalY: 1,
+          distance,
+          body: boxHit.body,
+        };
+        if (!best || hit.hitY > best.hitY) best = hit;
+      }
+
+      const rayStart = new CANNON.Vec3(probeX, bottomY + 0.04, probeZ);
+      const rayEnd = new CANNON.Vec3(probeX, bottomY - maxDistance, probeZ);
       const ray = new CANNON.Ray(rayStart, rayEnd);
       const result = new CANNON.RaycastResult();
       if (!ray.intersectWorld(this.physics.getWorld(), { mode: CANNON.Ray.CLOSEST, skipBackfaces: false, result })) continue;

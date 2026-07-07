@@ -26,6 +26,8 @@ describe('multiplayer config', () => {
     }
     expect(MULTIPLAYER_WEAPONS.mp5.price).toBe(1500);
     expect(MULTIPLAYER_WEAPONS.p228.price).toBe(600);
+    expect(MULTIPLAYER_WEAPONS.dual_berettas.price).toBe(800);
+    expect(MULTIPLAYER_WEAPONS.dual_berettas.teams).toEqual(['attackers']);
     expect(MULTIPLAYER_WEAPONS.awp.magazineSize).toBe(10);
     expect(MULTIPLAYER_WEAPONS.awp.reloadTime).toBe(2.5);
     expect(MULTIPLAYER_WEAPONS.awp.movementSpeedMultiplier).toBe(0.84);
@@ -50,6 +52,7 @@ describe('multiplayer config', () => {
   it('uses exact CS 1.6 per-weapon maximum movement speeds', () => {
     const expected = {
       glock: [1, 1],
+      dual_berettas: [1, 1],
       ak47: [221 / 250, 221 / 250],
       m4a1: [230 / 250, 230 / 250],
       m3: [230 / 250, 230 / 250],
@@ -71,8 +74,9 @@ describe('multiplayer config', () => {
     const expectedCycles = {
       glock: 0.15,
       usp: 0.15,
-      p228: 0.15,
+      p228: 0.2,
       deagle: 0.225,
+      dual_berettas: 0.2,
       mp5: 0.075,
       tmp: 0.07,
       p90: 0.066,

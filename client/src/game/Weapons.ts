@@ -28,7 +28,7 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   }),
   p228: new Weapon({
     id: 'p228', name: 'P228', displayName: 'P228',
-    damage: 28, fireRate: 4.5, magazineSize: 13, reloadTime: 2.2, spread: 0.038,
+    damage: 32, fireRate: 4.5, magazineSize: 13, reloadTime: 2.2, spread: 0.038,
     projectileSpeed: 50, switchTime: 0.25, range: 48, reserveAmmo: 52,
     armorPenetration: 0.48, adsSpreadMultiplier: 0.5
   }),
@@ -40,9 +40,15 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   }),
   five_seven: new Weapon({
     id: 'five_seven', name: 'Five-SeveN', displayName: 'Five-SeveN',
-    damage: 30, fireRate: 5.0, magazineSize: 20, reloadTime: 2.3, spread: 0.035,
+    damage: 20, fireRate: 5.0, magazineSize: 20, reloadTime: 2.7, spread: 0.012,
     projectileSpeed: 55, switchTime: 0.26, range: 54, reserveAmmo: 100,
     armorPenetration: 0.92, adsSpreadMultiplier: 0.48
+  }),
+  dual_berettas: new Weapon({
+    id: 'dual_berettas', name: 'Dual Elites', displayName: 'Dual Elites',
+    damage: 36, fireRate: 5.0, magazineSize: 30, reloadTime: 4.5, spread: 0.012,
+    projectileSpeed: 48, switchTime: 0.26, range: 52, reserveAmmo: 120,
+    armorPenetration: 0.45, adsSpreadMultiplier: 0.5
   }),
   deagle: new Weapon({
     id: 'deagle', name: 'Desert Eagle', displayName: '沙漠之鹰',
@@ -72,7 +78,7 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   }),
   mac10: new Weapon({
     id: 'mac10', name: 'MAC-10', displayName: 'MAC-10',
-    damage: 25, fireRate: 15, magazineSize: 30, reloadTime: 2.2, spread: 0.085,
+    damage: 29, fireRate: 15, magazineSize: 30, reloadTime: 2.2, spread: 0.0045,
     projectileSpeed: 58, switchTime: 0.26, range: 40, reserveAmmo: 100,
     armorPenetration: 0.45, adsSpreadMultiplier: 0.62
   }),
@@ -96,7 +102,7 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   }),
   p90: new Weapon({
     id: 'p90', name: 'P90', displayName: 'P90',
-    damage: 24, fireRate: 16, magazineSize: 50, reloadTime: 2.6, spread: 0.068,
+    damage: 21, fireRate: 16, magazineSize: 50, reloadTime: 2.6, spread: 0.009,
     projectileSpeed: 66, switchTime: 0.3, range: 52, reserveAmmo: 100,
     armorPenetration: 0.72, adsSpreadMultiplier: 0.55
   }),
@@ -122,9 +128,9 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   // ── CS 1.6 霰弹枪 ──────────────────────────────────────────────────────────────
   m3: new Weapon({
     id: 'm3', name: 'M3 Super 90', displayName: 'M3 Super 90',
-    damage: 22, fireRate: 1.1, magazineSize: 8, reloadTime: 2.8, spread: 0.22,
+    damage: 20, fireRate: 1.1, magazineSize: 8, reloadTime: 2.8, spread: 0.22,
     projectileSpeed: 40, switchTime: 0.45, range: 28, reserveAmmo: 32,
-    armorPenetration: 0.3, adsSpreadMultiplier: 0.62, pellets: 8
+    armorPenetration: 0.3, adsSpreadMultiplier: 0.62, pellets: 9
   }),
   nova: new Weapon({
     id: 'nova', name: 'M3 Super 90', displayName: 'M3 Super 90',
@@ -140,9 +146,9 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   }),
   xm1014: new Weapon({
     id: 'xm1014', name: 'XM1014', displayName: 'XM1014',
-    damage: 19, fireRate: 1.8, magazineSize: 7, reloadTime: 3.0, spread: 0.2,
+    damage: 20, fireRate: 1.8, magazineSize: 7, reloadTime: 3.0, spread: 0.2,
     projectileSpeed: 42, switchTime: 0.48, range: 24, reserveAmmo: 32,
-    armorPenetration: 0.25, adsSpreadMultiplier: 0.65, pellets: 8
+    armorPenetration: 0.25, adsSpreadMultiplier: 0.65, pellets: 6
   }),
   sawedoff: new Weapon({
     id: 'sawedoff', name: 'M3 Super 90', displayName: 'M3 Super 90',
@@ -228,7 +234,7 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   // ── CS 1.6 狙击枪 ────────────────────────────────────────────────────────────────
   scout: new Weapon({
     id: 'scout', name: 'Scout', displayName: 'Scout',
-    damage: 68, fireRate: 1.1, magazineSize: 10, reloadTime: 3.0, spread: 0.02,
+    damage: 75, fireRate: 1.1, magazineSize: 10, reloadTime: 3.0, spread: 0.02,
     projectileSpeed: 110, switchTime: 0.56, range: 120, reserveAmmo: 60,
     armorPenetration: 0.96, adsSpreadMultiplier: 0.1, unscopedSpreadMultiplier: 12
   }),
@@ -254,13 +260,13 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   g3sg1: new Weapon({
     id: 'g3sg1', name: 'G3SG1', displayName: 'G3SG1',
     damage: 80, fireRate: 3.0, magazineSize: 20, reloadTime: 3.2, spread: 0.025,
-    projectileSpeed: 105, switchTime: 0.6, range: 115, reserveAmmo: 60,
+    projectileSpeed: 105, switchTime: 0.6, range: 115, reserveAmmo: 90,
     armorPenetration: 0.95, adsSpreadMultiplier: 0.12, unscopedSpreadMultiplier: 10
   }),
   sg550: new Weapon({
     id: 'sg550', name: 'SG 550', displayName: 'SG 550',
-    damage: 80, fireRate: 3.0, magazineSize: 20, reloadTime: 3.2, spread: 0.025,
-    projectileSpeed: 105, switchTime: 0.6, range: 115, reserveAmmo: 60,
+    damage: 70, fireRate: 3.0, magazineSize: 30, reloadTime: 3.2, spread: 0.025,
+    projectileSpeed: 105, switchTime: 0.6, range: 115, reserveAmmo: 90,
     armorPenetration: 0.95, adsSpreadMultiplier: 0.12, unscopedSpreadMultiplier: 10
   }),
   scar20: new Weapon({
@@ -287,7 +293,7 @@ export const WEAPON_DEFINITIONS: Record<string, Weapon> = {
   // ── CS 1.6 近战/装备 ──────────────────────────────────────────────────────────
   knife: new Weapon({
     id: 'knife', name: 'Knife', displayName: '战术刀',
-    damage: 55, fireRate: 1.8, magazineSize: 1, reloadTime: 0, spread: 0,
+    damage: 15, fireRate: 1.8, magazineSize: 1, reloadTime: 0, spread: 0,
     projectileSpeed: 0, ammoConsumed: false, isMelee: true,
     switchTime: 0.18, range: 2.35, reserveAmmo: 0,
     armorPenetration: 0.2, adsSpreadMultiplier: 1

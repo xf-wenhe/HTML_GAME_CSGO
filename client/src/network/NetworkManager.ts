@@ -30,6 +30,7 @@ export type ServerEvent =
   | { type: 'playerJoined'; player: PlayerSnapshot }
   | { type: 'roomState'; snapshot: MatchSnapshot }
   | { type: 'matchSnapshot'; snapshot: MatchSnapshot }
+  | { type: 'matchDelta'; isDelta: boolean; data: Partial<MatchSnapshot> }
   | { type: 'bombState'; bomb?: BombState }
   | { type: 'roomError'; message: string; code?: string }
   | { type: 'roomList'; rooms: RoomListItem[] };
@@ -100,6 +101,7 @@ export class NetworkManager {
     this.socket.on('playerJoined', data => this.emitEvent({ type: 'playerJoined', player: data }));
     this.socket.on('roomState', data => this.emitEvent({ type: 'roomState', snapshot: data }));
     this.socket.on('matchSnapshot', data => this.emitEvent({ type: 'matchSnapshot', snapshot: data }));
+    this.socket.on('matchDelta', data => this.emitEvent({ type: 'matchDelta', isDelta: Boolean(data?.isDelta), data: data?.data ?? {} }));
     this.socket.on('bombState', data => this.emitEvent({ type: 'bombState', bomb: data }));
     this.socket.on('roomError', data => this.emitEvent({ type: 'roomError', message: data.message, code: data.code }));
     this.socket.on('roomList', data => this.emitEvent({ type: 'roomList', rooms: data }));

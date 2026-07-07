@@ -21,13 +21,17 @@ import {
 import {
   DUST2_SPAWNS
 } from './constants/Dust2HammerData.js';
+import { createDust2SourceRouteWalkables } from './Dust2RouteWalkables.js';
 import { type Dust2CollisionProxyBox, type Dust2WorldMeshResource, meshSpecFromDust2WorldMeshResource } from './Dust2MeshResource.js';
-import { type InfernoWorldMeshResource, meshSpecFromInfernoWorldMeshResource } from './InfernoMeshResource.js';
+import type { InfernoWorldMeshResource } from './InfernoMeshResource.js';
 import dust2WorldMeshResourceJson from './source/dust2-world-mesh.json';
-import { INFERNO_WORLD_MESH_RESOURCE as infernoWorldMeshResource } from './generated/inferno-world-mesh.js';
 
 export const DUST2_WORLD_MESH_RESOURCE = dust2WorldMeshResourceJson as Dust2WorldMeshResource;
-export const INFERNO_WORLD_MESH_RESOURCE = infernoWorldMeshResource;
+export const INFERNO_WORLD_MESH_RESOURCE: InfernoWorldMeshResource | null = getInfernoWorldMeshResource();
+
+function getInfernoWorldMeshResource(): InfernoWorldMeshResource | null {
+  return null;
+}
 
 export interface BoxSpec {
   position: THREE.Vector3;
@@ -335,6 +339,23 @@ function getDust2WorldBounds(resource: Dust2WorldMeshResource | null): { mins: T
   };
 }
 
+function getDust2ArenaBounds(resource: Dust2WorldMeshResource | null): ArenaData['bounds'] {
+  const bounds = getDust2WorldBounds(resource);
+  if (!bounds) {
+    return {
+      width: DUST2_GAME_BOUNDS.width,
+      depth: DUST2_GAME_BOUNDS.depth,
+      centerZ: DUST2_GAME_BOUNDS.centerZ,
+    };
+  }
+
+  return {
+    width: bounds.maxs.x - bounds.mins.x,
+    depth: bounds.maxs.z - bounds.mins.z,
+    centerZ: (bounds.mins.z + bounds.maxs.z) / 2,
+  };
+}
+
 function createDust2SourceSafetyColliders(resource: Dust2WorldMeshResource | null): BoxSpec[] {
   const bounds = getDust2WorldBounds(resource);
   if (!bounds) return [];
@@ -480,15 +501,22 @@ function createSourceWalkableColliders(meshes: MeshSpec[], prefix: string): BoxS
 }
 
 function createBoxFromDust2CollisionProxy(proxyBox: Dust2CollisionProxyBox, fallbackKind: BoxSpec['collisionKind']): BoxSpec {
+  const isRamp = (proxyBox.collisionKind ?? fallbackKind) === 'ramp';
+  const rampThickness = 0.12;
+  const sizeY = isRamp ? Math.min(proxyBox.size[1], rampThickness) : proxyBox.size[1];
+  const centerY = isRamp
+    ? proxyBox.position[1] + proxyBox.size[1] / 2 - sizeY / 2
+    : proxyBox.position[1];
+
   return {
-    position: new THREE.Vector3(proxyBox.position[0], proxyBox.position[1], proxyBox.position[2]),
-    size: new THREE.Vector3(proxyBox.size[0], proxyBox.size[1], proxyBox.size[2]),
+    position: new THREE.Vector3(proxyBox.position[0], centerY, proxyBox.position[2]),
+    size: new THREE.Vector3(proxyBox.size[0], sizeY, proxyBox.size[2]),
     color: 0x000000,
     metalness: 0,
     roughness: 1,
     name: proxyBox.name,
     physicsOnly: true,
-    walkable: proxyBox.walkable ?? (fallbackKind === 'floor' || fallbackKind === 'ramp'),
+    walkable: isRamp ? true : (proxyBox.walkable ?? fallbackKind === 'floor'),
     collisionKind: proxyBox.collisionKind ?? fallbackKind,
     sourceBacked: true,
   };
@@ -499,6 +527,7 @@ function createDust2CollisionProxyColliders(resource: Dust2WorldMeshResource | n
   if (proxy?.floors?.length) {
     return [
       ...proxy.floors.map(box => createBoxFromDust2CollisionProxy(box, 'floor')),
+      ...(proxy.ramps ?? []).map(box => createBoxFromDust2CollisionProxy(box, 'ramp')),
       ...(proxy.walls ?? []).map(box => createBoxFromDust2CollisionProxy(box, 'wall')),
     ];
   }
@@ -929,9 +958,7 @@ function buildInfernoArena(): ArenaData {
     A: new THREE.Vector3(INFERNO_BOMB_SITES.A.position.x, 0.04, INFERNO_BOMB_SITES.A.position.z),
     B: new THREE.Vector3(INFERNO_BOMB_SITES.B.position.x, 0.04, INFERNO_BOMB_SITES.B.position.z),
   };
-  const rawSourceMeshes = INFERNO_WORLD_MESH_RESOURCE
-    ? [meshSpecFromInfernoWorldMeshResource(INFERNO_WORLD_MESH_RESOURCE)]
-    : [];
+  const rawSourceMeshes: MeshSpec[] = [];
   const sourceMeshes = rawSourceMeshes.map(createNonWalkableCollisionMesh);
   const sourceGeometry = resolveInfernoSourceGeometry(sourceMeshes, colliderBoxes, [
     box(INFERNO_BOMB_SITES.A.position.x, INFERNO_BOMB_SITES.A.position.y, INFERNO_BOMB_SITES.A.position.z, 3.84, 0.04, 3.84, 0xd4a017, 'inferno-a-bomb-marker', 0.1, 0.6),
@@ -1518,17 +1545,14 @@ function buildDust2Arena(): ArenaData {
   return {
     name: 'Dust2',
     playerSpawn: sourceSpawns.playerSpawn,
-    bounds: {
-      width: DUST2_GAME_BOUNDS.width,
-      depth: DUST2_GAME_BOUNDS.depth,
-      centerZ: DUST2_GAME_BOUNDS.centerZ
-    },
+    bounds: getDust2ArenaBounds(DUST2_WORLD_MESH_RESOURCE),
     enemySpawns: sourceSpawns.enemySpawns,
     bombSites: sourceBombSites,
     colliders: sourceGeometry.meshes.length > 0
       ? [
           ...createDust2CollisionProxyColliders(DUST2_WORLD_MESH_RESOURCE, rawSourceMeshes),
           ...createDust2SourceStabilityFloors(),
+          ...createDust2SourceRouteWalkables(),
           ...createDust2SourceSafetyColliders(DUST2_WORLD_MESH_RESOURCE),
         ]
       : sourceGeometry.colliders,

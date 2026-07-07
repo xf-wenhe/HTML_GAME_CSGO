@@ -24,6 +24,9 @@ import {
 } from './types.js';
 import {
   getCs16BurstTiming,
+  getCs16KnifeAttackCycleSeconds,
+  getCs16KnifeAttackLockSeconds,
+  getCs16KnifeAttackRangeUnits,
   getCs16PrimaryFireCycleSeconds,
   getCs16SilencerTiming,
   getCs16ShotgunReloadTiming,
@@ -50,10 +53,13 @@ const BOMB_PLANT_TIME_MS = 3000;
 const BOMB_DEFUSE_TIME_MS = 10_000;
 const BOMB_DEFUSE_KIT_TIME_MS = 5000;
 const BOMB_ACTION_HEARTBEAT_GRACE_MS = 350;
-const BOMB_FUSE_TIME_MS = 40_000;
+const BOMB_FUSE_TIME_MS = 45_000;
 const BOMB_ACTION_MOVE_CANCEL_DISTANCE = 0.18;
 const BOMB_PICKUP_RADIUS = 1.2;
 const DEFUSAL_BUY_ZONE_RADIUS = 8;
+const DEFUSAL_FREEZE_TIME_MS = 6000;
+const DEFUSAL_BUY_TIME_MS = 90_000;
+const DEFUSAL_ROUND_TIME_MS = 300_000;
 const DEFUSAL_WIN_REWARD = 3250;
 const DEFUSAL_LOSS_REWARDS = [1400, 1900, 2400, 2900, 3400] as const;
 const DEFUSAL_MAX_MONEY = 16_000;
@@ -131,6 +137,7 @@ interface MatchRoom {
   disconnectedAt: Map<string, number>;
   bombActionLastSeenAt?: number;
   bombActionAnchor?: Vector3;
+  buyStartedAt?: number;
   lossStreak: Record<Team, number>;
 }
 
@@ -183,7 +190,7 @@ export class RoomManager {
       phase: config.mode === 'defusal' ? 'buy' : 'warmup',
       round: 1,
       phaseStartedAt: now(),
-      roundEndsAt: now() + (config.mode === 'defusal' ? 35_000 : config.warmupSeconds * 1000),
+      roundEndsAt: now() + (config.mode === 'defusal' ? DEFUSAL_FREEZE_TIME_MS : config.warmupSeconds * 1000),
       score: { attackers: 0, defenders: 0 },
       players: new Map(),
       spectators: new Set(),
@@ -201,6 +208,7 @@ export class RoomManager {
       disconnectedAt: new Map(),
       bombActionLastSeenAt: undefined,
       bombActionAnchor: undefined,
+      buyStartedAt: config.mode === 'defusal' ? now() : undefined,
       lossStreak: { attackers: 0, defenders: 0 }
     };
     this.rooms.set(id, room);
@@ -215,7 +223,7 @@ export class RoomManager {
     return Array.from(this.rooms.values()).find(room =>
       room.config.mode === mode &&
       (!mapId || room.config.mapId === mapId) &&
-      room.players.size < room.config.maxPlayers
+      (room.players.size < room.config.maxPlayers || this.hasPracticeBot(room))
     );
   }
 
@@ -225,12 +233,18 @@ export class RoomManager {
 
   addPlayerToRoom(roomId: string, playerId: string, nameOrState: string | JoinPlayerOptions = 'Player'): boolean {
     const room = this.rooms.get(roomId);
-    if (!room || room.players.size >= room.config.maxPlayers || room.players.has(playerId)) return false;
+    const options = typeof nameOrState === 'string' ? undefined : nameOrState;
+    const joiningBot = Boolean(options?.isBot);
+    if (!room || room.players.has(playerId)) return false;
+    if (room.players.size >= room.config.maxPlayers && !joiningBot) {
+      this.removePracticeBotForHuman(room, options?.preferredTeam ?? options?.team);
+    }
+    if (room.players.size >= room.config.maxPlayers) return false;
 
-    const team = this.pickTeam(room, typeof nameOrState === 'string' ? undefined : nameOrState.preferredTeam ?? nameOrState.team);
+    const team = this.pickTeam(room, options?.preferredTeam ?? options?.team);
     const spawn = this.nextSpawn(room, team);
     const name = typeof nameOrState === 'string' ? nameOrState : nameOrState.name ?? 'Player';
-    const weaponId: WeaponId = typeof nameOrState === 'string' ? defaultWeaponForTeam(team) : nameOrState.weaponId ?? defaultWeaponForTeam(team);
+    const weaponId: WeaponId = options?.weaponId ?? defaultWeaponForTeam(team);
     const ammo = defaultAmmoFor(weaponId);
     const player: PlayerSnapshot = {
       id: playerId,
@@ -258,12 +272,13 @@ export class RoomManager {
       deaths: 0,
       assists: 0,
       ping: 0,
+      isBot: joiningBot || undefined,
       isAlive: true,
       isReady: false
     };
     room.players.set(playerId, player);
     room.spectators.delete(playerId);
-    room.sessionByPlayerId.set(playerId, randomUUID());
+    if (!joiningBot) room.sessionByPlayerId.set(playerId, randomUUID());
     room.disconnectedAt.delete(playerId);
     this.recordEvent(room, 'join', `${name} joined`, playerId);
     if (room.config.mode === 'defusal' && !room.bomb?.carrierId && !room.bomb?.position && room.bomb?.plantedAt === undefined && team === 'attackers') {
@@ -271,6 +286,27 @@ export class RoomManager {
     }
     room.lastActivityAt = now();
     return true;
+  }
+
+  ensureDefusalPracticeBots(roomId: string): MatchSnapshot | undefined {
+    const room = this.rooms.get(roomId);
+    if (!room || room.config.mode !== 'defusal' || room.config.mapId !== 'dust2') return room ? this.snapshot(room) : undefined;
+
+    let botIndex = 1;
+    while (room.players.size < room.config.maxPlayers) {
+      const id = `${room.id}:bot:${botIndex}`;
+      botIndex++;
+      if (room.players.has(id)) continue;
+      const counts = this.teamCounts(room);
+      const preferredTeam: Team = counts.attackers <= counts.defenders ? 'attackers' : 'defenders';
+      this.addPlayerToRoom(room.id, id, {
+        name: `BOT ${botIndex - 1}`,
+        preferredTeam,
+        isBot: true
+      });
+    }
+
+    return this.snapshot(room);
   }
 
   removePlayer(playerId: string): void {
@@ -283,7 +319,7 @@ export class RoomManager {
         room.lastInputSeq.delete(playerId);
         this.dropBombFromCarrier(room, player);
         this.recordEvent(room, 'leave', `${playerId} left`, playerId);
-        if (room.players.size === 0 && room.spectators.size === 0) this.rooms.delete(room.id);
+        if (!this.hasHumanPlayer(room) && room.spectators.size === 0) this.rooms.delete(room.id);
         return;
       }
       if (room.spectators.delete(playerId)) {
@@ -440,7 +476,7 @@ export class RoomManager {
     const room = this.findRoomByPlayer(playerId);
     const player = room?.players.get(playerId);
     if (!room || !player) return undefined;
-    const canBuyNow = room.config.mode !== 'defusal' || room.phase === 'buy';
+    const canBuyNow = this.canPlayerBuy(room);
     if (!canBuyNow) return undefined;
     if (usesCs16WeaponEconomy(room) && !this.isInBuyZone(room, player)) return undefined;
 
@@ -581,12 +617,15 @@ export class RoomManager {
       shooter.isReloading &&
       shooter.ammo > 0 &&
       currentTime >= (shooter.reloadAttackUnlockAt ?? Number.POSITIVE_INFINITY);
+    const nextAllowedAttackAt = shooter.weaponId === 'knife' && request.heavyMelee
+      ? shooter.nextSecondaryAt
+      : shooter.nextFireAt;
     if (
       !shooter.isAlive ||
       room.phase !== 'live' ||
-      shooter.ammo <= 0 ||
+      (shooter.weaponId !== 'knife' && shooter.ammo <= 0) ||
       (shooter.isReloading && !shotgunCanInterruptReload) ||
-      (shooter.nextFireAt !== undefined && currentTime < shooter.nextFireAt)
+      (nextAllowedAttackAt !== undefined && currentTime < nextAllowedAttackAt)
     ) {
       return undefined;
     }
@@ -602,16 +641,29 @@ export class RoomManager {
       ? { ...baseWeapon, damage: shooter.isSilenced ? silencerTiming.silencedDamage : silencerTiming.unsilencedDamage }
       : burstTiming?.primaryDamage !== undefined
         ? { ...baseWeapon, damage: burstTiming.primaryDamage }
-      : baseWeapon;
+        : shooter.weaponId === 'knife' && request.heavyMelee
+          ? { ...baseWeapon, damage: 65 }
+          : baseWeapon;
     if (shotgunCanInterruptReload) {
       shooter.isReloading = false;
       shooter.reloadCompleteAt = undefined;
       shooter.reloadAttackUnlockAt = undefined;
     }
-    const fireCycleSeconds = getCs16PrimaryFireCycleSeconds(shooter.weaponId, shooter.isScoped) ?? 1 / weapon.fireRate;
-    shooter.ammo--;
-    saveCurrentWeaponAmmo(shooter);
-    shooter.nextFireAt = currentTime + Math.round((burstTiming?.primaryCycleSeconds ?? fireCycleSeconds) * 1000);
+    const fireCycleSeconds = shooter.weaponId === 'knife'
+      ? getCs16KnifeAttackCycleSeconds(Boolean(request.heavyMelee))
+      : getCs16PrimaryFireCycleSeconds(shooter.weaponId, shooter.isScoped) ?? 1 / weapon.fireRate;
+    const weaponRange = shooter.weaponId === 'knife'
+      ? getCs16KnifeAttackRangeUnits(Boolean(request.heavyMelee))
+      : weapon.range;
+    if (shooter.weaponId !== 'knife') {
+      shooter.ammo--;
+      saveCurrentWeaponAmmo(shooter);
+    }
+    if (shooter.weaponId === 'knife') {
+      this.applyKnifeAttackLocks(shooter, currentTime, getCs16KnifeAttackLockSeconds(Boolean(request.heavyMelee), true));
+    } else {
+      shooter.nextFireAt = currentTime + Math.round((burstTiming?.primaryCycleSeconds ?? fireCycleSeconds) * 1000);
+    }
     if (burstTiming) {
       shooter.pendingBurstShots = Math.min(2, shooter.ammo);
       shooter.nextBurstShotAt = shooter.pendingBurstShots > 0
@@ -634,14 +686,18 @@ export class RoomManager {
       if (!room.config.friendlyFire && target.team === shooter.team) continue;
       // Use backtracked position for the target
       const targetPos = this.getBacktrackedPosition(room, target.id, backtrackTime) ?? target.position;
-      const hit = this.getPlayerRayHit(request.origin, direction, targetPos, weapon.range);
+      const hit = this.getPlayerRayHit(request.origin, direction, targetPos, weaponRange);
       if (!hit) continue;
       if (!bestTarget || hit.distance < bestTarget.distance) bestTarget = { player: target, ...hit };
     }
 
     if (bestTarget) {
-      room.lastHit = this.damagePlayer(room, shooter, bestTarget.player, weapon, bestTarget.region, currentTime);
+      const hitWeapon = this.applyKnifeBackstabDamage(weapon, request, direction, bestTarget.player);
+      room.lastHit = this.damagePlayer(room, shooter, bestTarget.player, hitWeapon, bestTarget.region, currentTime);
     } else {
+      if (shooter.weaponId === 'knife') {
+        this.applyKnifeAttackLocks(shooter, currentTime, getCs16KnifeAttackLockSeconds(Boolean(request.heavyMelee), false));
+      }
       room.lastHit = {
         shooterId: shooter.id,
         weaponId: shooter.weaponId,
@@ -766,11 +822,34 @@ export class RoomManager {
   }
 
   private pickTeam(room: MatchRoom, preferredTeam?: Team): Team {
-    const counts = { attackers: 0, defenders: 0 };
-    room.players.forEach(player => counts[player.team]++);
+    const counts = this.teamCounts(room);
     const maxPerTeam = Math.ceil(room.config.maxPlayers / 2);
     if (preferredTeam && counts[preferredTeam] < maxPerTeam) return preferredTeam;
     return counts.attackers <= counts.defenders ? 'attackers' : 'defenders';
+  }
+
+  private teamCounts(room: MatchRoom): Record<Team, number> {
+    const counts = { attackers: 0, defenders: 0 };
+    room.players.forEach(player => counts[player.team]++);
+    return counts;
+  }
+
+  private hasPracticeBot(room: MatchRoom): boolean {
+    return Array.from(room.players.values()).some(player => player.isBot);
+  }
+
+  private hasHumanPlayer(room: MatchRoom): boolean {
+    return Array.from(room.players.values()).some(player => !player.isBot);
+  }
+
+  private removePracticeBotForHuman(room: MatchRoom, preferredTeam?: Team): void {
+    const bots = Array.from(room.players.values()).filter(player => player.isBot);
+    const bot = bots.find(player => preferredTeam && player.team === preferredTeam) ?? bots[0];
+    if (!bot) return;
+    room.players.delete(bot.id);
+    room.positionHistory.delete(bot.id);
+    room.lastInputSeq.delete(bot.id);
+    if (room.bomb?.carrierId === bot.id) room.bomb = { ...room.bomb, carrierId: undefined };
   }
 
   private nextSpawn(room: MatchRoom, team: Team): Vector3 {
@@ -785,6 +864,12 @@ export class RoomManager {
     return map.spawns[player.team].some(spawn => distance(player.position, spawn) <= DEFUSAL_BUY_ZONE_RADIUS);
   }
 
+  private canPlayerBuy(room: MatchRoom): boolean {
+    if (room.config.mode !== 'defusal') return true;
+    if (room.phase !== 'buy' && room.phase !== 'live') return false;
+    return now() - (room.buyStartedAt ?? room.phaseStartedAt) <= DEFUSAL_BUY_TIME_MS;
+  }
+
   private findRoomByPlayer(playerId: string): MatchRoom | undefined {
     return Array.from(this.rooms.values()).find(room => room.players.has(playerId));
   }
@@ -796,7 +881,7 @@ export class RoomManager {
   private startLivePhase(room: MatchRoom): void {
     room.phase = 'live';
     room.phaseStartedAt = now();
-    room.roundEndsAt = now() + (room.config.mode === 'defusal' ? 115_000 : 10 * 60_000);
+    room.roundEndsAt = now() + (room.config.mode === 'defusal' ? DEFUSAL_ROUND_TIME_MS : 10 * 60_000);
   }
 
   private startNextRound(room: MatchRoom): void {
@@ -807,7 +892,14 @@ export class RoomManager {
     }
     room.phase = room.config.mode === 'defusal' ? 'buy' : 'live';
     room.phaseStartedAt = now();
-    room.roundEndsAt = now() + (room.phase === 'buy' ? 20_000 : 115_000);
+    room.buyStartedAt = room.config.mode === 'defusal' ? room.phaseStartedAt : undefined;
+    room.roundEndsAt = now() + (
+      room.phase === 'buy'
+        ? DEFUSAL_FREEZE_TIME_MS
+        : room.config.mode === 'defusal'
+          ? DEFUSAL_ROUND_TIME_MS
+          : 115_000
+    );
     room.bomb = room.config.mode === 'defusal' ? {} : undefined;
     room.bombActionLastSeenAt = undefined;
     room.bombActionAnchor = undefined;
@@ -835,6 +927,7 @@ export class RoomManager {
       player.reloadAttackUnlockAt = undefined;
       player.respawnAt = undefined;
       player.nextFireAt = undefined;
+      player.nextSecondaryAt = undefined;
       player.isScoped = false;
       this.clearBurstQueue(player);
       player.disconnected = false;
@@ -863,10 +956,10 @@ export class RoomManager {
   private getPlayerRayHit(origin: Vector3, direction: Vector3, targetPos: Vector3, range: number): { region: HitRegion; distance: number } | undefined {
     const zones: Array<{ region: HitRegion; center: Vector3; radius: number }> = [
       { region: 'head', center: targetPos, radius: 0.34 },
-      { region: 'body', center: { x: targetPos.x, y: targetPos.y - 0.58, z: targetPos.z }, radius: 0.5 },
-      { region: 'body', center: { x: targetPos.x, y: targetPos.y - 1.05, z: targetPos.z }, radius: 0.46 }
+      { region: 'chest' as HitRegion, center: { x: targetPos.x, y: targetPos.y - 0.58, z: targetPos.z }, radius: 0.5 },
+      { region: 'stomach' as HitRegion, center: { x: targetPos.x, y: targetPos.y - 1.05, z: targetPos.z }, radius: 0.46 }
     ];
-    let best: { region: 'head' | 'body'; distance: number } | undefined;
+    let best: { region: HitRegion; distance: number } | undefined;
     for (const zone of zones) {
       const toZone = { x: zone.center.x - origin.x, y: zone.center.y - origin.y, z: zone.center.z - origin.z };
       const t = toZone.x * direction.x + toZone.y * direction.y + toZone.z * direction.z;
@@ -876,6 +969,28 @@ export class RoomManager {
       if (!best || t < best.distance) best = { region: zone.region, distance: t };
     }
     return best;
+  }
+
+  private applyKnifeAttackLocks(player: PlayerSnapshot, currentTime: number, locks: { primary: number; secondary: number }): void {
+    player.nextFireAt = currentTime + Math.round(locks.primary * 1000);
+    player.nextSecondaryAt = currentTime + Math.round(locks.secondary * 1000);
+  }
+
+  private applyKnifeBackstabDamage(
+    weapon: WeaponBalance,
+    request: ShootRequest,
+    attackDirection: Vector3,
+    target: PlayerSnapshot
+  ): WeaponBalance {
+    if (weapon.id !== 'knife' || !request.heavyMelee) return weapon;
+    const targetForward = normalize({
+      x: -Math.sin(target.rotation.y),
+      y: 0,
+      z: -Math.cos(target.rotation.y)
+    });
+    const attackerForward = normalize({ x: attackDirection.x, y: 0, z: attackDirection.z });
+    const sameFacingDot = attackerForward.x * targetForward.x + attackerForward.z * targetForward.z;
+    return sameFacingDot > 0.8 ? { ...weapon, damage: 195 } : weapon;
   }
 
   private damagePlayer(room: MatchRoom, shooter: PlayerSnapshot, target: PlayerSnapshot, weapon: WeaponBalance, region: HitRegion, serverTime: number): HitResult {
@@ -1057,6 +1172,7 @@ export class RoomManager {
     player.reloadAttackUnlockAt = undefined;
     player.respawnAt = undefined;
     player.nextFireAt = undefined;
+    player.nextSecondaryAt = undefined;
     player.isScoped = false;
     this.clearBurstQueue(player);
   }
@@ -1225,6 +1341,7 @@ export class RoomManager {
       serverTime: now(),
       round: room.round,
       roundTimeRemaining: Math.max(0, (room.roundEndsAt - now()) / 1000),
+      buyTimeActive: room.config.mode === 'defusal' ? this.canPlayerBuy(room) : undefined,
       score: room.score, // 【优化 3】移除 { ...room.score }，直接传引用，交由底层序列化
       players: Array.from(room.players.values()).map(player => ({
         ...player, // 外层对象浅拷贝即可
@@ -1300,7 +1417,7 @@ export class RoomManager {
       if (player) this.dropBombFromCarrier(room, player);
       removedExpiredPlayer = true;
     }
-    if (removedExpiredPlayer && room.players.size === 0 && room.spectators.size === 0) this.rooms.delete(room.id);
+    if (removedExpiredPlayer && !this.hasHumanPlayer(room) && room.spectators.size === 0) this.rooms.delete(room.id);
   }
 
   private moveKey<T>(map: Map<string, T>, oldKey: string, newKey: string): void {

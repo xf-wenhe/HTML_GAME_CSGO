@@ -127,6 +127,7 @@ export function createGameServer() {
       const room = roomManager.findJoinableRoom(mode, data.mapId) ?? roomManager.createRoom({ mode, mapId: data.mapId ?? 'dust2', startingMoney: data.startingMoney });
 
       if (roomManager.addPlayerToRoom(room.id, socket.id, { name: playerName, preferredTeam: data.preferredTeam })) {
+        if (mode === 'defusal' && (data.mapId ?? 'dust2') === 'dust2') roomManager.ensureDefusalPracticeBots(room.id);
         socket.join(room.id);
         const snapshot = roomManager.getSnapshot(room.id);
         socket.emit('roomJoined', { roomId: room.id, playerId: socket.id, sessionId: roomManager.getPlayerSessionId(socket.id), snapshot });

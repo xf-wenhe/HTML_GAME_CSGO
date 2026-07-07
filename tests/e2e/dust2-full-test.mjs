@@ -6,8 +6,8 @@ const execAsync = promisify(exec);
 
 const TEST_URL = process.env.E2E_URL || 'http://localhost:5173/';
 const CS16_RULES = {
-  FREEZE_TIME: 5000,
-  ROUND_TIME: 115000,
+  FREEZE_TIME: 6000,
+  ROUND_TIME: 300000,
   PLAYER_SPEED: 250,
   CROUCH_SPEED: 125,
   JUMP_HEIGHT: 45,
@@ -101,6 +101,7 @@ class Dust2TestSuite {
 
     await this.testBasicMechanics();
     await this.testCs16BotMatch();
+    await this.waitForSoloBotLivePhase();
     await this.testMovement();
     await this.testCombat();
     await this.testUiElements();
@@ -172,6 +173,11 @@ class Dust2TestSuite {
     if (state?.cs16BotMatch) {
       this.check(state.cs16BotMatch.phase === 'freezeTime' || state.cs16BotMatch.phase === 'live',
         `游戏阶段正确: ${state.cs16BotMatch.phase}`);
+      this.check(
+        state.cs16BotMatch.roundTimeRemaining > 295
+          && state.cs16BotMatch.roundTimeRemaining <= CS16_RULES.ROUND_TIME / 1000,
+        'CS1.6 单人回合使用五分钟计时'
+      );
       this.check(Array.isArray(state.botDebugStates) && state.botDebugStates.length > 0,
         `Bot 已生成: ${state.botDebugStates.length} 个`);
 
@@ -179,10 +185,20 @@ class Dust2TestSuite {
       this.check(hasWeapons, '所有 Bot 都携带武器');
 
       if (state.cs16BotMatch.phase === 'freezeTime') {
+        this.check(state.cs16BotMatch.freezeRemaining <= CS16_RULES.FREEZE_TIME / 1000, 'CS1.6 单人冻结时间不超过 6 秒');
         this.check(state.canShoot === false, '冻结时间内不能射击');
       }
     }
     await this.takeScreenshot('bot-match');
+  }
+
+  async waitForSoloBotLivePhase() {
+    if (this.currentMode !== 'solo') return;
+    const live = await this.waitForState(async () => {
+      const state = await this.getDebugState();
+      return state?.cs16BotMatch?.phase === 'live';
+    }, CS16_RULES.FREEZE_TIME + 3000);
+    this.check(live, 'CS1.6 单人冻结时间结束后进入 LIVE');
   }
 
   async testMovement() {
@@ -455,6 +471,19 @@ class Dust2TestSuite {
       await this.page.keyboard.press('KeyB');
       await this.page.waitForTimeout(100);
     }
+    const liveStateSeen = await this.waitForState(async () => {
+      const liveState = await this.getDebugState();
+      return liveState?.matchMode === 'defusal' && liveState.matchPhase === 'live';
+    }, CS16_RULES.FREEZE_TIME + 2000);
+    const liveState = await this.getDebugState();
+    this.check(liveStateSeen, '爆破冻结时间结束后进入 LIVE');
+    this.check(
+      typeof liveState?.roundTimeRemaining === 'number'
+        && liveState.roundTimeRemaining > 295
+        && liveState.roundTimeRemaining <= CS16_RULES.ROUND_TIME / 1000,
+      '爆破 LIVE 回合使用 CS1.6 五分钟计时'
+    );
+    this.check(liveState?.buyTimeActive === true, '爆破 LIVE 开局仍处于 CS1.6 90 秒购买窗口');
     await this.takeScreenshot('bomb-mechanics');
   }
 

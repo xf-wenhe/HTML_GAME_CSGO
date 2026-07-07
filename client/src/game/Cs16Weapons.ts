@@ -66,6 +66,14 @@ export const CS16_WEAPON_RULES: Record<string, Cs16WeaponRule> = {
     scoped: false,
     team: 'both',
   },
+  dual_berettas: {
+    id: 'dual_berettas',
+    price: 800,
+    role: 'pistol',
+    killReward: CS16_PISTOL_KILL_REWARD,
+    scoped: false,
+    team: 't',
+  },
   five_seven: {
     id: 'five_seven',
     price: 750,

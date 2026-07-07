@@ -77,7 +77,7 @@ export function canStepUpObstacle(check: StepUpCheck): boolean {
     check.grounded &&
     check.horizontalSpeed > 0.01 &&
     check.obstacleHeight > 0.01 &&
-    check.obstacleHeight <= check.maxStepHeight &&
+    check.obstacleHeight <= check.maxStepHeight + 0.02 &&
     stepSurface &&
     !blockedSurface
   );
