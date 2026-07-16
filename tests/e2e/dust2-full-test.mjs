@@ -136,11 +136,15 @@ class Dust2TestSuite {
     if (!this.page) throw new Error('Page not initialized');
 
     await this.page.click('[data-action="defusal"]');
-    await this.page.waitForTimeout(5000);
+    await this.waitForState(async () => {
+      const state = await this.getDebugState();
+      return state?.matchMode === 'defusal' && state.matchPhase === 'buy';
+    }, 5000);
     await this.takeScreenshot('defusal-started');
 
     await this.testBasicMechanics();
-    await this.testBombMechanics();
+    await this.testBombBuyPolicy();
+    await this.testBombLiveMechanics();
     await this.testMovement();
     await this.testUiElements();
 
@@ -178,6 +182,7 @@ class Dust2TestSuite {
           && state.cs16BotMatch.roundTimeRemaining <= CS16_RULES.ROUND_TIME / 1000,
         'CS1.6 单人回合使用五分钟计时'
       );
+      this.check(state.cs16BotMatch.buyTimeActive === true, 'CS1.6 单人 LIVE 开局仍处于 90 秒购买窗口');
       this.check(Array.isArray(state.botDebugStates) && state.botDebugStates.length > 0,
         `Bot 已生成: ${state.botDebugStates.length} 个`);
 
@@ -187,6 +192,8 @@ class Dust2TestSuite {
       if (state.cs16BotMatch.phase === 'freezeTime') {
         this.check(state.cs16BotMatch.freezeRemaining <= CS16_RULES.FREEZE_TIME / 1000, 'CS1.6 单人冻结时间不超过 6 秒');
         this.check(state.canShoot === false, '冻结时间内不能射击');
+        const phaseLabel = await this.page.textContent('.network-text');
+        this.check(phaseLabel?.trim() === 'BUY', 'CS1.6 单人冻结购买阶段 HUD 显示 BUY');
       }
     }
     await this.takeScreenshot('bot-match');
@@ -304,8 +311,8 @@ class Dust2TestSuite {
     await this.page.keyboard.press('KeyB');
     await this.page.waitForTimeout(300);
     const buyState = await this.getDebugState();
-    if (buyState?.cs16BotMatch?.phase === 'live') {
-      this.check(buyState?.isBuyMenuOpen === false, 'LIVE 阶段 B 键只提示，不遮挡战斗视野');
+    if (buyState?.cs16BotMatch?.phase === 'live' && buyState.cs16BotMatch.buyTimeActive === true) {
+      this.check(buyState?.isBuyMenuOpen === true, 'CS1.6 LIVE 购买窗口内 B 键打开买菜单');
     } else {
       this.check(buyState?.isBuyMenuOpen === true, 'B 键打开购买菜单');
     }
@@ -445,32 +452,46 @@ class Dust2TestSuite {
     await this.takeScreenshot('tdm-buy-policy');
   }
 
-  async testBombMechanics() {
+  async testBombBuyPolicy() {
     const state = await this.getDebugState();
     this.check(state?.cs16BotMatch !== null || state?.activePanel !== undefined, '游戏状态系统可用');
-    if (this.currentMode === 'defusal' && state?.matchMode === 'defusal' && state?.matchPhase === 'buy') {
-      await this.page.keyboard.press('KeyB');
-      await this.page.waitForTimeout(200);
-      const buyPolicy = await this.page.evaluate(() => ({
-        isBuyMenuOpen: window.__debugInputState?.().isBuyMenuOpen,
-        localTeam: window.__debugInputState?.().localTeam,
-        hasAwp: Boolean(document.querySelector('[data-weapon="awp"]')),
-        akDisabled: document.querySelector('[data-weapon="ak47"]')?.disabled ?? null,
-        akTitle: document.querySelector('[data-weapon="ak47"]')?.getAttribute('title') ?? '',
-        m4Disabled: document.querySelector('[data-weapon="m4a1"]')?.disabled ?? null,
-        m4Title: document.querySelector('[data-weapon="m4a1"]')?.getAttribute('title') ?? '',
-        uspDisabled: document.querySelector('[data-weapon="usp"]')?.disabled ?? null,
-        uspTitle: document.querySelector('[data-weapon="usp"]')?.getAttribute('title') ?? '',
-      }));
-      this.check(buyPolicy.isBuyMenuOpen === true, '爆破购买阶段 B 键打开 CS1.6 买菜单');
-      this.check(buyPolicy.localTeam === 'attackers', '爆破首个本地玩家默认 T 方');
-      this.check(buyPolicy.hasAwp === true, '爆破买菜单包含 CS1.6 AWP');
-      this.check(buyPolicy.akDisabled === true && buyPolicy.akTitle === '金钱不足', '爆破 T 方 AK 可见但手枪局金钱不足');
-      this.check(buyPolicy.m4Disabled === true && buyPolicy.m4Title === '当前阵营不能购买', '爆破 T 方不能购买 M4A1');
-      this.check(buyPolicy.uspDisabled === true && buyPolicy.uspTitle === '当前阵营不能购买', '爆破 T 方不能购买 USP');
-      await this.page.keyboard.press('KeyB');
-      await this.page.waitForTimeout(100);
+    this.check(this.currentMode === 'defusal' && state?.matchMode === 'defusal' && state?.matchPhase === 'buy', '爆破开局处于 CS1.6 冻结购买阶段');
+
+    await this.page.keyboard.press('KeyB');
+    await this.page.waitForTimeout(200);
+    const buyPolicy = await this.page.evaluate(() => ({
+      isBuyMenuOpen: window.__debugInputState?.().isBuyMenuOpen,
+      localTeam: window.__debugInputState?.().localTeam,
+      hasAwp: Boolean(document.querySelector('[data-weapon="awp"]')),
+      akDisabled: document.querySelector('[data-weapon="ak47"]')?.disabled ?? null,
+      akTitle: document.querySelector('[data-weapon="ak47"]')?.getAttribute('title') ?? '',
+      m4Disabled: document.querySelector('[data-weapon="m4a1"]')?.disabled ?? null,
+      m4Title: document.querySelector('[data-weapon="m4a1"]')?.getAttribute('title') ?? '',
+      uspDisabled: document.querySelector('[data-weapon="usp"]')?.disabled ?? null,
+      uspTitle: document.querySelector('[data-weapon="usp"]')?.getAttribute('title') ?? '',
+    }));
+    this.check(buyPolicy.isBuyMenuOpen === true, '爆破购买阶段 B 键打开 CS1.6 买菜单');
+    this.check(buyPolicy.localTeam === 'attackers', '爆破首个本地玩家默认 T 方');
+    this.check(buyPolicy.hasAwp === true, '爆破买菜单包含 CS1.6 AWP');
+    this.check(buyPolicy.akDisabled === true && buyPolicy.akTitle === '金钱不足', '爆破 T 方 AK 可见但手枪局金钱不足');
+    this.check(buyPolicy.m4Disabled === true && buyPolicy.m4Title === '当前阵营不能购买', '爆破 T 方不能购买 M4A1');
+    this.check(buyPolicy.uspDisabled === true && buyPolicy.uspTitle === '当前阵营不能购买', '爆破 T 方不能购买 USP');
+    await this.page.keyboard.press('KeyB');
+    await this.page.waitForTimeout(100);
+
+    const frozenPosition = state?.playerPosition;
+    if (frozenPosition) {
+      await this.page.keyboard.down('KeyW');
+      await this.page.waitForTimeout(400);
+      await this.page.keyboard.up('KeyW');
+      const movedState = await this.getDebugState();
+      const moved = movedState?.playerPosition
+        && (Math.abs(movedState.playerPosition.x - frozenPosition.x) > 0.08 || Math.abs(movedState.playerPosition.z - frozenPosition.z) > 0.08);
+      this.check(!moved && movedState?.canMove === false, '爆破冻结购买阶段冻结移动');
     }
+  }
+
+  async testBombLiveMechanics() {
     const liveStateSeen = await this.waitForState(async () => {
       const liveState = await this.getDebugState();
       return liveState?.matchMode === 'defusal' && liveState.matchPhase === 'live';

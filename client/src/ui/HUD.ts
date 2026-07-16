@@ -733,7 +733,7 @@ export class HUD {
     this.waveText.textContent = stats.objective;
     this.enemiesText.textContent = `${stats.botsAlive}/${stats.botsTotal} BOT`;
     this.roomText.textContent = 'Dust2 Bot Match';
-    this.networkText.textContent = stats.phase === 'freezeTime' ? 'FREEZE' : stats.phase === 'roundEnd' ? 'ROUND END' : 'LIVE';
+    this.networkText.textContent = stats.phase === 'freezeTime' ? 'BUY' : stats.phase === 'roundEnd' ? 'ROUND END' : 'LIVE';
     this.scoreText.textContent = `$${stats.money}`;
     this.syncPointerLockGuideForCs16();
   }

@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-06-20T01:44:03.277Z",
+  "timestamp": "2026-07-16T12:25:05.099Z",
   "baseline": {
     "movement": {
       "runSpeed": 250,
-      "walkSpeed": 110,
+      "walkSpeed": 120,
       "crouchSpeed": 85,
       "stopDistance": 1.23,
       "accelerationTime": 0.35,
@@ -11,7 +11,7 @@
     },
     "jump": {
       "height": 45,
-      "timeToPeak": 0.38,
+      "timeToPeak": 0.335,
       "gravity": 800
     },
     "friction": {
@@ -29,22 +29,22 @@
       }
     },
     "timing": {
-      "freezeTime": 5,
-      "roundTime": 115
+      "freezeTime": 6,
+      "roundTime": 300
     }
   },
   "measured": {
     "movement": {
-      "runSpeedHu": 249.94975337085666
+      "runSpeedHu": 249.97487542293956
     },
     "jump": {
-      "heightHu": 43.77659441526705,
-      "timeToPeak": 0.3901999999880791
+      "heightHu": 43.405244845701894,
+      "timeToPeak": 0.329413284665714
     },
     "bots": {
       "count": 5,
-      "moving": 3,
-      "movementRatio": 0.6
+      "moving": 2,
+      "movementRatio": 0.4
     },
     "weapons": {
       "ammoWorks": true
@@ -54,57 +54,57 @@
     {
       "category": "movement",
       "metric": "奔跑速度",
-      "measured": 249.94975337085666,
+      "measured": 249.97487542293956,
       "baseline": 250,
       "unit": " HU/s",
-      "diffPercent": 0.020098651657337995,
+      "diffPercent": 0.010049830824175387,
       "passed": true,
-      "score": 99.86600898895108
+      "score": 99.93300112783882
     },
     {
       "category": "jump",
       "metric": "跳跃高度",
-      "measured": 43.77659441526705,
+      "measured": 43.405244845701894,
       "baseline": 45,
       "unit": " HU",
-      "diffPercent": 2.7186790771843365,
+      "diffPercent": 3.54390034288468,
       "passed": true,
-      "score": 89.12528369126265
+      "score": 85.82439862846127
     },
     {
       "category": "jump",
       "metric": "跳跃上升时间",
-      "measured": 0.3901999999880791,
-      "baseline": 0.38,
+      "measured": 0.329413284665714,
+      "baseline": 0.335,
       "unit": "s",
-      "diffPercent": 2.6842105231787046,
+      "diffPercent": 1.6676762191898529,
       "passed": true,
-      "score": 89.26315790728519
+      "score": 93.32929512324058
     },
     {
       "category": "movement",
       "metric": "静步速度",
-      "measured": 109.97789148317693,
-      "baseline": 110,
+      "measured": 119.98794020301098,
+      "baseline": 120,
       "unit": " HU/s",
-      "diffPercent": 0.02009865165733386,
+      "diffPercent": 0.010049830824184387,
       "passed": true,
-      "score": 99.86600898895111
+      "score": 99.93300112783878
     },
     {
       "category": "movement",
       "metric": "蹲下移动速度",
-      "measured": 84.98291614609126,
+      "measured": 83.24163351583888,
       "baseline": 85,
       "unit": " HU/s",
-      "diffPercent": 0.02009865165734602,
+      "diffPercent": 2.0686664519542535,
       "passed": true,
-      "score": 99.86600898895102
+      "score": 86.20889032030497
     },
     {
       "category": "bots",
       "metric": "Bot移动比例",
-      "measured": 0.6,
+      "measured": 0.4,
       "baseline": 0.5,
       "unit": "",
       "diffPercent": 19.999999999999996,
@@ -124,14 +124,14 @@
     {
       "category": "timing",
       "metric": "冻结时间",
-      "measured": 5,
-      "baseline": 5,
+      "measured": 6,
+      "baseline": 6,
       "unit": "s",
       "diffPercent": 0,
       "passed": true,
       "score": 100
     }
   ],
-  "score": 92.24830857067514,
+  "score": 90.65357329096057,
   "issues": []
 }

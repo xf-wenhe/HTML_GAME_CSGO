@@ -84,6 +84,19 @@ describe('Cs16BotMatch', () => {
     expect(ctMatch.tryBuy({ weaponId: 'm4a1' }, true).ok).toBe(true);
   });
 
+  it('keeps CS1.6 buy time open for 90 seconds after round start', () => {
+    const match = new Cs16BotMatch({ startingMoney: 1500 });
+    match.update(0, false);
+    match.update(6.1, false);
+
+    expect(match.getStats().phase).toBe('live');
+    expect(match.tryBuy({ weaponId: 'mp5' }, true).ok).toBe(true);
+
+    match.update(84, false);
+    expect(match.tryBuy({ armor: true }, true).ok).toBe(false);
+    expect(match.tryBuy({ armor: true }, true).reason).toBe('购买时间已结束');
+  });
+
   it('keeps movement, bots, and shooting frozen during buy time', () => {
     const match = new Cs16BotMatch({ freezeSeconds: 2 });
     match.update(0, false);

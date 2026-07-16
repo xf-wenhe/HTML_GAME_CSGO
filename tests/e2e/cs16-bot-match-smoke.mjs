@@ -90,8 +90,14 @@ if (botDistance < 0.15 && !moved.botDebugStates.some(bot => bot.state === 'attac
 await page.keyboard.press('KeyB');
 await page.waitForTimeout(120);
 const buyOpen = await page.evaluate(() => window.__debugInputState?.());
-if (buyOpen.isBuyMenuOpen) throw new Error('Expected B during live play to show a toast without opening the obstructive buy menu.');
-if (buyOpen.activePanel === 'buyMenu') throw new Error('Expected live play to remain unobstructed by the buy menu.');
+if (buyOpen.cs16BotMatch?.buyTimeActive !== true) {
+  throw new Error(`Expected CS1.6 90-second live buy window to still be active, got ${JSON.stringify(buyOpen.cs16BotMatch)}.`);
+}
+if (!buyOpen.isBuyMenuOpen || buyOpen.activePanel !== 'buyMenu') {
+  throw new Error('Expected B during the live buy window to open the CS1.6 buy menu.');
+}
+await page.keyboard.press('Escape');
+await page.waitForTimeout(120);
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('[data-action="solo"]', { timeout: 10_000 });

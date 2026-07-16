@@ -19,6 +19,8 @@ export interface Cs16BotMatchStats {
   round: number;
   roundTimeRemaining: number;
   freezeRemaining: number;
+  buyTimeRemaining: number;
+  buyTimeActive: boolean;
   roundEndRemaining: number;
   score: Record<Team, number>;
   money: number;
@@ -48,6 +50,7 @@ export interface Cs16BotSpawnPlan {
 export interface Cs16BotMatchOptions {
   freezeSeconds?: number;
   roundSeconds?: number;
+  buySeconds?: number;
   roundEndSeconds?: number;
   botCount?: number;
   playerTeam?: Team;
@@ -70,9 +73,11 @@ export class Cs16BotMatch {
   private botsAlive = 0;
   private botsTotal = 0;
   private phaseElapsed = 0;
+  private roundElapsed = 0;
   private endReason: Cs16RoundEndReason = null;
   private readonly freezeSeconds: number;
   private readonly roundSeconds: number;
+  private readonly buySeconds: number;
   private readonly roundEndSeconds: number;
   private readonly botCount: number;
   private readonly playerTeam: Team;
@@ -84,6 +89,7 @@ export class Cs16BotMatch {
   constructor(options: Cs16BotMatchOptions = {}) {
     this.freezeSeconds = options.freezeSeconds ?? 6;
     this.roundSeconds = options.roundSeconds ?? 300;
+    this.buySeconds = options.buySeconds ?? 90;
     this.roundEndSeconds = options.roundEndSeconds ?? 4;
     this.botCount = options.botCount ?? 5;
     this.playerTeam = options.playerTeam ?? 'attackers';
@@ -127,6 +133,7 @@ export class Cs16BotMatch {
     this.round++;
     this.phase = 'freezeTime';
     this.phaseElapsed = 0;
+    this.roundElapsed = 0;
     this.endReason = null;
     this.botsTotal = this.botCount;
     this.botsAlive = this.botCount;
@@ -141,6 +148,9 @@ export class Cs16BotMatch {
     }
 
     this.phaseElapsed += Math.max(0, dt);
+    if (this.phase === 'freezeTime' || this.phase === 'live') {
+      this.roundElapsed += Math.max(0, dt);
+    }
 
     if (this.phase === 'freezeTime' && this.phaseElapsed >= this.freezeSeconds) {
       this.phase = 'live';
@@ -204,8 +214,8 @@ export class Cs16BotMatch {
     inBuyZone: boolean,
     currentGrenades: Partial<Record<GrenadeId, number>> = {}
   ): Cs16BuyResult {
-    if (this.phase !== 'freezeTime') return { ok: false, reason: '只能在冻结购买时间购买', money: this.money };
-    if (!inBuyZone) return { ok: false, reason: '必须站在出生买区内购买', money: this.money };
+    const disabledReason = this.getBuyDisabledReason(inBuyZone);
+    if (disabledReason) return { ok: false, reason: disabledReason, money: this.money };
 
     const grenadeRule = request.grenadeId ? CS16_GRENADE_RULES[request.grenadeId] : undefined;
     const weaponRule = request.weaponId ? getCs16WeaponRule(request.weaponId) : undefined;
@@ -250,12 +260,21 @@ export class Cs16BotMatch {
     return this.phase === 'live';
   }
 
+  getBuyDisabledReason(inBuyZone: boolean): string | undefined {
+    if (this.phase !== 'freezeTime' && this.phase !== 'live') return '购买时间已结束';
+    if (this.roundElapsed > this.buySeconds) return '购买时间已结束';
+    if (!inBuyZone) return '必须站在出生买区内购买';
+    return undefined;
+  }
+
   getStats(): Cs16BotMatchStats {
     return {
       phase: this.phase,
       round: this.round,
       roundTimeRemaining: this.phase === 'live' ? Math.max(0, this.roundSeconds - this.phaseElapsed) : this.roundSeconds,
       freezeRemaining: this.phase === 'freezeTime' ? Math.max(0, this.freezeSeconds - this.phaseElapsed) : 0,
+      buyTimeRemaining: this.phase === 'freezeTime' || this.phase === 'live' ? Math.max(0, this.buySeconds - this.roundElapsed) : 0,
+      buyTimeActive: (this.phase === 'freezeTime' || this.phase === 'live') && this.roundElapsed <= this.buySeconds,
       roundEndRemaining: this.phase === 'roundEnd' ? Math.max(0, this.roundEndSeconds - this.phaseElapsed) : 0,
       score: { ...this.score },
       money: this.money,

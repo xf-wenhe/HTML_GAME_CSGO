@@ -4,6 +4,28 @@ import { MatchSnapshot } from '../game/types.js';
 import { getCs16BuyableWeaponIdsForTeam } from '../game/Cs16Weapons.js';
 
 describe('HUD notifications and weapon slots', () => {
+  it('labels CS1.6 Bot Match freeze time as BUY rather than FREEZE', () => {
+    const hud = new HUD();
+    document.body.appendChild(hud.getElement());
+
+    hud.updateCs16BotMatch({
+      phase: 'freezeTime',
+      round: 1,
+      roundTimeRemaining: 300,
+      freezeRemaining: 6,
+      score: { attackers: 0, defenders: 0 },
+      money: 800,
+      kills: 0,
+      deaths: 0,
+      botsAlive: 5,
+      botsTotal: 5,
+      objective: '购买时间 6 秒',
+    });
+
+    expect(hud.getElement().querySelector('.network-text')?.textContent).toBe('BUY');
+    hud.dispose();
+  });
+
   it('renders a categorized buy menu with armor, grenades, and prices', () => {
     const hud = new HUD();
     document.body.appendChild(hud.getElement());

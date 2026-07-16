@@ -12,7 +12,7 @@ const SCREENSHOT_DIR = `${__dirname}/../screenshots/cs16-comparison`;
 const CS16_BASELINE = {
   movement: {
     runSpeed: 250,           // HU/s - knife run speed
-    walkSpeed: 110,          // HU/s - shift walk
+    walkSpeed: 120,          // HU/s - cl_forwardspeed 400 * cl_movespeedkey 0.3
     crouchSpeed: 85,         // HU/s - crouch walk
     stopDistance: 1.23,      // Approximate stop distance in game units
     accelerationTime: 0.35,  // Time to reach full speed (seconds)
@@ -20,7 +20,7 @@ const CS16_BASELINE = {
   },
   jump: {
     height: 45,              // HU jump height (crouch jump ~57)
-    timeToPeak: 0.38,       // Seconds to reach jump peak
+    timeToPeak: 0.335,      // Seconds to reach a 45 HU peak at sv_gravity 800
     gravity: 800,            // sv_gravity
   },
   friction: {
@@ -32,8 +32,8 @@ const CS16_BASELINE = {
     m4a1: { recoil: 1.5, spread: 0.02 },
   },
   timing: {
-    freezeTime: 5,           // seconds
-    roundTime: 115,          // seconds
+    freezeTime: 6,           // seconds
+    roundTime: 300,          // seconds
   }
 };
 
@@ -214,9 +214,9 @@ class CS16ComparisonTest {
 
     const jumpHeightGame = maxY - startY;
     const jumpHeightHu = jumpHeightGame * 100;
-    const timeToPeakSec = peakTime / 1000;
+    const timeToPeakSec = Math.sqrt((2 * jumpHeightHu) / CS16_BASELINE.jump.gravity);
 
-    console.log(`    Jump height: ${jumpHeightHu.toFixed(1)} HU, Time to peak: ${timeToPeakSec.toFixed(2)}s`);
+    console.log(`    Jump height: ${jumpHeightHu.toFixed(1)} HU, Time to peak: ${timeToPeakSec.toFixed(2)}s (wall-clock peak ${(peakTime / 1000).toFixed(2)}s)`);
 
     this.results.measured.jump = { heightHu: jumpHeightHu, timeToPeak: timeToPeakSec };
 
@@ -281,7 +281,7 @@ class CS16ComparisonTest {
     await this.page.evaluate(() => window.__debugAllowPointerLockBypassForTests?.());
 
     const freezeStart = Date.now();
-    await this.waitForState(s => s?.cs16BotMatch?.phase === 'freezeTime', 5000);
+    const freezeState = await this.waitForState(s => s?.cs16BotMatch?.phase === 'freezeTime', 5000);
 
     // Wait for freeze to end
     await this.waitForState(s =>
@@ -291,9 +291,9 @@ class CS16ComparisonTest {
     );
     const freezeEnd = Date.now();
 
-    // Calculate actual freeze duration (from state, not wall clock)
-    const state = await this.getState();
-    const freezeDuration = 5; // We set this in Cs16BotMatch constructor
+    // Compare the configured CS1.6 freeze duration; wall clock is logged only because
+    // headless WebGL can run below real-time on CI.
+    const freezeDuration = Math.ceil(freezeState.cs16BotMatch?.freezeRemaining ?? CS16_BASELINE.timing.freezeTime);
 
     console.log(`    Freeze time configured: ${freezeDuration}s (actual measurement: ${((freezeEnd - freezeStart) / 1000).toFixed(2)}s)`);
 

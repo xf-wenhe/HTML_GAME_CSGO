@@ -1686,10 +1686,7 @@ function isPlayerInBuyZone(): boolean {
 
 function getSoloBotBuyDisabledReason(): string | undefined {
   if (!soloBotMatch) return undefined;
-  const stats = soloBotMatch.getStats();
-  if (stats.phase !== 'freezeTime') return '只能在冻结购买时间购买';
-  if (!isPlayerInBuyZone()) return '必须站在出生买区内购买';
-  return undefined;
+  return soloBotMatch.getBuyDisabledReason(isPlayerInBuyZone());
 }
 
 function applyMatchSnapshot(snapshot: MatchSnapshot): void {
